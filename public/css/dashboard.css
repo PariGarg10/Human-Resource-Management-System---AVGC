@@ -1,0 +1,181 @@
+.attendance-calendar-modern {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.cal-weekday {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px 4px;
+  text-transform: uppercase;
+}
+
+.cal-day {
+  min-height: 56px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  padding: 8px;
+  font-size: 13px;
+  background: var(--bg);
+  cursor: default;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cal-day:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+.cal-day .day-num {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.cal-day .day-status {
+  font-size: 10px;
+  text-transform: capitalize;
+  opacity: 0.85;
+}
+
+.cal-day.weekend {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+.cal-day.present {
+  border-color: var(--success);
+  background: var(--success-soft);
+}
+
+.cal-day.halfday {
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.cal-day.absent {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.cal-day.leave {
+  border-color: var(--info);
+  background: var(--info-soft);
+}
+
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px 24px;
+  text-align: center;
+  background: var(--bg);
+  transition: border-color var(--transition), background var(--transition);
+  cursor: pointer;
+}
+
+.dropzone:hover,
+.dropzone.is-dragover {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.dropzone input[type="file"] {
+  display: none;
+}
+
+.progress-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), #7a0000);
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.toast-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 3000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  min-width: 280px;
+  max-width: 400px;
+  padding: 14px 18px;
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  font-size: 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: toastIn 0.35s ease;
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.toast-success {
+  background: var(--surface);
+  border-left: 4px solid var(--success);
+  color: var(--text);
+}
+
+.toast-error {
+  background: var(--surface);
+  border-left: 4px solid var(--danger);
+}
+
+.toast-info {
+  background: var(--surface);
+  border-left: 4px solid var(--primary);
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  border-radius: var(--radius-sm);
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--text-muted);
+}
+
+.empty-state svg {
+  width: 80px;
+  height: 80px;
+  margin-bottom: 16px;
+  opacity: 0.4;
+}

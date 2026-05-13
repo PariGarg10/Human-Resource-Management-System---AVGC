@@ -1,0 +1,44 @@
+/* Load order — single entry for dashboards */
+@import url("variables.css");
+@import url("layout.css");
+@import url("sidebar.css");
+@import url("navbar.css");
+@import url("cards.css");
+@import url("tables.css");
+@import url("forms.css");
+@import url("modals.css");
+@import url("dashboard.css");
+@import url("responsive.css");
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+a {
+  color: var(--primary);
+}
+
+/* Legacy compatibility */
+.message {
+  min-height: 20px;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+.message:not(:empty) {
+  color: var(--danger);
+}

@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="AVGC — real-time attendance tracking for teams, schools, and enterprises." />
+  <title>AVGC · Smart attendance tracking</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="preload" href="/assets/hero-poster.svg" as="image" type="image/svg+xml" />
+  <link rel="stylesheet" href="/css/variables.css" />
+  <link rel="stylesheet" href="/css/site-marketing.css" />
+</head>
+<body class="site-marketing">
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+
+  <div class="site-nav-overlay" id="siteNavOverlay" aria-hidden="true"></div>
+  <nav class="site-nav-drawer" id="siteNavDrawer" aria-label="Mobile menu">
+    <a href="/">Home</a>
+    <a href="/features">Features</a>
+    <a href="/#how-it-works">How it works</a>
+    <a href="/pricing">Pricing</a>
+    <a href="/login">Sign in</a>
+  </nav>
+
+  <header class="site-header" role="banner">
+    <a class="site-header__brand" href="/" aria-label="AVGC home">AVGC</a>
+    <nav class="site-header__nav" aria-label="Primary">
+      <a href="/" aria-current="page">Home</a>
+      <a href="/features">Features</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="/pricing">Pricing</a>
+    </nav>
+    <div class="site-header__actions">
+      <a class="site-header__cta" href="/login">Sign in</a>
+      <button type="button" class="site-nav-toggle" id="siteNavToggle" aria-expanded="false" aria-controls="siteNavDrawer" aria-label="Open menu">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="hero" aria-label="Introduction">
+      <div class="hero__video-wrap">
+        <!-- Replace URLs with your own muted office / abstract loop for production. -->
+        <video
+          class="hero__video"
+          autoplay
+          muted
+          loop
+          playsinline
+          preload="metadata"
+          poster="/assets/hero-poster.svg"
+          aria-hidden="true"
+        >
+          <source src="https://test-videos.co.uk/vids/bigbuckbunny/webm/vp9/360/Big_Buck_Bunny_360_10s_1MB.webm" type="video/webm" />
+          <source src="https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4" type="video/mp4" />
+        </video>
+        <div class="hero__overlay"></div>
+        <div class="hero__vignette" aria-hidden="true"></div>
+        <div class="hero-watermark" aria-hidden="true">AVGC</div>
+      </div>
+      <div class="hero__inner">
+        <p class="hero__eyebrow">— Smart attendance tracking —</p>
+        <h1 class="hero__headline">
+          <span>Track.</span>
+          <span>Manage.</span>
+          <span class="hero__headline-accent">Report.</span>
+        </h1>
+        <p class="hero__sub">
+          Real-time attendance tracking for teams, schools, and enterprises. Mark, monitor, and analyse — all from one dashboard.
+        </p>
+        <div class="hero__ctas">
+          <a class="btn-hero-primary" href="/login" aria-label="Start free trial — sign in">Start free trial</a>
+          <a class="btn-hero-ghost" href="#how-it-works" aria-label="See how AVGC works">See how it works</a>
+        </div>
+      </div>
+      <a class="hero__scroll" href="#features" aria-label="Scroll to features">
+        <span>Scroll</span>
+        <span class="hero__scroll-arrow" aria-hidden="true"></span>
+      </a>
+    </section>
+
+    <section id="features" class="section section--white reveal-on-scroll">
+      <span class="section__label">Why AVGC</span>
+      <h2 class="section__title">Built for accuracy and speed</h2>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="feature-card__icon" aria-hidden="true">◎</div>
+          <h3>Leave &amp; absence</h3>
+          <p>Policies, balances, and approvals in one flow — fewer spreadsheets, fewer disputes.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-card__icon" aria-hidden="true">◇</div>
+          <h3>Payroll-ready exports</h3>
+          <p>Structured attendance data that plugs into payroll and HRIS with minimal cleanup.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-card__icon" aria-hidden="true">!</div>
+          <h3>Smart alerts</h3>
+          <p>Late arrivals, missing punches, and leave conflicts surfaced before they become problems.</p>
+        </article>
+        <article class="feature-card">
+          <div class="feature-card__icon" aria-hidden="true">▣</div>
+          <h3>Cross-platform</h3>
+          <p>Responsive web experience with touch-friendly controls for deskless and hybrid teams.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="how-it-works" class="section section--dark reveal-on-scroll">
+      <span class="section__label">How it works</span>
+      <h2 class="section__title">Up and running in minutes</h2>
+      <div class="steps-grid">
+        <article class="step-card">
+          <div class="step-card__num">01</div>
+          <h3>Create your organisation</h3>
+          <p>Set structure, policies, and working patterns in a guided setup.</p>
+        </article>
+        <article class="step-card">
+          <div class="step-card__num">02</div>
+          <h3>Invite your team</h3>
+          <p>Email-based invites with role-aware access for admins, managers, and employees.</p>
+        </article>
+        <article class="step-card">
+          <div class="step-card__num">03</div>
+          <h3>Start tracking</h3>
+          <p>Check-ins, calendars, and live views update as your team works.</p>
+        </article>
+        <article class="step-card">
+          <div class="step-card__num">04</div>
+          <h3>Analyse &amp; act</h3>
+          <p>Export, audit, and adjust with clear history and accountability.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section section--surface reveal-on-scroll" aria-labelledby="dash-title">
+      <span class="section__label">Live dashboard</span>
+      <h2 id="dash-title" class="section__title">Your command centre</h2>
+      <div class="dash-mock" role="img" aria-label="Sample dashboard showing totals and attendance table">
+        <div class="dash-mock__chrome">
+          <div class="dash-mock__dots" aria-hidden="true"><span></span><span></span><span></span></div>
+          <span>AVGC dashboard</span>
+        </div>
+        <div class="dash-mock__body">
+          <div class="dash-mock__metrics">
+            <div class="dash-metric">
+              <div class="dash-metric__label">Total employees</div>
+              <div class="dash-metric__value">248</div>
+            </div>
+            <div class="dash-metric">
+              <div class="dash-metric__label">Present today</div>
+              <div class="dash-metric__value">221</div>
+            </div>
+            <div class="dash-metric dash-metric--alert">
+              <div class="dash-metric__label">Absent / on leave</div>
+              <div class="dash-metric__value">14</div>
+            </div>
+          </div>
+          <table class="dash-table">
+            <thead>
+              <tr>
+                <th scope="col">Name</th>
+                <th scope="col">Department</th>
+                <th scope="col">Check-in</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>A. Sharma</td>
+                <td>Engineering</td>
+                <td>09:02</td>
+                <td><span class="pill pill--ok">Present</span></td>
+              </tr>
+              <tr>
+                <td>M. Lee</td>
+                <td>Operations</td>
+                <td>09:24</td>
+                <td><span class="pill pill--late">Late</span></td>
+              </tr>
+              <tr>
+                <td>R. Patel</td>
+                <td>Support</td>
+                <td>—</td>
+                <td><span class="pill pill--absent">Absent</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats-band reveal-on-scroll" aria-label="Impact statistics">
+      <div class="stats-grid">
+        <div class="stat-block">
+          <div class="stat-block__value">50,000+</div>
+          <div class="stat-block__label">Employees tracked</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-block__value">1,200+</div>
+          <div class="stat-block__label">Organisations</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-block__value">99%</div>
+          <div class="stat-block__label">Uptime</div>
+        </div>
+        <div class="stat-block">
+          <div class="stat-block__value">4 min</div>
+          <div class="stat-block__label">Avg. setup time</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pricing" class="section section--white reveal-on-scroll">
+      <span class="section__label">Pricing</span>
+      <h2 class="section__title">Simple, transparent plans</h2>
+      <div class="pricing-row">
+        <article class="price-card">
+          <h3>Starter</h3>
+          <p class="amount">$29</p>
+          <p class="per">per month · up to 50 seats</p>
+          <p style="margin-top:1rem;font-size:0.875rem;color:#555;">Core attendance, exports, and email support.</p>
+          <a href="/login" class="btn-hero-primary" style="margin-top:1.5rem;width:100%;max-width:280px;display:inline-flex;">Get started</a>
+        </article>
+        <article class="price-card price-card--featured">
+          <span class="price-card__ribbon">Most popular</span>
+          <h3>Pro</h3>
+          <p class="amount">$79</p>
+          <p class="per">per month · unlimited seats</p>
+          <p style="margin-top:1rem;font-size:0.875rem;color:#555;">Advanced policies, API access, and priority support.</p>
+          <a href="/login" class="btn-hero-primary" style="margin-top:1.5rem;width:100%;max-width:280px;display:inline-flex;">Start trial</a>
+        </article>
+      </div>
+      <p style="text-align:center;margin-top:2rem;">
+        <a href="/pricing" style="font-weight:700;color:#000;text-decoration:underline;text-underline-offset:4px;">Compare all plans</a>
+      </p>
+    </section>
+  </main>
+
+  <footer class="site-footer" role="contentinfo">
+    <div class="site-footer__grid">
+      <div>
+        <div class="site-footer__brand">AVGC</div>
+        <p style="margin:0;max-width:28rem;font-size:0.9375rem;line-height:1.6;color:rgba(255,255,255,0.75);">
+          Attendance, leave, and reporting in one place — built for teams that cannot afford guesswork.
+        </p>
+        <div class="site-footer__social">
+          <a href="https://www.linkedin.com" rel="noopener noreferrer" target="_blank" aria-label="AVGC on LinkedIn">in</a>
+          <a href="https://twitter.com" rel="noopener noreferrer" target="_blank" aria-label="AVGC on X">𝕏</a>
+          <a href="mailto:hello@avgc.example" aria-label="Email AVGC">@</a>
+        </div>
+      </div>
+      <div>
+        <p style="margin:0 0 0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;font-size:0.75rem;">Product</p>
+        <a href="/features">Features</a><br />
+        <a href="/pricing">Pricing</a><br />
+        <a href="/login">Sign in</a>
+      </div>
+      <div>
+        <p style="margin:0 0 0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;font-size:0.75rem;">Legal</p>
+        <a href="#">Privacy</a><br />
+        <a href="#">Terms</a>
+      </div>
+    </div>
+    <div class="site-footer__bottom">© <span id="footerYear"></span> AVGC. All rights reserved.</div>
+  </footer>
+
+  <script defer src="/js/site-marketing.js"></script>
+  <script>
+    document.getElementById('footerYear').textContent = new Date().getFullYear();
+  </script>
+</body>
+</html>

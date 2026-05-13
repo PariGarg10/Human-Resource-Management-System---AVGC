@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manager · AVGC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app-bundle.css" />
+</head>
+<body>
+  <div class="sidebar-overlay"></div>
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">AVGC</div>
+      <div class="sidebar-title">AVGC <small>Manager</small></div>
+    </div>
+    <div class="sidebar-profile">
+      <div class="sidebar-avatar" id="sidebarAvatar">M</div>
+      <div class="sidebar-user-meta">
+        <div class="sidebar-user-name" id="sidebarUserName">Manager</div>
+        <span class="badge manager" style="font-size:11px;">Manager</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/managers"><span class="nav-icon">👔</span><span>All managers</span></a>
+      <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon">◉</span><span>Dashboard</span></button>
+      <button type="button" data-nav="team-attendance"><span class="nav-icon">▣</span><span>Team Attendance</span></button>
+      <button type="button" data-nav="team-calendar"><span class="nav-icon">▦</span><span>Team Calendar</span></button>
+      <button type="button" data-nav="employees"><span class="nav-icon">👥</span><span>Assigned Employees</span></button>
+      <button type="button" data-nav="leaves"><span class="nav-icon">☰</span><span>Leave Requests</span></button>
+      <button type="button" data-nav="reports"><span class="nav-icon">▤</span><span>Reports</span></button>
+      <button type="button" data-nav="profile"><span class="nav-icon">◎</span><span>Profile</span></button>
+      <button type="button" data-nav="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
+    </nav>
+    <div class="sidebar-footer">
+      <button type="button" class="sidebar-toggle" id="sidebarCollapseBtn">Collapse</button>
+      <button type="button" class="sidebar-toggle" id="logoutBtn" style="margin-top:8px;">Logout</button>
+    </div>
+  </aside>
+
+  <div class="app-main">
+    <header class="top-navbar">
+      <div class="navbar-left">
+        <button type="button" class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+        <div class="breadcrumb">Manager / <strong id="breadcrumbCurrent">Dashboard</strong></div>
+      </div>
+      <div class="navbar-search-wrap search-field">
+        <input type="search" class="navbar-search" id="globalSearch" placeholder="Search tables…" />
+      </div>
+      <div class="navbar-right">
+        <span class="navbar-clock" id="navbarClock"></span>
+        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="HRMS.toggleTheme()">◐</button>
+        <span class="role-pill">Manager</span>
+        <div class="profile-dropdown-wrap">
+          <button type="button" class="profile-chip"><span id="navProfileEmail">—</span></button>
+          <div class="profile-dropdown"><button type="button" id="dropdownLogout">Sign out</button></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content-area">
+      <section id="view-dashboard" class="view-section is-active">
+        <div class="stat-grid" id="summaryCards"></div>
+        <div class="panel">
+          <h2 class="panel-title">Today's distribution</h2>
+          <div class="chart-wrap"><canvas id="managerDoughnut"></canvas></div>
+        </div>
+      </section>
+
+      <section id="view-team-attendance" class="view-section">
+        <div class="panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Team attendance by date</h2>
+            <div class="filters-inline">
+              <label>Date <input type="date" id="managerDate" /></label>
+              <button type="button" class="btn btn-primary btn-sm" id="loadDailyBtn">Load</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table"><thead><tr>
+              <th>Code</th><th>Name</th><th>Department</th><th>Punch In</th><th>Punch Out</th><th>Hours</th><th>Status</th>
+            </tr></thead><tbody id="dailyBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-team-calendar" class="view-section">
+        <div class="panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Team summary by month</h2>
+            <div class="filters-inline">
+              <label>Month <input type="number" id="tmMonth" min="1" max="12" /></label>
+              <label>Year <input type="number" id="tmYear" min="2000" max="2100" /></label>
+              <button type="button" class="btn btn-primary btn-sm" id="loadTeamSummaryBtn">Load</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table"><thead><tr>
+              <th>Employee</th><th>Present</th><th>Half</th><th>Leave</th><th>Absent</th>
+            </tr></thead><tbody id="teamSummaryBody"></tbody></table>
+          </div>
+          <div class="chart-wrap" style="margin-top:24px;"><canvas id="managerBarChart"></canvas></div>
+        </div>
+      </section>
+
+      <section id="view-employees" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Assigned employees</h2>
+          <div class="table-wrap" style="margin-top:16px;">
+            <table class="data-table"><thead><tr><th>Code</th><th>Name</th><th>Email</th><th>Department</th></tr></thead><tbody id="employeesBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-leaves" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Team leave requests</h2>
+          <div class="table-wrap" style="margin-top:16px;">
+            <table class="data-table"><thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Status</th></tr></thead><tbody id="leaveBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-reports" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Reports snapshot</h2>
+          <p class="stat-sub">Figures below mirror your dashboard for the selected date.</p>
+          <div class="stat-grid" id="reportsCards"></div>
+        </div>
+      </section>
+
+      <section id="view-profile" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Profile</h2>
+          <div class="tile-grid" style="margin-top:16px;">
+            <div class="tile"><strong>Name</strong><span id="profileName">—</span></div>
+            <div class="tile"><strong>Email</strong><span id="profileEmail">—</span></div>
+            <div class="tile"><strong>Department</strong><span id="profileDept">—</span></div>
+            <div class="tile"><strong>Employee code</strong><span id="profileCode">—</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-settings" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Settings</h2>
+          <p class="stat-sub">Contact your administrator for role changes. Use forgot password on the sign-in page to reset credentials.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/toast.js"></script>
+  <script src="/js/theme.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script src="/js/manager-dashboard.js"></script>
+</body>
+</html>

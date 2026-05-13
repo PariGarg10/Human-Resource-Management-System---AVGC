@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin manager assignments · AVGC</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="page-header">
+      <h1>Manager Assignments</h1>
+      <div>
+        <a class="link-btn" href="/admin/dashboard">Admin Dashboard</a>
+        <button id="logoutBtn" class="outline">Logout</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Filters</h2>
+      <div class="filters">
+        <label>Department <input id="departmentFilter" placeholder="e.g. Development" /></label>
+        <label>Search <input id="searchFilter" placeholder="employee name/email" /></label>
+        <button id="loadAssignmentsBtn">Apply Filters</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Assign Employee to Manager</h2>
+      <form id="assignForm" class="inline-form">
+        <label>Manager
+          <select id="managerSelect"></select>
+        </label>
+        <label>Employee IDs (comma separated)
+          <input id="employeeIdsInput" placeholder="12,14,22" />
+        </label>
+        <button type="submit">Bulk Assign</button>
+      </form>
+      <p id="assignMessage" class="message"></p>
+    </section>
+
+    <section class="card">
+      <h2>Current Mapping</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Employee ID</th>
+            <th>Employee Name</th>
+            <th>Email</th>
+            <th>Department</th>
+            <th>Manager</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="assignmentBody"></tbody>
+      </table>
+    </section>
+  </main>
+  <script src="/js/admin-manager-assignments.js"></script>
+</body>
+</html>

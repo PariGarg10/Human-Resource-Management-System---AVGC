@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin · AVGC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app-bundle.css" />
+</head>
+<body>
+  <div class="sidebar-overlay"></div>
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">AVGC</div>
+      <div class="sidebar-title">AVGC <small>Admin</small></div>
+    </div>
+    <div class="sidebar-profile">
+      <div class="sidebar-avatar" id="sidebarAvatar">A</div>
+      <div class="sidebar-user-meta">
+        <div class="sidebar-user-name" id="sidebarUserName">Admin</div>
+        <span class="badge admin" style="font-size:11px;">Admin</span>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="/managers"><span class="nav-icon">👔</span><span>All managers</span></a>
+      <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon">◉</span><span>Dashboard</span></button>
+      <button type="button" data-nav="employees"><span class="nav-icon">👤</span><span>Employee Management</span></button>
+      <button type="button" data-nav="managers"><span class="nav-icon">👔</span><span>Manager Management</span></button>
+      <button type="button" data-nav="assignments"><span class="nav-icon">🔗</span><span>Manager Assignments</span></button>
+      <button type="button" data-nav="attendance"><span class="nav-icon">▣</span><span>Attendance Monitoring</span></button>
+      <button type="button" data-nav="calendar"><span class="nav-icon">▦</span><span>Attendance Calendar</span></button>
+      <button type="button" data-nav="import-employees"><span class="nav-icon">⬆</span><span>Import Employees</span></button>
+      <button type="button" data-nav="import-attendance"><span class="nav-icon">📊</span><span>Import Attendance</span></button>
+      <button type="button" data-nav="leaves"><span class="nav-icon">☰</span><span>Leave Management</span></button>
+      <button type="button" data-nav="reports"><span class="nav-icon">▤</span><span>Reports & Analytics</span></button>
+      <button type="button" data-nav="biometric"><span class="nav-icon">◎</span><span>Biometric Test</span></button>
+      <button type="button" data-nav="system"><span class="nav-icon">⚙</span><span>System Settings</span></button>
+      <button type="button" data-nav="profile"><span class="nav-icon">●</span><span>Profile</span></button>
+    </nav>
+    <div class="sidebar-footer">
+      <button type="button" class="sidebar-toggle" id="sidebarCollapseBtn">Collapse</button>
+      <button type="button" class="sidebar-toggle" id="logoutBtn" style="margin-top:8px;">Logout</button>
+    </div>
+  </aside>
+
+  <div class="app-main">
+    <header class="top-navbar">
+      <div class="navbar-left">
+        <button type="button" class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
+        <div class="breadcrumb">Admin / <strong id="breadcrumbCurrent">Dashboard</strong></div>
+      </div>
+      <div class="navbar-search-wrap search-field">
+        <input type="search" class="navbar-search" id="globalSearch" placeholder="Search…" />
+      </div>
+      <div class="navbar-right">
+        <span class="navbar-clock" id="navbarClock"></span>
+        <button type="button" class="theme-toggle-btn" onclick="HRMS.toggleTheme()">◐</button>
+        <span class="role-pill">Admin</span>
+        <div class="profile-dropdown-wrap">
+          <button type="button" class="profile-chip"><span id="navProfileEmail">—</span></button>
+          <div class="profile-dropdown"><button type="button" id="dropdownLogout">Sign out</button></div>
+        </div>
+      </div>
+    </header>
+
+    <main class="content-area">
+      <section id="passwordChangeSection" class="panel hidden" style="border-left:4px solid var(--warning);">
+        <h2 class="panel-title">Password change required</h2>
+        <form id="changePasswordForm" class="form-row">
+          <div class="form-group"><label>Current</label><input id="currentPassword" type="password" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+          <div class="form-group"><label>New</label><input id="newPassword" type="password" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+          <button type="submit" class="btn btn-primary">Update</button>
+        </form>
+        <p id="passwordChangeMessage" class="message"></p>
+      </section>
+
+      <section id="view-dashboard" class="view-section is-active">
+        <div class="stat-grid" id="adminStatCards"></div>
+        <div class="panel" id="upcomingBirthdaysPanel">
+          <h2 class="panel-title">Upcoming birthdays (next 7 days)</h2>
+          <p class="stat-sub" id="upcomingBirthdaysLoading">Loading…</p>
+          <div id="upcomingBirthdaysEmpty" class="hidden stat-sub">No birthdays in the next week.</div>
+          <ul id="upcomingBirthdaysList" class="hidden" style="list-style:none;padding:0;margin:12px 0 0;"></ul>
+        </div>
+        <div class="panel">
+          <h2 class="panel-title">Import activity</h2>
+          <div class="chart-wrap"><canvas id="adminReportsChart"></canvas></div>
+        </div>
+      </section>
+
+      <section id="view-employees" class="view-section">
+        <div class="panel">
+          <div class="panel-header"><h2 class="panel-title">Employees</h2></div>
+          <form id="addEmployeeForm" class="form-row">
+            <div class="form-group"><label>Name</label><input id="newEmpName" required style="padding:12px;border:1px solid var(--border);border-radius:8px;width:100%;" /></div>
+            <div class="form-group"><label>Email</label><input id="newEmpEmail" type="email" required style="padding:12px;border:1px solid var(--border);border-radius:8px;width:100%;" /></div>
+            <div class="form-group"><label>Password</label><input id="newEmpPassword" type="password" style="padding:12px;border:1px solid var(--border);border-radius:8px;width:100%;" /></div>
+            <div class="form-group"><label>Department</label><input id="newEmpDept" style="padding:12px;border:1px solid var(--border);border-radius:8px;width:100%;" /></div>
+            <div class="form-group"><label>Role</label>
+              <select id="newEmpRole" style="padding:12px;border:1px solid var(--border);border-radius:8px;width:100%;">
+                <option value="employee">employee</option><option value="manager">manager</option><option value="admin">admin</option>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </form>
+          <p id="adminMessage" class="message"></p>
+          <button type="button" class="btn btn-outline btn-sm" id="loadEmployeesBtn">Refresh</button>
+          <div class="table-wrap" style="margin-top:16px;">
+            <table class="data-table"><thead><tr><th>ID</th><th>Code</th><th>Name</th><th>Email</th><th>Dept</th></tr></thead><tbody id="employeesBody"></tbody></table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-managers" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Create manager</h2>
+          <form id="newManagerForm" class="form-row">
+            <div class="form-group"><label>Name</label><input id="mgrName" required style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
+            <div class="form-group"><label>Gmail</label><input id="mgrEmail" type="email" required style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
+            <div class="form-group"><label>Password</label><input id="mgrPassword" type="password" required style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
+            <div class="form-group"><label>Department</label><input id="mgrDept" style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
+            <button type="submit" class="btn btn-primary">Create manager</button>
+          </form>
+          <p id="mgrMessage" class="message"></p>
+        </div>
+      </section>
+
+      <section id="view-assignments" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Manager assignments</h2>
+          <p class="stat-sub">Bulk assign employees to managers, search, and filters.</p>
+          <a href="/admin/manager-assignments" class="btn btn-primary">Open assignments workspace</a>
+        </div>
+      </section>
+
+      <section id="view-attendance" class="view-section">
+        <div class="panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Daily attendance</h2>
+            <div class="filters-inline">
+              <label>Date <input type="date" id="dailyDate" /></label>
+              <button type="button" class="btn btn-primary btn-sm" id="loadDailyBtn">Load</button>
+            </div>
+          </div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Code</th><th>Name</th><th>Dept</th><th>In</th><th>Out</th><th>Hrs</th><th>Status</th></tr></thead><tbody id="dailyBody"></tbody></table></div>
+        </div>
+      </section>
+
+      <section id="view-calendar" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Organization calendar</h2>
+          <p class="stat-sub">Use Attendance Monitoring with a date range by exporting reports. Month-wide company calendar view can be added when backend aggregates are exposed.</p>
+        </div>
+      </section>
+
+      <section id="view-import-employees" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Import employees (Excel)</h2>
+          <div class="dropzone" id="employeeDropzone">
+            <p><strong>Drop file</strong> or click to browse</p>
+            <p class="stat-sub">Columns: Name, Email, Department, ManagerEmail</p>
+            <input type="file" id="employeeImportFile" accept=".xlsx,.csv" />
+          </div>
+          <button type="button" class="btn btn-primary" id="employeeImportBtn" style="margin-top:16px;">Upload</button>
+          <p id="employeeImportMessage" class="message"></p>
+        </div>
+      </section>
+
+      <section id="view-import-attendance" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Import attendance</h2>
+          <form id="importForm">
+            <div class="dropzone" id="attendanceDropzone">
+              <p><strong>Drop attendance file</strong></p>
+              <input type="file" id="attendanceFile" accept=".xlsx,.csv" required />
+            </div>
+            <button type="submit" class="btn btn-primary" style="margin-top:16px;">Import</button>
+          </form>
+          <p id="importMessage" class="message"></p>
+          <div id="importSummary" class="stat-sub"></div>
+          <div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>ID</th><th>File</th><th>Total</th><th>OK</th><th>Fail</th><th>When</th></tr></thead><tbody id="importHistoryBody"></tbody></table></div>
+        </div>
+      </section>
+
+      <section id="view-leaves" class="view-section">
+        <div class="panel">
+          <div class="panel-header">
+            <h2 class="panel-title">Leave requests</h2>
+            <div class="filters-inline">
+              <select id="leaveStatusFilter"><option value="">all</option><option value="pending">pending</option><option value="approved">approved</option><option value="rejected">rejected</option></select>
+              <button type="button" class="btn btn-primary btn-sm" id="loadAdminLeavesBtn">Load</button>
+            </div>
+          </div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>ID</th><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Status</th><th></th></tr></thead><tbody id="adminLeavesBody"></tbody></table></div>
+        </div>
+      </section>
+
+      <section id="view-reports" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Analytics</h2>
+          <div class="chart-wrap"><canvas id="adminAnalyticsChart"></canvas></div>
+        </div>
+      </section>
+
+      <section id="view-biometric" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Biometric punch simulator</h2>
+          <form id="biometricForm" class="form-row">
+            <div class="form-group"><label>Employee code</label><input id="bioEmpCode" required style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
+            <div class="form-group"><label>Type</label><select id="bioType" style="padding:12px;width:100%;"><option value="in">in</option><option value="out">out</option></select></div>
+            <div class="form-group"><label>Timestamp ISO</label><input id="bioTimestamp" required style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
+            <div class="form-group"><label>Device</label><input id="bioDeviceId" value="BIOMETRIC01" style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
+            <div class="form-group"><label>API key</label><input id="bioApiKey" required style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
+            <button type="submit" class="btn btn-primary">Send punch</button>
+          </form>
+          <p id="biometricMessage" class="message"></p>
+        </div>
+      </section>
+
+      <section id="view-system" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">System</h2>
+          <p class="stat-sub">JWT and biometric keys are configured via server environment. Contact DevOps for production secrets rotation.</p>
+        </div>
+      </section>
+
+      <section id="view-profile" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Profile</h2>
+          <div class="tile-grid" style="margin-top:16px;">
+            <div class="tile"><strong>Name</strong><span id="profileName">—</span></div>
+            <div class="tile"><strong>Email</strong><span id="profileEmail">—</span></div>
+            <div class="tile"><strong>Department</strong><span id="profileDept">—</span></div>
+            <div class="tile"><strong>Code</strong><span id="profileCode">—</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="/js/utils.js"></script>
+  <script src="/js/toast.js"></script>
+  <script src="/js/theme.js"></script>
+  <script src="/js/sidebar.js"></script>
+  <script src="/js/navbar.js"></script>
+  <script src="/js/admin-dashboard.js"></script>
+</body>
+</html>

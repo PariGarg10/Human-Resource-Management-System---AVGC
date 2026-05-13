@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance dashboard · AVGC</title>
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <main class="container">
+    <header class="page-header">
+      <h1>Attendance Dashboard</h1>
+      <div>
+        <a class="link-btn" href="/history.html">History</a>
+        <button id="logoutBtn" class="outline">Logout</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <h2>Today</h2>
+      <div id="todayCard" class="grid"></div>
+    </section>
+
+    <section class="card">
+      <h2>Monthly Calendar</h2>
+      <div id="calendarLegend" class="legend">
+        <span class="badge present">Present</span>
+        <span class="badge halfday">Half Day</span>
+        <span class="badge absent">Absent</span>
+      </div>
+      <div id="calendar" class="calendar"></div>
+    </section>
+  </main>
+
+  <script src="/js/dashboard.js"></script>
+</body>
+</html>

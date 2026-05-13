@@ -1,0 +1,31 @@
+export type EmployeeUser = {
+  id?: number;
+  name?: string;
+  email?: string;
+  department?: string;
+  employeecode?: string;
+  role?: string;
+  mustchangepassword?: boolean;
+  dateOfBirth?: string | null;
+  phone?: string | null;
+  location?: string | null;
+  bio?: string | null;
+  profilePhotoUrl?: string | null;
+  age?: number | null;
+};
+
+export type UserProfile = {
+  id: number;
+  employeecode?: string;
+  name: string;
+  email: string;
+  department?: string | null;
+  role?: string;
+  dateOfBirth?: string | null;
+  phone?: string | null;
+  location?: string | null;
+  bio?: string | null;
+  profilePhotoUrl?: string | null;
+  age?: number | null;
+  createdAt?: string;
+};

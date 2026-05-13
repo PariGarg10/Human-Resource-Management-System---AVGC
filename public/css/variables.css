@@ -1,0 +1,55 @@
+/* AVGC design tokens — light dashboard + marketing */
+:root {
+  --primary: #cc0000;
+  --primary-hover: #a30000;
+  --primary-soft: rgba(204, 0, 0, 0.12);
+  --success: #228b22;
+  --success-soft: rgba(34, 139, 34, 0.12);
+  --warning: #d97706;
+  --warning-soft: rgba(217, 119, 6, 0.12);
+  --danger: #cc0000;
+  --danger-soft: rgba(204, 0, 0, 0.12);
+  --info: #0369a1;
+  --info-soft: rgba(3, 105, 153, 0.12);
+  --pending: #ea580c;
+
+  --bg: #ffffff;
+  --bg-elevated: #ffffff;
+  --surface: #f5f5f5;
+  --border: rgba(0, 0, 0, 0.1);
+  --text: #000000;
+  --text-muted: #444444;
+
+  --sidebar-bg: #111111;
+  --sidebar-text: #ffffff;
+  --sidebar-muted: rgba(255, 255, 255, 0.65);
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
+  --sidebar-active: rgba(204, 0, 0, 0.35);
+
+  --marketing-surface: #f5f5f5;
+  --marketing-dark: #111111;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.1);
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-display: "Montserrat", "Inter", system-ui, sans-serif;
+  --sidebar-width: 268px;
+  --sidebar-collapsed: 72px;
+  --navbar-height: 64px;
+  --transition: 0.2s ease;
+}
+
+[data-theme="dark"] {
+  --bg: #111111;
+  --bg-elevated: #1a1a1a;
+  --surface: #1a1a1a;
+  --border: rgba(255, 255, 255, 0.1);
+  --text: #ffffff;
+  --text-muted: rgba(255, 255, 255, 0.72);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+}

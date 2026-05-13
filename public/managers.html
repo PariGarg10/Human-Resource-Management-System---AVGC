@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Managers · AVGC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app-bundle.css" />
+  <style>
+    .managers-page { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .managers-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px; }
+    .managers-toolbar input { flex: 1; min-width: 200px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 14px; }
+    .managers-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+    .manager-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm); display: flex; gap: 16px; align-items: flex-start; }
+    .manager-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: var(--primary-soft); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--primary); flex-shrink: 0; }
+    .manager-card h3 { margin: 0 0 6px; font-size: 16px; }
+    .manager-meta { font-size: 13px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+    .managers-empty { text-align: center; padding: 48px 24px; color: var(--text-muted); }
+    .managers-loading { padding: 40px; text-align: center; color: var(--text-muted); }
+    .back-link { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 16px; color: var(--primary); font-weight: 600; text-decoration: none; }
+    .back-link:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="app-shell" style="min-height:100vh;">
+    <main class="managers-page">
+      <a class="back-link" href="/employee/dashboard" id="backDash">← Back to dashboard</a>
+      <header class="page-header" style="margin-bottom:8px;">
+        <h1 style="margin:0;">Managers</h1>
+        <button type="button" class="btn btn-outline btn-sm" id="logoutBtn">Sign out</button>
+      </header>
+      <p class="stat-sub" style="margin-bottom:20px;">People managers in your organisation. Use search to filter by name or department.</p>
+
+      <div class="managers-toolbar">
+        <input type="search" id="managerSearch" placeholder="Search by name or department…" autocomplete="off" aria-label="Filter managers" />
+      </div>
+
+      <div id="managersLoading" class="managers-loading">Loading managers…</div>
+      <div id="managersEmpty" class="managers-empty hidden">No managers match your search.</div>
+      <div id="managersGrid" class="managers-grid hidden"></div>
+    </main>
+  </div>
+
+  <script src="/js/toast.js"></script>
+  <script>
+    (function () {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.replace('/login');
+        return;
+      }
+      const user = JSON.parse(localStorage.getItem('employee') || '{}');
+      const role = String(user.role || '').toLowerCase();
+      if (role === 'admin') {
+        document.getElementById('backDash').href = '/admin/dashboard';
+        document.getElementById('backDash').textContent = '← Back to admin dashboard';
+      } else if (role === 'manager') {
+        document.getElementById('backDash').href = '/manager/dashboard';
+        document.getElementById('backDash').textContent = '← Back to manager dashboard';
+      }
+
+      function logout() {
+        localStorage.clear();
+        window.location.href = '/login';
+      }
+      document.getElementById('logoutBtn').addEventListener('click', logout);
+
+      async function api(path) {
+        const res = await fetch(path, { headers: { Authorization: 'Bearer ' + token } });
+        const data = await res.json().catch(function () { return {}; });
+        if (res.status === 401) {
+          logout();
+          throw new Error('Unauthorized');
+        }
+        if (res.status === 403 && data.requiresPasswordChange) {
+          window.location.href = '/login';
+          throw new Error('Password change required');
+        }
+        if (!res.ok) throw new Error(data.message || 'Request failed');
+        return data;
+      }
+
+      function formatJoin(d) {
+        if (!d) return '—';
+        try {
+          return new Date(d).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+        } catch (e) {
+          return '—';
+        }
+      }
+
+      let allManagers = [];
+
+      function render(list) {
+        const grid = document.getElementById('managersGrid');
+        const empty = document.getElementById('managersEmpty');
+        const loading = document.getElementById('managersLoading');
+        loading.classList.add('hidden');
+        if (!list.length) {
+          grid.classList.add('hidden');
+          empty.classList.remove('hidden');
+          return;
+        }
+        empty.classList.add('hidden');
+        grid.classList.remove('hidden');
+        grid.innerHTML = list.map(function (m) {
+          var initials = (m.name || '?').split(/\s+/).map(function (x) { return x[0]; }).join('').slice(0, 2).toUpperCase();
+          var img = m.profilePhotoUrl
+            ? '<img class="manager-avatar" src="' + m.profilePhotoUrl + '" alt="" />'
+            : '<div class="manager-avatar" aria-hidden="true">' + initials + '</div>';
+          return (
+            '<article class="manager-card">' +
+              img +
+              '<div>' +
+                '<h3>' + (m.name || '—') + '</h3>' +
+                '<p class="manager-meta"><strong>Email:</strong> ' + (m.email || '—') + '</p>' +
+                '<p class="manager-meta"><strong>Department:</strong> ' + (m.department || '—') + '</p>' +
+                '<p class="manager-meta"><strong>Join date:</strong> ' + formatJoin(m.joinDate) + '</p>' +
+              '</div>' +
+            '</article>'
+          );
+        }).join('');
+      }
+
+      function filterList() {
+        var q = document.getElementById('managerSearch').value.trim().toLowerCase();
+        if (!q) return render(allManagers);
+        render(allManagers.filter(function (m) {
+          return (m.name || '').toLowerCase().includes(q) || (m.department || '').toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q);
+        }));
+      }
+
+      document.getElementById('managerSearch').addEventListener('input', filterList);
+
+      api('/api/managers')
+        .then(function (data) {
+          allManagers = data.managers || [];
+          if (!allManagers.length) {
+            document.getElementById('managersLoading').classList.add('hidden');
+            document.getElementById('managersEmpty').textContent = 'No managers found.';
+            document.getElementById('managersEmpty').classList.remove('hidden');
+            return;
+          }
+          render(allManagers);
+        })
+        .catch(function (e) {
+          document.getElementById('managersLoading').classList.add('hidden');
+          HRMS.toast(e.message || 'Could not load managers', 'error');
+        });
+    })();
+  </script>
+</body>
+</html>
