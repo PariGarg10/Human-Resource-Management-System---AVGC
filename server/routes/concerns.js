@@ -98,14 +98,16 @@ async function resolveRaisedTo(userId, raisedTo) {
         SELECT id, name
         FROM employees
         WHERE id != $1
-          AND role IN ('manager', 'admin')
+          AND role IN ('it_head', 'manager', 'admin')
           AND COALESCE(isregistered, TRUE) = TRUE
           AND (
+            role = 'it_head'
+            OR
             lower(COALESCE(department, '')) LIKE '%it%'
             OR lower(COALESCE(department, '')) LIKE '%tech%'
             OR lower(COALESCE(department, '')) LIKE '%information%'
           )
-        ORDER BY CASE role WHEN 'manager' THEN 0 ELSE 1 END, id ASC
+        ORDER BY CASE role WHEN 'it_head' THEN 0 WHEN 'manager' THEN 1 ELSE 2 END, id ASC
         LIMIT 1
       `,
       [userId]

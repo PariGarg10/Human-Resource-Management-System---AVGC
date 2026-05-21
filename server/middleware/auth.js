@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { pool } = require('../db');
 
 function authMiddleware(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -34,12 +35,23 @@ function isFounderUser(user) {
   return role === 'founder' || name === 'ashish mishra';
 }
 
-function requireAdminOrFounder(req, res, next) {
-  const userRole = String(req.user?.role || '').toLowerCase().trim();
-  if (!req.user || (userRole !== 'admin' && !isFounderUser(req.user))) {
+async function requireAdminOrFounder(req, res, next) {
+  if (!req.user?.id) {
     return res.status(403).json({ message: 'Forbidden: only admin or founder can access this resource' });
   }
-  return next();
+  try {
+    const result = await pool.query('SELECT id, name, role FROM employees WHERE id = $1', [req.user.id]);
+    const currentUser = result.rows[0];
+    const userRole = String(currentUser?.role || '').toLowerCase().trim();
+    if (!currentUser || (userRole !== 'admin' && !isFounderUser(currentUser))) {
+      return res.status(403).json({ message: 'Forbidden: only admin or founder can access this resource' });
+    }
+    req.currentUser = currentUser;
+    return next();
+  } catch (err) {
+    console.error('Admin/founder permission check failed:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
 }
 
 function enforcePasswordChange(req, res, next) {

@@ -13,6 +13,7 @@ function dashboardPathForRole(role) {
   const r = normalizeRole(role);
   if (r === 'admin' || r === 'founder') return '/admin/dashboard';
   if (r === 'manager') return '/manager/dashboard';
+  if (r === 'it_head') return '/employee/dashboard';
   return '/employee/dashboard';
 }
 

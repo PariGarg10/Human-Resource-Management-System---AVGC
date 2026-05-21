@@ -112,6 +112,16 @@ router.post('/admin/login', async (req, res) => {
   }
 });
 
+router.post('/it-head/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    return await issueLogin(res, email, password, 'it_head');
+  } catch (err) {
+    console.error('POST /it-head/login:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 router.post('/register', async (req, res) => {
   try {
     const { email, password, name } = req.body;

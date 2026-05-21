@@ -85,7 +85,8 @@ function normalizeImportedRole(role) {
   if (['employee', 'emp', 'staff'].includes(value)) return 'employee';
   if (['manager', 'mgr'].includes(value)) return 'manager';
   if (['admin', 'administrator'].includes(value)) return 'admin';
-  return ['employee', 'manager', 'admin'].includes(value) ? value : 'employee';
+  if (['it head', 'it_head', 'it-head', 'information technology head'].includes(value)) return 'it_head';
+  return ['employee', 'manager', 'admin', 'it_head'].includes(value) ? value : 'employee';
 }
 
 function isJunkRow(row) {

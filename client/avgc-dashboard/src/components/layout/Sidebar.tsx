@@ -132,7 +132,13 @@ export function Sidebar({
   onLogout,
   mobileOpen,
 }: Props) {
-  const roleLabel = userRole ? userRole.replace(/^\w/, (c) => c.toUpperCase()) : 'Employee';
+  const normalizedRole = String(userRole || '').toLowerCase().trim();
+  const roleLabel =
+    normalizedRole === 'it_head'
+      ? 'IT Head'
+      : userRole
+        ? userRole.replace(/^\w/, (c) => c.toUpperCase())
+        : 'Employee';
 
   return (
     <aside
