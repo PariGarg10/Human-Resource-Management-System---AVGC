@@ -18,7 +18,13 @@ HRMS.badge = function badge(status, extraClass) {
   };
   const cls = map[normalized] || 'absent';
   const label = status || 'absent';
-  return `<span class="badge ${cls} ${extraClass || ''}">${String(label).replace(/^\w/, (c) => c.toUpperCase())}</span>`;
+  const pretty =
+    normalized === 'present'
+      ? 'Full Day'
+      : normalized === 'halfday'
+        ? 'Half Day'
+        : String(label).replace(/^\w/, (c) => c.toUpperCase());
+  return `<span class="badge ${cls} ${extraClass || ''}">${pretty}</span>`;
 };
 // ADD this function — reused by all role dashboards
 async function uploadProfileImage(fileInput, userId) {

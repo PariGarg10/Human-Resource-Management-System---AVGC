@@ -24,14 +24,14 @@ export function AttendancePanel() {
     try {
       const [historyData, summaryData, todayData] = await Promise.all([
         api<{ records: RecordRow[] }>(`/api/attendance/history?month=${month}&year=${year}`),
-        api<{ present: number; halfday: number; absent: number; leave?: number }>(
+        api<{ present: number; halfday: number; absent: number; leave?: number; holidays?: number }>(
           `/api/attendance/summary?month=${month}&year=${year}`
         ),
         api<{ record: RecordRow | null }>('/api/attendance/today'),
       ]);
       setRows(historyData.records || []);
       setSummary(
-        `Present: ${summaryData.present} · Half: ${summaryData.halfday} · Leave: ${summaryData.leave || 0} · Absent: ${summaryData.absent}`
+        `Full Day: ${summaryData.present} · Half Day: ${summaryData.halfday} · Leave: ${summaryData.leave || 0} · Absent: ${summaryData.absent} · Holidays: ${summaryData.holidays ?? 0}`
       );
       const r = todayData.record;
       setTodayCard(
@@ -97,7 +97,7 @@ export function AttendancePanel() {
           <button
             type="button"
             onClick={() => load().catch(() => {})}
-            className="rounded-xl bg-[#1A237E] px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#151c68] min-h-[44px]"
+            className="rounded-xl bg-avgc-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-avgc-brand-hover min-h-[44px]"
           >
             Load
           </button>

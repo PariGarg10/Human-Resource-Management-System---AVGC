@@ -5,11 +5,35 @@ const registerMessage = document.getElementById('registerMessage');
 const forgotForm = document.getElementById('forgotForm');
 const forgotMessage = document.getElementById('forgotMessage');
 
+function normalizeRole(role) {
+  return String(role || 'employee').toLowerCase().trim();
+}
+
 function dashboardPathForRole(role) {
-  if (role === 'admin') return '/admin/dashboard';
-  if (role === 'manager') return '/manager/dashboard';
+  const r = normalizeRole(role);
+  if (r === 'admin' || r === 'founder') return '/admin/dashboard';
+  if (r === 'manager') return '/manager/dashboard';
   return '/employee/dashboard';
 }
+
+function dashboardPathForEmployee(employee) {
+  const name = String(employee?.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  if (name === 'ashish mishra') return '/admin/dashboard';
+  return dashboardPathForRole(employee?.role);
+}
+
+// If already signed in, send user to the correct workspace
+(function redirectIfAlreadySignedIn() {
+  const token = localStorage.getItem('token');
+  if (!token) return;
+  try {
+    const emp = JSON.parse(localStorage.getItem('employee') || '{}');
+    const path = dashboardPathForEmployee(emp);
+    if (window.location.pathname.replace(/\/$/, '') === '/login') {
+      window.location.replace(path);
+    }
+  } catch (_e) {}
+})();
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -32,10 +56,13 @@ form.addEventListener('submit', async (e) => {
       return;
     }
 
+    const employee = {
+      ...data.employee,
+      role: normalizeRole(data.employee?.role || 'employee')
+    };
     localStorage.setItem('token', data.token);
-    localStorage.setItem('employee', JSON.stringify(data.employee));
-    const role = data.employee.role || 'employee';
-    window.location.href = dashboardPathForRole(role);
+    localStorage.setItem('employee', JSON.stringify(employee));
+    window.location.href = dashboardPathForEmployee(employee);
   } catch (error) {
     messageEl.textContent = 'Network error while logging in';
   }

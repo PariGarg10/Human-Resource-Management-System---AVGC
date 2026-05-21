@@ -14,7 +14,7 @@ export function QuickActions({ onClock, onLeave, onTeam }: Props) {
         <button
           type="button"
           onClick={onClock}
-          className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-[#1A237E] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#151c68] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1A237E]"
+          className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-avgc-brand px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-avgc-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-avgc-brand"
         >
           <Clock className="h-5 w-5" aria-hidden />
           Clock-In / Out
@@ -24,7 +24,7 @@ export function QuickActions({ onClock, onLeave, onTeam }: Props) {
           onClick={onLeave}
           className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
         >
-          <CalendarDays className="h-5 w-5 text-[#1A237E]" aria-hidden />
+          <CalendarDays className="h-5 w-5 text-avgc-brand" aria-hidden />
           Apply for Leave
         </button>
         <button
@@ -32,7 +32,7 @@ export function QuickActions({ onClock, onLeave, onTeam }: Props) {
           onClick={onTeam}
           className="flex min-h-[52px] items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-900 shadow-sm hover:bg-slate-50"
         >
-          <Users className="h-5 w-5 text-[#1A237E]" aria-hidden />
+          <Users className="h-5 w-5 text-avgc-brand" aria-hidden />
           Team availability
         </button>
       </div>

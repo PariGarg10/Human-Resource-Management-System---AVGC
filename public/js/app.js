@@ -274,7 +274,7 @@ document.getElementById('importForm').addEventListener('submit', async (e) => {
       body: formData
     });
     msg.textContent = 'Import completed';
-    summaryEl.textContent = `Total: ${result.totalrows}, Success: ${result.successfulimports}, Failed: ${result.failedrows}`;
+    summaryEl.textContent = `Total: ${result.totalrows}, Imported: ${result.successfulimports}, Skipped: ${result.skipped || 0}, Failed: ${result.failedrows}`;
     await Promise.all([loadImportHistory(), loadAttendanceViews(), loadToday()]);
   } catch (error) {
     msg.textContent = error.message;

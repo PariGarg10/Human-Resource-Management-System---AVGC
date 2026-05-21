@@ -1,9 +1,10 @@
-const { db } = require('../db');
+const { pool } = require('../db');
 
-function logAudit(actorId, action, resource, details) {
-  db.prepare(
-    'INSERT INTO auditlogs (actorid, action, resource, details) VALUES (?, ?, ?, ?)'
-  ).run(actorId || null, action, resource, details ? JSON.stringify(details) : null);
+async function logAudit(actorId, action, resource, details) {
+  await pool.query(
+    'INSERT INTO auditlogs (actorid, action, resource, details) VALUES ($1, $2, $3, $4)',
+    [actorId || null, action, resource, details ? JSON.stringify(details) : null]
+  );
 }
 
 module.exports = { logAudit };

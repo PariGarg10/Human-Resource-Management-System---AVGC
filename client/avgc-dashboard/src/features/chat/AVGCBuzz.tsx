@@ -1,6 +1,7 @@
+// Chat disabled — re-enable by restoring routes and nav links
 import { MessageSquare, PanelRightClose, Send, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { MOCK_MESSAGES, MOCK_TEAM, type BuzzChannel } from '@/data/mockBuzz';
+import { MOCK_MESSAGES, MOCK_TEAM, type BuzzChannel } from '@/features/chat/mockBuzz';
 import { cn } from '@/lib/cn';
 
 type Props = {
@@ -19,17 +20,14 @@ export function AVGCBuzz({ open, onToggle, userDepartment }: Props) {
   const [channel, setChannel] = useState<BuzzChannel>('general');
   const [draft, setDraft] = useState('');
 
-  const visible = useMemo(
-    () => MOCK_MESSAGES.filter((m) => m.channel === channel),
-    [channel]
-  );
+  const visible = useMemo(() => MOCK_MESSAGES.filter((m) => m.channel === channel), [channel]);
 
   if (!open) {
     return (
       <button
         type="button"
         onClick={onToggle}
-        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-[#1A237E] text-white shadow-lg ring-4 ring-white hover:bg-[#151c68] min-h-[44px] min-w-[44px]"
+        className="fixed bottom-6 right-6 z-50 flex h-14 w-14 items-center justify-center rounded-full bg-avgc-brand text-white shadow-lg ring-4 ring-white hover:bg-avgc-brand-hover min-h-[44px] min-w-[44px]"
         aria-label="Open AVGC Buzz chat"
       >
         <MessageSquare className="h-6 w-6" />
@@ -44,7 +42,7 @@ export function AVGCBuzz({ open, onToggle, userDepartment }: Props) {
     >
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
         <div className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5 text-[#1A237E]" aria-hidden />
+          <MessageSquare className="h-5 w-5 text-avgc-brand" aria-hidden />
           <span className="font-semibold text-slate-900">AVGC Buzz</span>
         </div>
         <button
@@ -66,7 +64,7 @@ export function AVGCBuzz({ open, onToggle, userDepartment }: Props) {
             className={cn(
               'flex-1 rounded-lg px-2 py-2 text-center text-xs font-semibold uppercase tracking-wide min-h-[44px]',
               channel === t.id
-                ? 'bg-[#1A237E] text-white'
+                ? 'bg-avgc-brand text-white'
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             )}
           >
@@ -126,7 +124,7 @@ export function AVGCBuzz({ open, onToggle, userDepartment }: Props) {
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               placeholder="Write a message…"
-              className="min-h-[44px] flex-1 rounded-xl border border-slate-200 px-3 text-sm outline-none ring-[#1A237E]/20 focus:border-[#1A237E] focus:ring-4"
+              className="min-h-[44px] flex-1 rounded-xl border border-slate-200 px-3 text-sm outline-none ring-avgc-brand/20 focus:border-avgc-brand focus:ring-4"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
                   e.preventDefault();
@@ -136,7 +134,7 @@ export function AVGCBuzz({ open, onToggle, userDepartment }: Props) {
             />
             <button
               type="button"
-              className="rounded-xl bg-[#1A237E] px-4 text-white hover:bg-[#151c68] min-h-[44px] min-w-[44px]"
+              className="rounded-xl bg-avgc-brand px-4 text-white hover:bg-avgc-brand-hover min-h-[44px] min-w-[44px]"
               aria-label="Send message"
               onClick={() => setDraft('')}
             >

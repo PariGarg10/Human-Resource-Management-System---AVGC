@@ -1,4 +1,5 @@
 import type { EmployeeUser, UserProfile } from '@/types/employee';
+import { writeUserProfileSnapshot } from '@/lib/userProfileStorage';
 
 export class ApiError extends Error {
   requiresPasswordChange?: boolean;
@@ -96,6 +97,10 @@ export function persistEmployeePatch(profile: UserProfile) {
     profilePhotoUrl: profile.profilePhotoUrl,
     age: profile.age,
   };
+  if (profile.profilePhotoUrl) {
+    next.avatar_url = profile.profilePhotoUrl;
+  }
   localStorage.setItem('employee', JSON.stringify(next));
+  writeUserProfileSnapshot({ name: profile.name, profilePhotoUrl: profile.profilePhotoUrl ?? null });
   return next;
 }

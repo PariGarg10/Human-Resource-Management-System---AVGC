@@ -1,4 +1,5 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { useUser } from '@/context/UserContext';
 import { api, apiPatchProfile, persistEmployeePatch } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import type { EmployeeUser, UserProfile } from '@/types/employee';
@@ -12,6 +13,7 @@ export function ProfilePanel({
 }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [saveOk, setSaveOk] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -20,16 +22,27 @@ export function ProfilePanel({
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const blobRef = useRef<string | null>(null);
+  const { setUser, setAvatarOverride } = useUser();
 
-  const applyProfile = useCallback((p: UserProfile) => {
-    setName(p.name || '');
-    setEmail(p.email || '');
-    setPhone(p.phone || '');
-    setLocation(p.location || '');
-    setBio(p.bio || '');
-    setDateOfBirth(p.dateOfBirth || '');
-    setPreviewUrl(p.profilePhotoUrl || null);
-  }, []);
+  const applyProfile = useCallback(
+    (p: UserProfile) => {
+      if (blobRef.current) {
+        URL.revokeObjectURL(blobRef.current);
+        blobRef.current = null;
+      }
+      setAvatarOverride(null);
+      setName(p.name || '');
+      setEmail(p.email || '');
+      setPhone(p.phone || '');
+      setLocation(p.location || '');
+      setBio(p.bio || '');
+      setDateOfBirth(p.dateOfBirth || '');
+      setPreviewUrl(p.profilePhotoUrl || null);
+      setFile(null);
+    },
+    [setAvatarOverride]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -54,8 +67,18 @@ export function ProfilePanel({
     }
   }, [user?.profilePhotoUrl, previewUrl, file]);
 
+  useEffect(() => {
+    return () => {
+      if (blobRef.current) {
+        URL.revokeObjectURL(blobRef.current);
+        blobRef.current = null;
+      }
+    };
+  }, []);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    setSaveOk(false);
     setSaving(true);
     try {
       const fd = new FormData();
@@ -70,8 +93,15 @@ export function ProfilePanel({
       applyProfile(profile);
       setFile(null);
       const merged = persistEmployeePatch(profile);
+      setUser(merged);
       onProfileSaved?.(merged);
-      toast('Profile saved', 'success');
+      if (blobRef.current) {
+        URL.revokeObjectURL(blobRef.current);
+        blobRef.current = null;
+      }
+      setAvatarOverride(null);
+      setSaveOk(true);
+      toast('Profile saved successfully ✓', 'success');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'Save failed', 'error');
     } finally {
@@ -102,10 +132,18 @@ export function ProfilePanel({
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-900">My profile</h2>
+      <h2 className="text-lg font-semibold text-slate-900">{name.trim() || 'My profile'}</h2>
       <p className="mt-1 text-sm text-slate-500">
         Update your details. Email is managed by your administrator and cannot be changed here.
       </p>
+      {saveOk && (
+        <div
+          className="mt-4 rounded-md border border-[#ed1d24]/30 bg-[rgba(237,29,36,0.08)] px-4 py-3 text-sm font-semibold text-[#ed1d24]"
+          role="status"
+        >
+          Profile saved successfully. Your name and photo are updated across the app.
+        </div>
+      )}
 
       <form onSubmit={onSubmit} className="mt-6 max-w-2xl space-y-5">
         <div className="flex flex-wrap items-start gap-6">
@@ -120,18 +158,32 @@ export function ProfilePanel({
                 </span>
               )}
             </div>
-            <label className="mt-2 block text-sm font-medium text-[#1A237E]">
+            <label className="mt-2 block text-sm font-medium text-avgc-brand">
               <span className="cursor-pointer hover:underline">Upload image</span>
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/gif,image/webp"
+                accept="image/*"
                 className="sr-only"
                 onChange={(ev) => {
                   const f = ev.target.files?.[0];
-                  if (f) {
-                    setFile(f);
-                    setPreviewUrl(URL.createObjectURL(f));
+                  if (!f) return;
+                  const okType = /^image\/(jpeg|png|gif|webp)$/i.test(f.type);
+                  if (!okType) {
+                    toast('Please choose a JPEG, PNG, GIF, or WebP image.', 'error');
+                    ev.target.value = '';
+                    return;
                   }
+                  if (f.size > 3 * 1024 * 1024) {
+                    toast('Image must be 3MB or smaller.', 'error');
+                    ev.target.value = '';
+                    return;
+                  }
+                  setFile(f);
+                  if (blobRef.current) URL.revokeObjectURL(blobRef.current);
+                  const url = URL.createObjectURL(f);
+                  blobRef.current = url;
+                  setPreviewUrl(url);
+                  setAvatarOverride(url);
                 }}
               />
             </label>
@@ -202,7 +254,7 @@ export function ProfilePanel({
         <button
           type="submit"
           disabled={saving}
-          className="rounded-xl bg-[#1A237E] px-6 py-3 text-sm font-semibold text-white disabled:opacity-60 min-h-[44px]"
+          className="rounded-xl bg-avgc-brand px-6 py-3 text-sm font-semibold text-white disabled:opacity-60 min-h-[44px]"
         >
           {saving ? 'Saving…' : 'Save profile'}
         </button>
@@ -257,7 +309,7 @@ export function SettingsPanel() {
         </label>
         <button
           type="submit"
-          className="rounded-xl bg-[#1A237E] px-6 py-3 text-sm font-semibold text-white min-h-[44px] w-fit"
+          className="rounded-xl bg-avgc-brand px-6 py-3 text-sm font-semibold text-white min-h-[44px] w-fit"
         >
           Update password
         </button>

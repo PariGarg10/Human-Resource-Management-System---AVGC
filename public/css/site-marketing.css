@@ -395,6 +395,7 @@ body.site-nav-open {
   -webkit-justify-content: center;
   justify-content: center;
   gap: 0.75rem 1rem;
+  margin-top: 14rem;
   -webkit-animation: siteFadeInUp 0.7s ease 1.1s both;
   animation: siteFadeInUp 0.7s ease 1.1s both;
 }
@@ -1096,4 +1097,108 @@ body.site-subpage .site-nav-toggle span {
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
+}
+
+/* —— Founder / leadership (public homepage) —— */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.founder-section {
+  position: relative;
+  background: #000000;
+  padding: 5rem 2.5rem;
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+.founder-section:hover {
+  box-shadow: 0 0 80px rgba(237, 29, 36, 0.06);
+}
+
+.founder-section__mark {
+  position: absolute;
+  top: 0;
+  left: 1.5rem;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 7.5rem;
+  line-height: 1;
+  color: #ed1d24;
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+.founder-section__inner {
+  position: relative;
+  max-width: 720px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.founder-section__photo-wrap {
+  margin: 0 auto 1.25rem;
+}
+
+.founder-section__photo {
+  display: block;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 4px solid #ed1d24;
+  object-fit: cover;
+}
+
+.founder-section__initials {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+  border-radius: 50%;
+  border: 4px solid #ed1d24;
+  background: #ed1d24;
+  color: #ffffff;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 2.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.founder-section__quote {
+  margin: 0 auto;
+  max-width: 42.5rem;
+  font-family: "DM Sans", sans-serif;
+  font-size: 1.25rem;
+  font-style: italic;
+  font-weight: 400;
+  line-height: 1.8;
+  color: #ffffff;
+  border: none;
+  padding: 0;
+}
+
+.founder-section__name {
+  margin: 1.5rem 0 0;
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.2em;
+  color: #ed1d24;
+  text-transform: none;
+}
+
+.founder-section__role {
+  margin: 0.35rem 0 0;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
 }

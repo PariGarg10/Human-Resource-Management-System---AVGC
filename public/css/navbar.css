@@ -132,6 +132,73 @@
   justify-content: center;
 }
 
+.notification-wrap {
+  position: relative;
+}
+
+.notification-panel {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  width: min(360px, calc(100vw - 24px));
+  max-height: 320px;
+  overflow-y: auto;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 120;
+}
+
+.notification-panel.is-open {
+  display: block;
+}
+
+.notif-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.notif-row:hover {
+  background: var(--surface);
+}
+
+.notif-icon {
+  flex-shrink: 0;
+}
+
+.notif-msg {
+  flex: 1;
+  line-height: 1.4;
+}
+
+#notificationBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .profile-dropdown-wrap {
   position: relative;
 }

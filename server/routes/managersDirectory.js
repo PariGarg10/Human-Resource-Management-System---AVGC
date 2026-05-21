@@ -1,33 +1,36 @@
 const express = require('express');
-const { db } = require('../db');
-const { authMiddleware } = require('../middleware/auth');
+const { pool } = require('../db');
+const { authMiddleware, requireRoles } = require('../middleware/auth');
 
 const router = express.Router();
 
-/** Any authenticated user may view the managers directory (including before mandatory password change). */
-router.get('/', authMiddleware, (_req, res) => {
-  const managers = db
-    .prepare(
+/** Admin-only managers directory. */
+router.get('/', authMiddleware, requireRoles('admin'), async (_req, res) => {
+  try {
+    const { rows: managers } = await pool.query(
       `
       SELECT id, employeecode, name, email, department, role, profilephotourl, createdat
       FROM employees
       WHERE role = 'manager'
       ORDER BY name ASC
     `
-    )
-    .all();
+    );
 
-  return res.json({
-    managers: managers.map((m) => ({
-      id: m.id,
-      employeecode: m.employeecode,
-      name: m.name,
-      email: m.email,
-      department: m.department,
-      profilePhotoUrl: m.profilephotourl || null,
-      joinDate: m.createdat,
-    })),
-  });
+    return res.json({
+      managers: managers.map((m) => ({
+        id: m.id,
+        employeecode: m.employeecode,
+        name: m.name,
+        email: m.email,
+        department: m.department,
+        profilePhotoUrl: m.profilephotourl || null,
+        joinDate: m.createdat,
+      })),
+    });
+  } catch (err) {
+    console.error('GET /managers:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
 });
 
 module.exports = router;

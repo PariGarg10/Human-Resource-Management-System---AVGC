@@ -1,7 +1,7 @@
 import { BadgeCheck } from 'lucide-react';
 import type { EmployeeUser } from '@/types/employee';
 import { cn } from '@/lib/cn';
-import { shiftLabel } from '@/lib/datetime';
+import { formatTime, shiftLabel } from '@/lib/datetime';
 
 type Props = {
   user: EmployeeUser | null;
@@ -37,6 +37,16 @@ export function EmployeeSpotlight({ user, punchIn, punchOut }: Props) {
         >
           <BadgeCheck className="h-5 w-5 shrink-0" aria-hidden />
           <span className="max-w-[220px] leading-snug">Current shift · {shift}</span>
+        </div>
+      </div>
+      <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Last punch in</p>
+          <p className="mt-1 text-sm font-bold text-slate-900">{formatTime(punchIn)}</p>
+        </div>
+        <div className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Last punch out</p>
+          <p className="mt-1 text-sm font-bold text-slate-900">{formatTime(punchOut)}</p>
         </div>
       </div>
     </div>

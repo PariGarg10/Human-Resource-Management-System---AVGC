@@ -94,9 +94,45 @@
     window.addEventListener('resize', tick, { passive: true });
   }
 
+  function initFounderSection() {
+    var wrap = document.getElementById('founderSection');
+    if (!wrap) return;
+    var quoteEl = document.getElementById('founderQuoteSlot');
+    var photoSlot = document.getElementById('founderPhotoSlot');
+    var DEFAULT =
+      "Great teams are not built on policies, but on trust, vision, and the courage to grow together.";
+    var quote = DEFAULT;
+    try {
+      var stored = localStorage.getItem('founder_quote');
+      if (stored) quote = stored;
+    } catch (_e) {}
+    if (quoteEl) quoteEl.textContent = quote;
+    var photo = null;
+    try {
+      photo = localStorage.getItem('founder_photo');
+    } catch (_e2) {}
+    if (photoSlot) {
+      photoSlot.innerHTML = '';
+      if (photo) {
+        var img = document.createElement('img');
+        img.className = 'founder-section__photo';
+        img.alt = '';
+        img.src = photo;
+        photoSlot.appendChild(img);
+      } else {
+        var div = document.createElement('div');
+        div.className = 'founder-section__initials';
+        div.textContent = 'AM';
+        div.setAttribute('aria-hidden', 'true');
+        photoSlot.appendChild(div);
+      }
+    }
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     initSiteHeader();
     initScrollReveal();
     initHeroParallax();
+    initFounderSection();
   });
 })();

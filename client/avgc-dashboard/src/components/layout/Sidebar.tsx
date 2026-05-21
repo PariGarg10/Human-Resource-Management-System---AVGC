@@ -4,34 +4,83 @@ import {
   History,
   LayoutDashboard,
   LogOut,
+  MapPin,
+  Network,
   PanelLeftClose,
   PanelLeft,
   Settings,
   User,
   FileEdit,
-  MessageSquare,
-  UsersRound,
+  Headphones,
+  Inbox,
+  ListTodo,
+  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
 export type NavId =
   | 'dashboard'
+  | 'tasks'
+  | 'employees'
+  | 'teams'
+  | 'org'
   | 'attendance'
   | 'calendar'
   | 'leave-apply'
   | 'leave-history'
+  | 'helpdesk-raise'
+  | 'helpdesk-my'
+  | 'helpdesk-inbox'
+  | 'punch'
   | 'profile'
   | 'settings';
 
-const items: { id: NavId; label: string; icon: typeof LayoutDashboard }[] = [
+type NavItem = { id: NavId; label: string; icon: typeof LayoutDashboard };
+
+const group1: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'attendance', label: 'My Attendance', icon: ClipboardList },
+  { id: 'tasks', label: 'My Tasks', icon: ListTodo },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'leave-apply', label: 'Apply Leave', icon: FileEdit },
+];
+
+const group2: NavItem[] = [
+  { id: 'employees', label: 'Employees', icon: Users },
+  { id: 'teams', label: 'Teams', icon: Users },
+  { id: 'org', label: 'Org Chart', icon: Network },
+];
+
+const group3: NavItem[] = [
+  { id: 'attendance', label: 'Attendance', icon: ClipboardList },
+  { id: 'leave-apply', label: 'Leave Management', icon: FileEdit },
   { id: 'leave-history', label: 'Leave History', icon: History },
+  { id: 'punch', label: 'Punch In/Out', icon: MapPin },
+];
+
+const group4: NavItem[] = [
+  { id: 'helpdesk-raise', label: 'Raise Concern', icon: Headphones },
+  { id: 'helpdesk-my', label: 'My Concerns', icon: History },
+  { id: 'helpdesk-inbox', label: 'Concerns Inbox', icon: Inbox },
+];
+
+const group5: NavItem[] = [
   { id: 'profile', label: 'Profile', icon: User },
   { id: 'settings', label: 'Settings', icon: Settings },
 ];
+
+function GroupLabel({ text }: { text: string }) {
+  return (
+    <div
+      className="px-3 pb-1 pt-3 font-['DM_Sans',sans-serif] text-[10px] font-bold uppercase tracking-[2px] text-[#ed1d24]"
+      style={{ letterSpacing: '2px' }}
+    >
+      {text}
+    </div>
+  );
+}
+
+function Divider() {
+  return <div className="mx-3 my-2 h-px bg-[var(--border)]" />;
+}
 
 type Props = {
   active: NavId;
@@ -40,9 +89,37 @@ type Props = {
   onToggleCollapse: () => void;
   userName: string;
   userInitial: string;
+  userRole: string;
   onLogout: () => void;
   mobileOpen: boolean;
 };
+
+function NavButton({
+  id,
+  label,
+  icon: Icon,
+  active,
+  collapsed,
+  onNavigate,
+}: NavItem & { active: NavId; collapsed: boolean; onNavigate: (id: NavId) => void }) {
+  const isActive = active === id;
+  return (
+    <button
+      type="button"
+      onClick={() => onNavigate(id)}
+      className={cn(
+        'flex w-full min-h-[44px] items-center gap-3 border-l-[3px] px-3 py-2.5 text-left font-["DM_Sans",sans-serif] text-sm font-medium transition-colors',
+        isActive
+          ? 'border-[#ed1d24] bg-[rgba(237,29,36,0.08)] text-[#ed1d24]'
+          : 'border-transparent text-[var(--text-primary)] opacity-70 hover:opacity-100'
+      )}
+      aria-current={isActive ? 'page' : undefined}
+    >
+      <Icon className="h-5 w-5 shrink-0" aria-hidden />
+      {!collapsed && <span>{label}</span>}
+    </button>
+  );
+}
 
 export function Sidebar({
   active,
@@ -51,77 +128,84 @@ export function Sidebar({
   onToggleCollapse,
   userName,
   userInitial,
+  userRole,
   onLogout,
   mobileOpen,
 }: Props) {
+  const roleLabel = userRole ? userRole.replace(/^\w/, (c) => c.toUpperCase()) : 'Employee';
+
   return (
     <aside
       className={cn(
-        'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-slate-200 bg-white shadow-sm transition-[width,transform] duration-200 md:z-40',
+        'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-[var(--border)] bg-[var(--bg-secondary)] shadow-sm transition-[width,transform] duration-200 md:z-40',
         collapsed ? 'w-[72px]' : 'w-64',
         mobileOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
       )}
       aria-label="Primary navigation"
     >
-      <div className="flex h-16 items-center gap-2 border-b border-slate-100 px-4">
-        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#1A237E] text-sm font-bold text-white">
+      <div className="flex h-16 items-center gap-2 border-b border-[var(--border)] px-4">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-[#ed1d24] text-sm font-bold text-white">
           AV
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <div className="truncate text-sm font-bold tracking-tight text-slate-900">AVGC</div>
-            <div className="truncate text-xs text-slate-500">Employee Hub</div>
+            <div className="truncate font-['Bebas_Neue',sans-serif] text-lg tracking-wide text-[var(--text-primary)]">
+              AVGC
+            </div>
+            <div className="truncate font-['DM_Sans',sans-serif] text-xs text-[var(--text-muted)]">Employee Hub</div>
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-3 border-b border-slate-100 px-3 py-4">
-        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-semibold text-[#1A237E]">
+      <div className="flex items-center gap-3 border-b border-[var(--border)] px-3 py-4">
+        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[rgba(237,29,36,0.1)] text-sm font-semibold text-[#ed1d24]">
           {userInitial}
         </div>
         {!collapsed && (
           <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-slate-900">{userName}</div>
-            <div className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-600">
-              <MessageSquare className="h-3 w-3" aria-hidden />
-              Employee
+            <div className="truncate font-['DM_Sans',sans-serif] text-sm font-semibold text-[var(--text-primary)]">
+              {userName}
+            </div>
+            <div className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-[rgba(237,29,36,0.08)] px-2 py-0.5 font-['DM_Sans',sans-serif] text-[10px] font-medium uppercase tracking-wide text-[var(--text-muted)]">
+              <User className="h-3 w-3" aria-hidden />
+              {roleLabel}
             </div>
           </div>
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
-        <a
-          href="/managers"
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium text-slate-600 transition-colors min-h-[44px] hover:bg-slate-50 hover:text-slate-900"
-        >
-          <UsersRound className="h-5 w-5 shrink-0" aria-hidden />
-          {!collapsed && <span>Managers</span>}
-        </a>
-        {items.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            type="button"
-            onClick={() => onNavigate(id)}
-            className={cn(
-              'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors min-h-[44px]',
-              active === id
-                ? 'bg-[#1A237E]/10 text-[#1A237E]'
-                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-            )}
-            aria-current={active === id ? 'page' : undefined}
-          >
-            <Icon className="h-5 w-5 shrink-0" aria-hidden />
-            {!collapsed && <span>{label}</span>}
-          </button>
+      <nav className="flex-1 space-y-0 overflow-y-auto p-2">
+        <GroupLabel text="My workspace" />
+        {group1.map((item) => (
+          <NavButton key={item.id} {...item} active={active} collapsed={collapsed} onNavigate={onNavigate} />
+        ))}
+        <Divider />
+        <GroupLabel text="People" />
+        {group2.map((item) => (
+          <NavButton key={item.id} {...item} active={active} collapsed={collapsed} onNavigate={onNavigate} />
+        ))}
+        <Divider />
+        <GroupLabel text="Time & attendance" />
+        {group3.map((item) => (
+          <NavButton key={item.id} {...item} active={active} collapsed={collapsed} onNavigate={onNavigate} />
+        ))}
+        <Divider />
+        <GroupLabel text="Helpdesk" />
+        {group4.map((item) => (
+          <NavButton key={item.id} {...item} active={active} collapsed={collapsed} onNavigate={onNavigate} />
+        ))}
+        <Divider />
+        <GroupLabel text="Account" />
+        {group5.map((item) => (
+          <NavButton key={item.id} {...item} active={active} collapsed={collapsed} onNavigate={onNavigate} />
         ))}
       </nav>
 
-      <div className="border-t border-slate-100 p-3 space-y-2">
+      <div className="space-y-2 border-t border-[var(--border)] p-3">
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 min-h-[44px]"
+          className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-md border border-[var(--border)] px-3 py-2 font-['DM_Sans',sans-serif] text-sm font-medium text-[var(--text-primary)] hover:bg-[rgba(237,29,36,0.06)]"
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? <PanelLeft className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
@@ -130,7 +214,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={onLogout}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 min-h-[44px]"
+          className="flex w-full min-h-[44px] items-center justify-center gap-2 rounded-md bg-[#ed1d24] px-3 py-2 font-['DM_Sans',sans-serif] text-sm font-semibold text-white"
         >
           <LogOut className="h-4 w-4" />
           {!collapsed && 'Sign out'}

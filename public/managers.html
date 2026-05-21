@@ -5,29 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Managers · AVGC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/app-bundle.css" />
   <style>
-    .managers-page { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .managers-page { width: 100%; max-width: 1440px; margin: 0 auto; padding: 24px; }
     .managers-toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px; }
-    .managers-toolbar input { flex: 1; min-width: 200px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 14px; }
-    .managers-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
-    .manager-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm); display: flex; gap: 16px; align-items: flex-start; }
-    .manager-avatar { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; background: var(--primary-soft); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--primary); flex-shrink: 0; }
-    .manager-card h3 { margin: 0 0 6px; font-size: 16px; }
+    .managers-toolbar input { flex: 1; min-width: 240px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--bg-secondary); color: var(--text-primary); font: inherit; }
+    .managers-grid { display: grid; gap: 18px; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); width: 100%; }
+    .manager-card { min-height: 132px; background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-sm); display: flex; gap: 18px; align-items: center; color: var(--text-primary); }
+    .manager-avatar { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; background: var(--red); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--white); flex-shrink: 0; }
+    .manager-card h3 { margin: 0 0 6px; font-size: 18px; color: var(--text-primary); }
     .manager-meta { font-size: 13px; color: var(--text-muted); margin: 0; line-height: 1.5; }
     .managers-empty { text-align: center; padding: 48px 24px; color: var(--text-muted); }
     .managers-loading { padding: 40px; text-align: center; color: var(--text-muted); }
     .back-link { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 16px; color: var(--primary); font-weight: 600; text-decoration: none; }
     .back-link:hover { text-decoration: underline; }
+    .manager-directory-hero { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 8px; padding: 22px 24px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg-card); box-shadow: var(--shadow-sm); }
+    .manager-directory-hero h1 { margin: 0; font-size: clamp(34px, 4vw, 54px); line-height: 1; }
+    @media (max-width: 640px) {
+      .managers-grid { grid-template-columns: 1fr; }
+      .manager-card { align-items: flex-start; padding: 18px; }
+    }
   </style>
 </head>
 <body>
-  <div class="app-shell" style="min-height:100vh;">
+  <div class="app-shell" style="min-height:100vh;width:100%;">
     <main class="managers-page">
-      <a class="back-link" href="/employee/dashboard" id="backDash">← Back to dashboard</a>
-      <header class="page-header" style="margin-bottom:8px;">
-        <h1 style="margin:0;">Managers</h1>
+      <a class="back-link" href="/admin/dashboard" id="backDash">← Back to admin dashboard</a>
+      <header class="manager-directory-hero">
+        <h1>Managers</h1>
         <button type="button" class="btn btn-outline btn-sm" id="logoutBtn">Sign out</button>
       </header>
       <p class="stat-sub" style="margin-bottom:20px;">People managers in your organisation. Use search to filter by name or department.</p>
@@ -52,12 +58,10 @@
       }
       const user = JSON.parse(localStorage.getItem('employee') || '{}');
       const role = String(user.role || '').toLowerCase();
-      if (role === 'admin') {
-        document.getElementById('backDash').href = '/admin/dashboard';
-        document.getElementById('backDash').textContent = '← Back to admin dashboard';
-      } else if (role === 'manager') {
-        document.getElementById('backDash').href = '/manager/dashboard';
-        document.getElementById('backDash').textContent = '← Back to manager dashboard';
+      if (role !== 'admin') {
+        if (role === 'manager') window.location.replace('/manager/dashboard');
+        else window.location.replace('/employee/dashboard');
+        return;
       }
 
       function logout() {

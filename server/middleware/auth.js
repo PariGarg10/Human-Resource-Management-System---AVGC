@@ -18,12 +18,28 @@ function authMiddleware(req, res, next) {
 }
 
 function requireRoles(...roles) {
+  const allowed = roles.map((r) => String(r).toLowerCase().trim());
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
+    const userRole = String(req.user?.role || '').toLowerCase().trim();
+    if (!req.user || !allowed.includes(userRole)) {
       return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
     }
     return next();
   };
+}
+
+function isFounderUser(user) {
+  const role = String(user?.role || '').toLowerCase().trim();
+  const name = String(user?.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+  return role === 'founder' || name === 'ashish mishra';
+}
+
+function requireAdminOrFounder(req, res, next) {
+  const userRole = String(req.user?.role || '').toLowerCase().trim();
+  if (!req.user || (userRole !== 'admin' && !isFounderUser(req.user))) {
+    return res.status(403).json({ message: 'Forbidden: only admin or founder can access this resource' });
+  }
+  return next();
 }
 
 function enforcePasswordChange(req, res, next) {
@@ -36,4 +52,4 @@ function enforcePasswordChange(req, res, next) {
   return next();
 }
 
-module.exports = { authMiddleware, requireRoles, enforcePasswordChange };
+module.exports = { authMiddleware, requireRoles, requireAdminOrFounder, isFounderUser, enforcePasswordChange };

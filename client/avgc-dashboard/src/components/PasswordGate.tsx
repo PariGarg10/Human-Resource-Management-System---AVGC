@@ -57,7 +57,7 @@ export function PasswordGate({ message }: { message?: string }) {
         </label>
         <button
           type="submit"
-          className="rounded-xl bg-[#1A237E] px-6 py-3 text-sm font-semibold text-white sm:col-span-2 min-h-[44px] w-fit"
+          className="rounded-xl bg-avgc-brand px-6 py-3 text-sm font-semibold text-white sm:col-span-2 min-h-[44px] w-fit"
         >
           Update password
         </button>

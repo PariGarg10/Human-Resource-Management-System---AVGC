@@ -1,9 +1,9 @@
-const { db } = require('../db');
+const { pool } = require('../db');
 
-function generateEmployeeCode() {
-  const rows = db
-    .prepare("SELECT employeecode FROM employees WHERE employeecode LIKE 'EMP%'")
-    .all();
+async function generateEmployeeCode() {
+  const { rows } = await pool.query(
+    "SELECT employeecode FROM employees WHERE employeecode LIKE 'EMP%'"
+  );
 
   let maxNumber = 0;
   for (const row of rows) {

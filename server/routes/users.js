@@ -1,11 +1,11 @@
-
-
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const { db } = require('../db');
+const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
+const { buildOrgSections } = require('../utils/orgDirectory');
+const { ensurePersonalTasksTable, rowToTask, PRIORITIES } = require('../utils/personalTasks');
 const { logAudit } = require('../utils/audit');
 const { ageFromDateOfBirth } = require('../utils/birthdays');
 
@@ -60,23 +60,6 @@ function rowToProfile(row) {
   };
 }
 
-router.get('/me', authMiddleware, (req, res) => {
-  const row = db
-    .prepare(
-      `
-      SELECT id, employeecode, name, email, department, role, dateofbirth, phone, location, bio, profilephotourl, createdat
-      FROM employees WHERE id = ?
-    `
-    )
-    .get(req.user.id);
-
-  if (!row) return res.status(404).json({ message: 'User not found' });
-  return res.json({ profile: rowToProfile(row) });
-});
-
-router.use(authMiddleware);
-router.use(enforcePasswordChange);
-
 function parseProfileFields(body) {
   const name = body.name != null ? String(body.name).trim() : undefined;
   const phone = body.phone != null ? String(body.phone).trim() || null : undefined;
@@ -92,8 +75,9 @@ function parseProfileFields(body) {
   return { name, phone, location, bio, dateOfBirth };
 }
 
-function applyProfileUpdate(userId, fields, profilePhotoUrl) {
-  const row = db.prepare('SELECT * FROM employees WHERE id = ?').get(userId);
+async function applyProfileUpdate(userId, fields, profilePhotoUrl) {
+  const rowResult = await pool.query('SELECT * FROM employees WHERE id = $1', [userId]);
+  const row = rowResult.rows[0];
   if (!row) throw new Error('User not found');
 
   const next = {
@@ -109,33 +93,26 @@ function applyProfileUpdate(userId, fields, profilePhotoUrl) {
     throw new Error('name cannot be empty');
   }
 
-  db.prepare(
+  await pool.query(
     `
     UPDATE employees
-    SET name = ?, phone = ?, location = ?, bio = ?, dateofbirth = ?, profilephotourl = ?
-    WHERE id = ?
-  `
-  ).run(
-    next.name,
-    next.phone,
-    next.location,
-    next.bio,
-    next.dateofbirth,
-    next.profilephotourl,
-    userId
+    SET name = $1, phone = $2, location = $3, bio = $4, dateofbirth = $5, profilephotourl = $6
+    WHERE id = $7
+  `,
+    [next.name, next.phone, next.location, next.bio, next.dateofbirth, next.profilephotourl, userId]
   );
 
-  return db
-    .prepare(
-      `
-      SELECT id, employeecode, name, email, department, role, dateofbirth, phone, location, bio, profilephotourl, createdat
-      FROM employees WHERE id = ?
+  const updatedResult = await pool.query(
     `
-    )
-    .get(userId);
+      SELECT id, employeecode, name, email, department, role, dateofbirth, phone, location, bio, profilephotourl, createdat
+      FROM employees WHERE id = $1
+    `,
+    [userId]
+  );
+  return updatedResult.rows[0];
 }
 
-function handlePatch(req, res, userId) {
+async function handlePatch(req, res, userId) {
   try {
     let fields;
     try {
@@ -149,38 +126,224 @@ function handlePatch(req, res, userId) {
       photoUrl = `/uploads/profile-photos/${req.file.filename}`;
     }
 
-    const updated = applyProfileUpdate(userId, fields, photoUrl);
-    logAudit(userId, 'PROFILE_UPDATED', 'employees', { id: userId });
+    const updated = await applyProfileUpdate(userId, fields, photoUrl);
+    await logAudit(userId, 'PROFILE_UPDATED', 'employees', { id: userId });
     return res.json({ profile: rowToProfile(updated), message: 'Profile updated' });
   } catch (e) {
-    return res.status(400).json({ message: e.message || 'Update failed' });
+    if (e.message === 'User not found') {
+      return res.status(404).json({ message: e.message });
+    }
+    if (e.message && !e.code) {
+      return res.status(400).json({ message: e.message || 'Update failed' });
+    }
+    console.error('PATCH /users profile:', e.message);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
-router.patch('/me', maybeUpload, (req, res) => handlePatch(req, res, req.user.id));
+async function patchProfile(req, res, userId) {
+  try {
+    return await handlePatch(req, res, userId);
+  } catch (err) {
+    console.error('PATCH /users:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+}
+
+router.get('/org-directory', authMiddleware, enforcePasswordChange, async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `
+      SELECT id, employeecode, name, email, department, role, profilephotourl
+      FROM employees
+      WHERE COALESCE(isregistered, TRUE) = TRUE
+      ORDER BY name ASC
+    `
+    );
+    const sections = buildOrgSections(rows);
+    return res.json({
+      sections,
+      total: rows.length,
+    });
+  } catch (err) {
+    console.error('GET /users/org-directory:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/my-tasks', authMiddleware, enforcePasswordChange, async (req, res) => {
+  try {
+    await ensurePersonalTasksTable();
+    const { rows } = await pool.query(
+      `
+      SELECT id, title, priority, duedate::text AS duedate, done
+      FROM personal_tasks
+      WHERE employeeid = $1
+      ORDER BY done ASC, duedate ASC, id ASC
+    `,
+      [req.user.id]
+    );
+    return res.json({ tasks: rows.map(rowToTask) });
+  } catch (err) {
+    console.error('GET /users/my-tasks:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.post('/my-tasks', authMiddleware, enforcePasswordChange, async (req, res) => {
+  try {
+    await ensurePersonalTasksTable();
+    const title = String(req.body.title || '').trim();
+    const priority = String(req.body.priority || 'Medium').trim();
+    const dueDate = String(req.body.dueDate || req.body.duedate || '').trim();
+
+    if (!title) return res.status(400).json({ message: 'Title is required' });
+    if (!PRIORITIES.has(priority)) return res.status(400).json({ message: 'Invalid priority' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+      return res.status(400).json({ message: 'dueDate must be YYYY-MM-DD' });
+    }
+
+    const { rows } = await pool.query(
+      `
+      INSERT INTO personal_tasks (employeeid, title, priority, duedate)
+      VALUES ($1, $2, $3, $4::date)
+      RETURNING id, title, priority, duedate::text AS duedate, done
+    `,
+      [req.user.id, title, priority, dueDate]
+    );
+    return res.status(201).json({ task: rowToTask(rows[0]) });
+  } catch (err) {
+    console.error('POST /users/my-tasks:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.patch('/my-tasks/:taskId', authMiddleware, enforcePasswordChange, async (req, res) => {
+  try {
+    await ensurePersonalTasksTable();
+    const taskId = Number(req.params.taskId);
+    if (!Number.isFinite(taskId)) return res.status(400).json({ message: 'Invalid task id' });
+
+    const existing = await pool.query(
+      'SELECT * FROM personal_tasks WHERE id = $1 AND employeeid = $2',
+      [taskId, req.user.id]
+    );
+    if (!existing.rows[0]) return res.status(404).json({ message: 'Task not found' });
+
+    const row = existing.rows[0];
+    const title = req.body.title !== undefined ? String(req.body.title).trim() : row.title;
+    const priority =
+      req.body.priority !== undefined ? String(req.body.priority).trim() : row.priority;
+    const dueDate =
+      req.body.dueDate !== undefined
+        ? String(req.body.dueDate).trim()
+        : req.body.duedate !== undefined
+          ? String(req.body.duedate).trim()
+          : row.duedate;
+    const done = req.body.done !== undefined ? Boolean(req.body.done) : row.done;
+
+    if (!title) return res.status(400).json({ message: 'Title is required' });
+    if (!PRIORITIES.has(priority)) return res.status(400).json({ message: 'Invalid priority' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dueDate))) {
+      return res.status(400).json({ message: 'dueDate must be YYYY-MM-DD' });
+    }
+
+    const { rows } = await pool.query(
+      `
+      UPDATE personal_tasks
+      SET title = $1, priority = $2, duedate = $3::date, done = $4
+      WHERE id = $5 AND employeeid = $6
+      RETURNING id, title, priority, duedate::text AS duedate, done
+    `,
+      [title, priority, dueDate, done, taskId, req.user.id]
+    );
+    return res.json({ task: rowToTask(rows[0]) });
+  } catch (err) {
+    console.error('PATCH /users/my-tasks/:taskId:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.delete('/my-tasks/:taskId', authMiddleware, enforcePasswordChange, async (req, res) => {
+  try {
+    await ensurePersonalTasksTable();
+    const taskId = Number(req.params.taskId);
+    if (!Number.isFinite(taskId)) return res.status(400).json({ message: 'Invalid task id' });
+
+    const result = await pool.query(
+      'DELETE FROM personal_tasks WHERE id = $1 AND employeeid = $2 RETURNING id',
+      [taskId, req.user.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ message: 'Task not found' });
+    return res.json({ message: 'Task deleted' });
+  } catch (err) {
+    console.error('DELETE /users/my-tasks/:taskId:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/me', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `
+      SELECT id, employeecode, name, email, department, role, dateofbirth, phone, location, bio, profilephotourl, createdat
+      FROM employees WHERE id = $1
+    `,
+      [req.user.id]
+    );
+    const row = result.rows[0];
+    if (!row) return res.status(404).json({ message: 'User not found' });
+    return res.json({ profile: rowToProfile(row) });
+  } catch (err) {
+    console.error('GET /users/me:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/:id', authMiddleware, async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id !== req.user.id) {
+      return res.status(403).json({ message: 'You can only read your own profile' });
+    }
+    const result = await pool.query(
+      `
+      SELECT id, employeecode, name, email, department, role, dateofbirth, phone, location, bio, profilephotourl, createdat
+      FROM employees WHERE id = $1
+    `,
+      [req.user.id]
+    );
+    const row = result.rows[0];
+    if (!row) return res.status(404).json({ message: 'User not found' });
+    return res.json({ profile: rowToProfile(row) });
+  } catch (err) {
+    console.error('GET /users/:id:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.use(authMiddleware);
+
+router.patch('/me', maybeUpload, (req, res) => patchProfile(req, res, req.user.id));
 
 router.patch('/:id', maybeUpload, (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isFinite(id) || id !== req.user.id) {
     return res.status(403).json({ message: 'You can only update your own profile' });
   }
-  return handlePatch(req, res, req.user.id);
+  return patchProfile(req, res, req.user.id);
 });
 
 router.use((err, _req, res, _next) => {
   if (!err) return _next();
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: 'Image must be 3MB or smaller' });
+    }
+    return res.status(400).json({ message: err.message || 'Upload failed' });
+  }
   const msg = err.message || 'Upload failed';
-  const status = msg.includes('Only JPEG') || msg.includes('File too large') ? 400 : 400;
-  return res.status(status).json({ message: msg });
+  return res.status(400).json({ message: msg });
 });
 
 module.exports = router;
-
-// CHANGE your profile update route to:
-router.patch('/profile', upload.single('avatar'), async (req, res) => {
-  const updates = { ...req.body };
-  if (req.file) {
-    updates.avatar_url = `/uploads/${req.file.filename}`;
-  }
-  // run your existing DB update with `updates`
-});

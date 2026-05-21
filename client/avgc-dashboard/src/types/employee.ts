@@ -11,9 +11,9 @@ export type EmployeeUser = {
   location?: string | null;
   bio?: string | null;
   profilePhotoUrl?: string | null;
+  avatar_url?: string | null;
   age?: number | null;
 };
-
 export type UserProfile = {
   id: number;
   employeecode?: string;

@@ -1,12 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('theme_preference') || localStorage.getItem('hrms-theme');
+        document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Manager · AVGC</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/app-bundle.css" />
 </head>
 <body>
@@ -24,14 +34,30 @@
       </div>
     </div>
     <nav class="sidebar-nav">
-      <a href="/managers"><span class="nav-icon">👔</span><span>All managers</span></a>
+      <div class="sidebar-nav-group-label">My workspace</div>
       <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon">◉</span><span>Dashboard</span></button>
-      <button type="button" data-nav="team-attendance"><span class="nav-icon">▣</span><span>Team Attendance</span></button>
-      <button type="button" data-nav="team-calendar"><span class="nav-icon">▦</span><span>Team Calendar</span></button>
-      <button type="button" data-nav="employees"><span class="nav-icon">👥</span><span>Assigned Employees</span></button>
-      <button type="button" data-nav="leaves"><span class="nav-icon">☰</span><span>Leave Requests</span></button>
+      <button type="button" data-nav="my-tasks"><span class="nav-icon">▪</span><span>My Tasks</span></button>
+      <button type="button" data-nav="team-calendar"><span class="nav-icon">▦</span><span>Calendar</span></button>
+      <button type="button" data-nav="holiday-calendar"><span class="nav-icon">▦</span><span>Holiday Calendar</span></button>
+      <div class="sidebar-nav-divider"></div>
+      <div class="sidebar-nav-group-label">People</div>
+      <button type="button" data-nav="employees"><span class="nav-icon">👥</span><span>Employees</span></button>
+      <button type="button" data-nav="teams"><span class="nav-icon">◎</span><span>Teams</span></button>
+      <button type="button" data-nav="org-chart"><span class="nav-icon">⬡</span><span>Org Chart</span></button>
+      <div class="sidebar-nav-divider"></div>
+      <div class="sidebar-nav-group-label">Time &amp; attendance</div>
+      <button type="button" data-nav="team-attendance"><span class="nav-icon">▣</span><span>Attendance</span></button>
+      <button type="button" data-nav="leaves"><span class="nav-icon">☰</span><span>Leave Management</span></button>
+      <button type="button" data-nav="punch"><span class="nav-icon">⌖</span><span>Punch In/Out</span></button>
+      <div class="sidebar-nav-divider"></div>
+      <div class="sidebar-nav-group-label">Requests</div>
+      <button type="button" data-nav="requests-raise"><span class="nav-icon">✎</span><span>Raise Request</span></button>
+      <button type="button" data-nav="requests-my"><span class="nav-icon">▤</span><span>My Requests</span></button>
+      <button type="button" data-nav="requests-inbox"><span class="nav-icon">▣</span><span>Requests Inbox</span></button>
+      <div class="sidebar-nav-divider"></div>
+      <div class="sidebar-nav-group-label">Account</div>
       <button type="button" data-nav="reports"><span class="nav-icon">▤</span><span>Reports</span></button>
-      <button type="button" data-nav="profile"><span class="nav-icon">◎</span><span>Profile</span></button>
+      <button type="button" data-nav="profile"><span class="nav-icon">●</span><span>Profile</span></button>
       <button type="button" data-nav="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
     </nav>
     <div class="sidebar-footer">
@@ -51,22 +77,61 @@
       </div>
       <div class="navbar-right">
         <span class="navbar-clock" id="navbarClock"></span>
-        <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="HRMS.toggleTheme()">◐</button>
+        <div class="notification-wrap">
+          <button type="button" class="theme-toggle-btn" id="notificationBell" aria-label="Notifications" style="position:relative;">🔔
+            <span id="notificationBadge" class="hidden">0</span>
+          </button>
+          <div id="notificationPanel" class="notification-panel">
+            <div id="notificationList"></div>
+          </div>
+        </div>
+        <button type="button" class="theme-toggle-btn navbar-legacy-theme-toggle" id="themeToggleBtn" onclick="HRMS.toggleTheme()">◐</button>
         <span class="role-pill">Manager</span>
         <div class="profile-dropdown-wrap">
-          <button type="button" class="profile-chip"><span id="navProfileEmail">—</span></button>
+          <button type="button" class="profile-chip">
+            <img id="navAvatar" class="navbar-avatar hidden" width="28" height="28" alt="" style="border-radius:50%;object-fit:cover;" />
+            <span id="navProfileEmail">—</span>
+          </button>
           <div class="profile-dropdown"><button type="button" id="dropdownLogout">Sign out</button></div>
         </div>
       </div>
     </header>
 
     <main class="content-area">
+      <section id="mgrPasswordChangeSection" class="panel hidden" style="border-left:4px solid var(--warning);">
+        <h2 class="panel-title">Password change required</h2>
+        <p class="stat-sub">Update your password to access the manager workspace.</p>
+        <form id="mgrChangePasswordForm" class="form-row" style="margin-top:16px;">
+          <div class="form-group"><label>Current password</label><input id="mgrCurrentPassword" type="password" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+          <div class="form-group"><label>New password</label><input id="mgrNewPassword" type="password" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+          <button type="submit" class="btn btn-primary">Update password</button>
+        </form>
+        <p id="mgrPasswordChangeMessage" class="message"></p>
+      </section>
+
       <section id="view-dashboard" class="view-section is-active">
+        <div id="birthdayBanner" class="panel hidden" style="border-left:4px solid var(--warning);margin-bottom:16px;">
+          <p id="birthdayBannerText" class="panel-title" style="margin:0;"></p>
+        </div>
         <div class="stat-grid" id="summaryCards"></div>
+        <div class="panel">
+          <h2 class="panel-title">Quick actions</h2>
+          <div class="filters-inline" style="margin-top:12px;flex-wrap:wrap;gap:8px;">
+            <button type="button" class="btn btn-primary btn-sm" data-nav-jump="requests-raise">Raise request</button>
+            <button type="button" class="btn btn-outline btn-sm" data-nav-jump="leaves">Team leave approvals</button>
+            <button type="button" class="btn btn-outline btn-sm" data-nav-jump="requests-my">My requests</button>
+          </div>
+        </div>
+        <div class="panel" id="managerLeaveBalancePanel">
+          <h2 class="panel-title">My leave balance</h2>
+          <p class="stat-sub" id="managerLeaveBalanceSummary">Loading leave balance…</p>
+          <div class="tile-grid" id="managerLeaveBalanceGrid" style="margin-top:16px;"></div>
+        </div>
         <div class="panel">
           <h2 class="panel-title">Today's distribution</h2>
           <div class="chart-wrap"><canvas id="managerDoughnut"></canvas></div>
         </div>
+        <div id="mgrLeadershipHost"></div>
       </section>
 
       <section id="view-team-attendance" class="view-section">
@@ -98,10 +163,36 @@
           </div>
           <div class="table-wrap">
             <table class="data-table"><thead><tr>
-              <th>Employee</th><th>Present</th><th>Half</th><th>Leave</th><th>Absent</th>
+              <th>Employee</th><th>Present</th><th>Half</th><th>Leave</th><th>Absent</th><th>Holidays</th>
             </tr></thead><tbody id="teamSummaryBody"></tbody></table>
           </div>
+          <div class="panel" style="margin-top:16px;border:1px dashed var(--border);">
+            <h3 class="panel-title" style="font-size:1rem;">Holidays this month</h3>
+            <div class="table-wrap" style="margin-top:12px;">
+              <table class="data-table">
+                <thead><tr><th>Date</th><th>Holiday</th><th>Type</th></tr></thead>
+                <tbody id="managerHolidayBody"></tbody>
+              </table>
+            </div>
+          </div>
           <div class="chart-wrap" style="margin-top:24px;"><canvas id="managerBarChart"></canvas></div>
+        </div>
+      </section>
+
+      <section id="view-holiday-calendar" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Holiday calendar</h2>
+          <p class="stat-sub" style="margin-bottom:16px;">National Holiday, Festival, and Optional holidays are shared across all roles.</p>
+          <div class="filters-inline" style="margin-bottom:16px;">
+            <label>Year <input type="number" id="mgrHolYear" min="2000" max="2100" /></label>
+            <button type="button" class="btn btn-primary btn-sm" id="loadMgrHolidaysBtn">Load holidays</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead><tr><th>Date</th><th>Holiday</th><th>Type</th></tr></thead>
+              <tbody id="mgrHolidayCalendarBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -116,10 +207,56 @@
 
       <section id="view-leaves" class="view-section">
         <div class="panel">
+          <h2 class="panel-title">Apply for leave</h2>
+          <p class="stat-sub">Submit your own leave request for admin or assigned approver review.</p>
+          <form id="mgrLeaveForm" class="form-row" style="margin-top:16px;">
+            <div class="form-group"><label>Type</label>
+              <select id="mgrLeaveType" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;">
+                <option>Sick Leave</option><option>Casual Leave</option><option>Paid Leave</option><option>Work From Home</option>
+              </select>
+            </div>
+            <div class="form-group"><label>From</label><input type="date" id="mgrLeaveFrom" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group"><label>To</label><input type="date" id="mgrLeaveTo" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group" style="flex-basis:100%;"><label>Reason optional</label><textarea id="mgrLeaveReason" rows="2" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea></div>
+            <button type="submit" class="btn btn-primary">Submit leave</button>
+          </form>
+          <p id="mgrLeaveMessage" class="message"></p>
+        </div>
+        <div class="panel" style="margin-top:16px;">
           <h2 class="panel-title">Team leave requests</h2>
           <div class="table-wrap" style="margin-top:16px;">
-            <table class="data-table"><thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Status</th></tr></thead><tbody id="leaveBody"></tbody></table>
+            <table class="data-table"><thead><tr><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Status</th><th>Action</th></tr></thead><tbody id="leaveBody"></tbody></table>
           </div>
+        </div>
+      </section>
+
+      <section id="view-requests-raise" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Raise request</h2>
+          <p class="stat-sub">Send a workplace, IT, or HR request to Admin, IT Head, or your manager.</p>
+          <form id="mgrRequestForm" class="form-row" style="margin-top:16px;">
+            <div class="form-group"><label>Subject</label><input id="mgrReqSubject" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group"><label>Raise to</label><select id="mgrReqRaisedTo" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"><option value="admin">Admin</option><option value="it_head">IT Head</option><option value="my_manager">My Manager</option></select></div>
+            <div class="form-group"><label>Priority</label><select id="mgrReqPriority" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"><option>Low</option><option selected>Medium</option><option>High</option><option>Urgent</option></select></div>
+            <div class="form-group"><label>Attachment optional</label><input type="file" id="mgrReqAttachment" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group" style="flex-basis:100%;"><label>Description</label><textarea id="mgrReqDescription" rows="4" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea></div>
+            <button type="submit" class="btn btn-primary">Submit request</button>
+          </form>
+          <p id="mgrRequestMessage" class="message"></p>
+        </div>
+      </section>
+
+      <section id="view-requests-my" class="view-section">
+        <div class="panel">
+          <div class="panel-header"><h2 class="panel-title">My requests</h2><button type="button" class="btn btn-primary btn-sm" id="loadMgrMyRequestsBtn">Refresh</button></div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Subject</th><th>Raised to</th><th>Priority</th><th>Status</th><th>Response</th></tr></thead><tbody id="mgrMyRequestsBody"></tbody></table></div>
+        </div>
+      </section>
+
+      <section id="view-requests-inbox" class="view-section">
+        <div class="panel">
+          <div class="panel-header"><h2 class="panel-title">Requests inbox</h2><button type="button" class="btn btn-primary btn-sm" id="loadMgrInboxRequestsBtn">Refresh</button></div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Raised by</th><th>Subject</th><th>Priority</th><th>Status</th><th>Response / Action</th></tr></thead><tbody id="mgrInboxRequestsBody"></tbody></table></div>
         </div>
       </section>
 
@@ -131,12 +268,63 @@
         </div>
       </section>
 
+      <section id="view-my-tasks" class="view-section">
+        <div class="panel team-hub-panel">
+          <h2 class="panel-title">My tasks</h2>
+          <div id="teamHubTasksRoot"></div>
+        </div>
+      </section>
+
+      <section id="view-teams" class="view-section">
+        <div class="panel team-hub-panel">
+          <h2 class="panel-title">Teams</h2>
+          <div id="teamHubTeamsRoot"></div>
+        </div>
+      </section>
+
+      <section id="view-org-chart" class="view-section">
+        <div class="panel team-hub-panel">
+          <h2 class="panel-title">Org chart</h2>
+          <div id="teamHubOrgRoot"></div>
+        </div>
+      </section>
+
+      <section id="view-punch" class="view-section">
+        <div class="panel punch-screen">
+          <div class="punch-clock" id="mgrPunchClock">--:--:--</div>
+          <div class="punch-date" id="mgrPunchDate">—</div>
+          <div class="punch-status-pill out" id="mgrPunchPill">PUNCHED OUT</div>
+          <button type="button" class="punch-big-btn state-out" id="mgrPunchBtn">PUNCH IN</button>
+          <div class="punch-loc-msg" id="mgrPunchMsg">📍 Verifying location...</div>
+        </div>
+      </section>
+
       <section id="view-profile" class="view-section">
         <div class="panel">
-          <h2 class="panel-title">Profile</h2>
+          <h2 class="panel-title" id="mgrProfileHeading">Profile</h2>
+          <p class="stat-sub" style="margin-bottom:16px;">Update your details. Email is managed by your administrator.</p>
+          <form id="mgrProfileForm" class="form-row" style="align-items:flex-start;">
+            <div class="form-group" style="max-width:200px;">
+              <label>Photo</label>
+              <div style="width:120px;height:120px;border-radius:var(--radius-md);border:1px solid var(--border);overflow:hidden;background:var(--surface);display:flex;align-items:center;justify-content:center;">
+                <img id="mgrProfilePhotoPreview" class="hidden" alt="" style="width:100%;height:100%;object-fit:cover;" />
+                <span id="mgrProfilePhotoInitial" style="font-size:2rem;font-weight:700;color:var(--text-muted);">—</span>
+              </div>
+              <input type="file" id="mgrProfilePhoto" accept="image/*" style="margin-top:10px;font-size:13px;" />
+              <p id="mgrProfilePhotoErr" class="message" style="margin-top:6px;"></p>
+            </div>
+            <div style="flex:1;min-width:260px;">
+              <div class="form-group"><label>Name</label><input id="mgrProfileName" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+              <div class="form-group"><label>Email</label><input id="mgrProfileEmail" readonly style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;background:var(--surface);color:var(--text-muted);" /></div>
+              <div class="form-group"><label>Phone</label><input id="mgrProfilePhone" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+              <div class="form-group"><label>Location</label><input id="mgrProfileLocation" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+              <div class="form-group"><label>Date of birth</label><input type="date" id="mgrProfileDob" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+              <div class="form-group"><label>Bio</label><textarea id="mgrProfileBio" rows="3" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea></div>
+              <button type="submit" class="btn btn-primary">Save profile</button>
+              <p id="mgrProfileMessage" class="message"></p>
+            </div>
+          </form>
           <div class="tile-grid" style="margin-top:16px;">
-            <div class="tile"><strong>Name</strong><span id="profileName">—</span></div>
-            <div class="tile"><strong>Email</strong><span id="profileEmail">—</span></div>
             <div class="tile"><strong>Department</strong><span id="profileDept">—</span></div>
             <div class="tile"><strong>Employee code</strong><span id="profileCode">—</span></div>
           </div>
@@ -152,12 +340,15 @@
     </main>
   </div>
 
+  <link rel="stylesheet" href="/assets/avgc-dashboard/employee-app.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="/js/utils.js"></script>
   <script src="/js/toast.js"></script>
   <script src="/js/theme.js"></script>
   <script src="/js/sidebar.js"></script>
   <script src="/js/navbar.js"></script>
+  <script src="/js/punch.js"></script>
+  <script type="module" src="/assets/avgc-dashboard/team-hub.js"></script>
   <script src="/js/manager-dashboard.js"></script>
 </body>
 </html>

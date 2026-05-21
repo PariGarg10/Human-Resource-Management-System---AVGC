@@ -10,8 +10,7 @@
   flex-direction: column;
   justify-content: center;
   padding: 48px;
-  background: linear-gradient(160deg, #111111 0%, #1a0a0a 45%, #111111 100%);
-  color: #fff;
+  background: linear-gradient(160deg, #000000 0%, #1a0002 45%, #000000 100%);  color: #fff;
   position: relative;
   overflow: hidden;
 }
@@ -39,15 +38,14 @@
   letter-spacing: 0.12em;
   color: #fff;
   text-decoration: none;
-  border-bottom: 2px solid var(--primary);
-  padding-bottom: 4px;
+  border-bottom: 2px solid #ed1d24;  padding-bottom: 4px;
   transition: color 0.2s ease, border-color 0.2s ease;
 }
 
 .auth-brand-logo-link:hover,
 .auth-brand-logo-link:focus-visible {
-  color: #fff;
-  border-color: #fff;
+  color: #ed1d24;
+  border-color: #ed1d24;
 }
 
 .auth-brand h2 {

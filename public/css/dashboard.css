@@ -84,6 +84,42 @@
   display: none;
 }
 
+.team-hub-panel .panel-title {
+  margin-bottom: 12px;
+}
+
+.team-hub-panel {
+  background: var(--bg-card);
+}
+
+/* Admin import: make Excel upload + confirm steps easy to spot */
+.import-excel-cta {
+  min-height: 48px;
+  padding: 14px 28px !important;
+  font-size: 1.05rem;
+  font-weight: 600;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="dark"] .import-excel-cta {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+.import-excel-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  max-width: 36rem;
+}
+
+.import-confirm-bar {
+  margin-top: 20px;
+  padding: 16px 18px;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-md);
+  background: var(--primary-soft);
+}
+
 .progress-bar {
   height: 8px;
   border-radius: 999px;
@@ -97,6 +133,121 @@
   background: linear-gradient(90deg, var(--primary), #7a0000);
   width: 0%;
   transition: width 0.3s ease;
+}
+
+/* Manager assignments workspace */
+.manager-assignment-page {
+  max-width: 1440px;
+}
+
+.manager-assignment-hero {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 22px 24px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-sm);
+}
+
+.manager-assignment-hero .panel-title {
+  margin: 0;
+  font-size: clamp(32px, 4vw, 52px);
+  line-height: 1;
+}
+
+.manager-assignment-kicker {
+  margin: 0 0 6px;
+  color: var(--red);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.manager-assignment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.manager-assignment-summary {
+  margin-bottom: 24px;
+}
+
+.manager-assignment-panel {
+  color: var(--text-primary);
+}
+
+.manager-assignment-filters label,
+.manager-assignment-form label {
+  flex: 1;
+  min-width: 220px;
+  color: var(--text-primary);
+}
+
+.manager-assignment-filters input,
+.manager-assignment-form input,
+.manager-assignment-form select {
+  width: 100%;
+  min-height: 44px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.manager-assignment-filters input:focus,
+.manager-assignment-form input:focus,
+.manager-assignment-form select:focus {
+  outline: none;
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--red-soft);
+}
+
+.manager-plus-btn {
+  min-height: 44px;
+  background: var(--red);
+  color: var(--white);
+}
+
+.manager-plus-btn span:first-child {
+  display: inline-flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.manager-assignment-loading,
+.manager-assignment-empty {
+  padding: 24px;
+  text-align: center;
+}
+
+.manager-assignment-page .data-table th,
+.manager-assignment-page .data-table td {
+  color: var(--text-primary);
+}
+
+.manager-assignment-page .data-table thead th {
+  background: var(--red);
+  color: var(--white);
+}
+
+.manager-assignment-page .btn-outline {
+  color: var(--text-primary);
+  background: var(--bg-card);
 }
 
 .toast-container {

@@ -29,8 +29,7 @@
   right: 0;
   height: 4px;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background: linear-gradient(90deg, var(--primary), #7a0000);
-}
+  background: linear-gradient(90deg, #ed1d24, #7a0000);}
 
 .stat-card.stat-success::before {
   background: linear-gradient(90deg, var(--success), #34d399);

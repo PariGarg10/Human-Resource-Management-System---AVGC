@@ -3,59 +3,133 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin manager assignments · AVGC</title>
-  <link rel="stylesheet" href="/css/style.css" />
+  <title>Manager assignments · AVGC</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app-bundle.css" />
 </head>
 <body>
-  <main class="container">
-    <header class="page-header">
-      <h1>Manager Assignments</h1>
+  <div class="content-area manager-assignment-page">
+    <header class="page-header manager-assignment-hero">
       <div>
-        <a class="link-btn" href="/admin/dashboard">Admin Dashboard</a>
-        <button id="logoutBtn" class="outline">Logout</button>
+        <p class="manager-assignment-kicker">Admin workspace</p>
+        <h1 class="panel-title">Manager assignments</h1>
+        <p class="stat-sub">Assign employees to managers and review current mappings.</p>
+      </div>
+      <div class="manager-assignment-actions">
+        <a class="btn btn-outline btn-sm" href="/admin/dashboard">Admin dashboard</a>
+        <button type="button" class="btn btn-outline btn-sm" id="logoutBtn">Sign out</button>
       </div>
     </header>
 
-    <section class="card">
-      <h2>Filters</h2>
-      <div class="filters">
-        <label>Department <input id="departmentFilter" placeholder="e.g. Development" /></label>
-        <label>Search <input id="searchFilter" placeholder="employee name/email" /></label>
-        <button id="loadAssignmentsBtn">Apply Filters</button>
+    <section class="stat-grid manager-assignment-summary" aria-label="Assignment summary">
+      <div class="stat-card">
+        <div class="stat-label">Employees</div>
+        <div class="stat-value" id="assignmentTotalEmployees">—</div>
+      </div>
+      <div class="stat-card stat-success">
+        <div class="stat-label">Assigned</div>
+        <div class="stat-value" id="assignmentAssignedCount">—</div>
+      </div>
+      <div class="stat-card stat-warning">
+        <div class="stat-label">Unassigned</div>
+        <div class="stat-value" id="assignmentUnassignedCount">—</div>
+      </div>
+      <div class="stat-card stat-info">
+        <div class="stat-label">Managers</div>
+        <div class="stat-value" id="assignmentManagerCount">—</div>
       </div>
     </section>
 
-    <section class="card">
-      <h2>Assign Employee to Manager</h2>
-      <form id="assignForm" class="inline-form">
-        <label>Manager
+    <section class="panel manager-assignment-panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Filters</h2>
+          <p class="stat-sub">Narrow the employee list before assigning.</p>
+        </div>
+      </div>
+      <div class="filters-inline manager-assignment-filters">
+        <label>Department <input id="departmentFilter" placeholder="e.g. Development" /></label>
+        <label>Search <input id="searchFilter" placeholder="name or email" /></label>
+        <button type="button" class="btn btn-primary btn-sm" id="loadAssignmentsBtn">Apply filters</button>
+      </div>
+    </section>
+
+    <section class="panel manager-assignment-panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Quick assign</h2>
+          <p class="stat-sub">Select one employee and add them to a manager.</p>
+        </div>
+      </div>
+      <form id="singleAssignForm" class="form-row manager-assignment-form">
+        <div class="form-group">
+          <label for="singleManagerSelect">Manager</label>
+          <select id="singleManagerSelect"></select>
+        </div>
+        <div class="form-group">
+          <label for="singleEmployeeSelect">Employee</label>
+          <select id="singleEmployeeSelect"></select>
+        </div>
+        <button type="submit" class="btn btn-primary manager-plus-btn" aria-label="Assign selected employee">
+          <span aria-hidden="true">+</span>
+          <span>Assign</span>
+        </button>
+      </form>
+      <p id="singleAssignMessage" class="message"></p>
+    </section>
+
+    <section class="panel manager-assignment-panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Bulk assign</h2>
+          <p class="stat-sub">Paste multiple employee IDs separated by commas.</p>
+        </div>
+      </div>
+      <form id="assignForm" class="form-row manager-assignment-form">
+        <div class="form-group">
+          <label for="managerSelect">Manager</label>
           <select id="managerSelect"></select>
-        </label>
-        <label>Employee IDs (comma separated)
-          <input id="employeeIdsInput" placeholder="12,14,22" />
-        </label>
-        <button type="submit">Bulk Assign</button>
+        </div>
+        <div class="form-group">
+          <label for="employeeIdsInput">Employee IDs (comma separated)</label>
+          <input id="employeeIdsInput" placeholder="12, 14, 22" />
+        </div>
+        <button type="submit" class="btn btn-primary">Bulk assign</button>
       </form>
       <p id="assignMessage" class="message"></p>
     </section>
 
-    <section class="card">
-      <h2>Current Mapping</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Employee ID</th>
-            <th>Employee Name</th>
-            <th>Email</th>
-            <th>Department</th>
-            <th>Manager</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="assignmentBody"></tbody>
-      </table>
+    <section class="panel manager-assignment-panel">
+      <div class="panel-header">
+        <div>
+          <h2 class="panel-title">Current mapping</h2>
+          <p class="stat-sub">Every employee remains listed, with or without a manager.</p>
+        </div>
+      </div>
+      <div id="assignmentsLoading" class="stat-sub manager-assignment-loading">Loading assignments…</div>
+      <div id="assignmentsEmpty" class="hidden stat-sub manager-assignment-empty">No assignments found.</div>
+      <div class="table-wrap hidden" id="assignmentsTableWrap">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Employee ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Department</th>
+              <th>Manager</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="assignmentBody"></tbody>
+        </table>
+      </div>
     </section>
-  </main>
+  </div>
+
+  <script src="/js/utils.js"></script>
+  <script src="/js/toast.js"></script>
+  <script src="/js/theme.js"></script>
   <script src="/js/admin-manager-assignments.js"></script>
 </body>
 </html>

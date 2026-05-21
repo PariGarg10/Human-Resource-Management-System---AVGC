@@ -56,7 +56,7 @@ export function ProductivityChart({ productivityHint }: Props) {
                 fontSize: '12px',
               }}
             />
-            <Bar dataKey="score" fill="#1A237E" radius={[6, 6, 0, 0]} maxBarSize={48} />
+            <Bar dataKey="score" fill="var(--primary)" radius={[6, 6, 0, 0]} maxBarSize={48} />
           </BarChart>
         </ResponsiveContainer>
       </div>
