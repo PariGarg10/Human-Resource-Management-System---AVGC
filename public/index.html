@@ -18,7 +18,6 @@
   <div class="site-nav-overlay" id="siteNavOverlay" aria-hidden="true"></div>
   <nav class="site-nav-drawer" id="siteNavDrawer" aria-label="Mobile menu">
     <a href="/">Home</a>
-    <a href="/features">Features</a>
     <a href="/login">Sign in</a>
     <a href="/login#registerForm">Register</a>
   </nav>
@@ -27,7 +26,6 @@
     <a class="site-header__brand" href="/" aria-label="AVGC home">AVGC</a>
     <nav class="site-header__nav" aria-label="Primary">
       <a href="/" aria-current="page">Home</a>
-      <a href="/features">Features</a>
     </nav>
     <div class="site-header__actions">
       <a class="site-header__cta" href="/login">Sign in</a>
@@ -53,28 +51,28 @@
           
           aria-hidden="true"
         >
-        <source src="/assets/alphabet.mp4" type="video/mp4" />        </video>
-        <div class="hero__overlay"></div>
+          <source src="/assets/Alphabet.mp4" type="video/mp4" />
+        </video>
+        <div class="hero__scroll-overlay" aria-hidden="true"></div>
       </div>
+      <a class="hero__scroll" href="#heroIntro" aria-label="Scroll to company introduction">
+        <span>Scroll</span>
+        <span class="hero__scroll-arrow" aria-hidden="true"></span>
+      </a>
+    </section>
+
+    <section class="hero-intro reveal-on-scroll" id="heroIntro" aria-label="Company introduction">
+      <div class="hero-watermark" aria-hidden="true">AVGC</div>
       <div class="hero__inner">
         <p class="hero__eyebrow">— AVGC HR portal —</p>
         <h1 class="hero__headline">
-          <span>Attendance.</span>
-          <span>Leave.</span>
-          <span class="hero__headline-accent">One place.</span>
+          <span>AVGC</span>
+          <span class="hero__headline-accent">HRMS</span>
         </h1>
         <p class="hero__sub">
           AVGC's very own HumanResources portal for attendance, leave, and HR self-service.
         </p>
-        <div class="hero__ctas">
-          <a class="btn-hero-primary" href="/login">Sign in</a>
-          <a class="btn-hero-ghost" href="/login#registerForm">Register</a>
-        </div>
       </div>
-      <a class="hero__scroll" href="#features" aria-label="Scroll to features">
-        <span>Scroll</span>
-        <span class="hero__scroll-arrow" aria-hidden="true"></span>
-      </a>
     </section>
 
     <section class="founder-section reveal-on-scroll" id="founderSection" aria-labelledby="founderHeading">
@@ -88,92 +86,6 @@
       </div>
     </section>
 
-    <section id="features" class="section section--white reveal-on-scroll">
-      <span class="section__label">What you get</span>
-      <h2 class="section__title">Built for real HR workflows</h2>
-      <div class="feature-grid">
-        <article class="feature-card">
-          <div class="feature-card__icon" aria-hidden="true">▣</div>
-          <h3>Attendance &amp; history</h3>
-          <p>Employees review punches and monthly summaries; managers see team attendance by day and month.</p>
-        </article>
-        <article class="feature-card">
-          <div class="feature-card__icon" aria-hidden="true">☰</div>
-          <h3>Leave requests</h3>
-          <p>Apply for leave, track status, and route pending items to managers and admins in one pipeline.</p>
-        </article>
-        <article class="feature-card">
-          <div class="feature-card__icon" aria-hidden="true">◎</div>
-          <h3>Profiles &amp; reminders</h3>
-          <p>Self-service profiles with optional photo, plus birthday notifications across the portal.</p>
-        </article>
-        <article class="feature-card">
-          <div class="feature-card__icon" aria-hidden="true">▤</div>
-          <h3>Admin tools</h3>
-          <p>User and manager maintenance, manager–employee assignments, imports, and audit-friendly reporting.</p>
-        </article>
-      </div>
-    </section>
-
-
-    <section class="section section--surface reveal-on-scroll" aria-labelledby="dash-title">
-      <span class="section__label">Inside the product</span>
-      <h2 id="dash-title" class="section__title">Dashboards that match your role</h2>
-      <div class="dash-mock" role="img" aria-label="Illustration of AVGC stat cards and attendance table">
-        <div class="dash-mock__chrome">
-          <div class="dash-mock__dots" aria-hidden="true"><span></span><span></span><span></span></div>
-          <span>AVGC · signed in</span>
-        </div>
-        <div class="dash-mock__body">
-          <div class="dash-mock__metrics">
-            <div class="dash-metric">
-              <div class="dash-metric__label">Today</div>
-              <div class="dash-metric__value">Present</div>
-            </div>
-            <div class="dash-metric">
-              <div class="dash-metric__label">This month</div>
-              <div class="dash-metric__value">Summary</div>
-            </div>
-            <div class="dash-metric dash-metric--alert">
-              <div class="dash-metric__label">Leave</div>
-              <div class="dash-metric__value">Pending</div>
-            </div>
-          </div>
-          <table class="dash-table">
-            <thead>
-              <tr>
-                <th scope="col">Context</th>
-                <th scope="col">Employee</th>
-                <th scope="col">Manager</th>
-                <th scope="col">Admin</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Attendance</td>
-                <td>My punches &amp; calendar</td>
-                <td>Team day &amp; month views</td>
-                <td>Org-wide monitoring &amp; import</td>
-              </tr>
-              <tr>
-                <td>Leave</td>
-                <td>Apply &amp; history</td>
-                <td>Team queue</td>
-                <td>Approve / reject</td>
-              </tr>
-              <tr>
-                <td>People data</td>
-                <td>Profile &amp; security</td>
-                <td>Assigned staff</td>
-                <td>Users, managers, assignments</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    
   </main>
 
   <footer class="site-footer" role="contentinfo">
@@ -185,15 +97,9 @@
         </p>
       </div>
       <div>
-        <p style="margin:0 0 0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;font-size:0.75rem;">Product</p>
-        <a href="/features">Features</a><br />
+        <p style="margin:0 0 0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;font-size:0.75rem;">Portal</p>
         <a href="/login">Sign in</a><br />
         <a href="/login#registerForm">Register</a>
-      </div>
-      <div>
-        <p style="margin:0 0 0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;font-size:0.75rem;">Legal</p>
-        <a href="#">Privacy</a><br />
-        <a href="#">Terms</a>
       </div>
     </div>
     <div class="site-footer__bottom">© <span id="footerYear"></span> AVGC. All rights reserved.</div>

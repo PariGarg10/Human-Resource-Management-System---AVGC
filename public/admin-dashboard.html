@@ -424,9 +424,22 @@
 
       <section id="view-reports" class="view-section">
         <div class="panel">
-          <h2 class="panel-title">Analytics</h2>
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Analytics & reports</h2>
+              <p class="stat-sub">Attendance, leave, employees, requests, department, monthly, and OD reports.</p>
+            </div>
+            <div class="filters-inline">
+              <label>From <input type="date" id="reportFrom" /></label>
+              <label>To <input type="date" id="reportTo" /></label>
+              <button type="button" class="btn btn-primary btn-sm" id="loadReportsBtn">Load reports</button>
+              <button type="button" class="btn btn-outline btn-sm" id="exportAllReportsBtn">Export all Excel</button>
+            </div>
+          </div>
           <div class="chart-wrap"><canvas id="adminAnalyticsChart"></canvas></div>
         </div>
+        <div id="reportsSummaryCards" class="stat-grid"></div>
+        <div id="adminReportsContainer"></div>
       </section>
 
       <section id="view-biometric" class="view-section">

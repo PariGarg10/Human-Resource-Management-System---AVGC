@@ -81,13 +81,15 @@
   function initHeroParallax() {
     var hero = document.querySelector('.hero');
     var mark = document.querySelector('.hero-watermark');
-    if (!hero || !mark) return;
+    if (!hero) return;
     function tick() {
       var y = window.scrollY || document.documentElement.scrollTop;
       var heroRect = hero.getBoundingClientRect();
       var progress = Math.max(0, Math.min(1, 1 - heroRect.bottom / (heroRect.height + window.innerHeight * 0.5)));
       var offset = y * 0.12 + progress * 8;
-      mark.style.setProperty('--parallax-y', offset.toFixed(1) + 'px');
+      if (mark) mark.style.setProperty('--parallax-y', offset.toFixed(1) + 'px');
+      var overlayProgress = Math.max(0, Math.min(1, y / Math.max(1, hero.offsetHeight * 0.72)));
+      hero.style.setProperty('--hero-overlay', overlayProgress.toFixed(3));
     }
     tick();
     window.addEventListener('scroll', tick, { passive: true });

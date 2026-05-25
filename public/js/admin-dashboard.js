@@ -22,6 +22,13 @@ document.getElementById('dailyDate').value = new Date().toISOString().slice(0, 1
 const attendanceImportDateEl = document.getElementById('attendanceImportDate');
 if (attendanceImportDateEl) attendanceImportDateEl.value = new Date().toISOString().slice(0, 10);
 document.getElementById('bioTimestamp').value = new Date().toISOString();
+const reportFromEl = document.getElementById('reportFrom');
+const reportToEl = document.getElementById('reportTo');
+if (reportFromEl && reportToEl) {
+  const now = new Date();
+  reportFromEl.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  reportToEl.value = now.toISOString().slice(0, 10);
+}
 const ROLE_OPTIONS = [
   { value: 'employee', label: 'Employee' },
   { value: 'manager', label: 'Manager' },
@@ -294,6 +301,223 @@ async function loadAdminStats() {
   }
 }
 
+let currentReports = null;
+
+const REPORT_DEFS = [
+  {
+    key: 'attendanceByEmployee',
+    title: 'Attendance by employee/date range',
+    columns: [
+      ['code', 'Code'],
+      ['name', 'Employee'],
+      ['department', 'Department'],
+      ['date', 'Date'],
+      ['punchIn', 'Punch In'],
+      ['punchOut', 'Punch Out'],
+      ['totalHours', 'Hours'],
+      ['status', 'Status'],
+    ],
+  },
+  {
+    key: 'leaveTakenVsBalance',
+    title: 'Leave taken vs balance',
+    columns: [
+      ['code', 'Code'],
+      ['name', 'Employee'],
+      ['department', 'Department'],
+      ['totalLeave', 'Total Leave'],
+      ['usedLeave', 'Used Leave'],
+      ['remainingLeave', 'Remaining Leave'],
+    ],
+  },
+  {
+    key: 'employeeDirectory',
+    title: 'Employee directory',
+    columns: [
+      ['code', 'Code'],
+      ['name', 'Employee'],
+      ['email', 'Email'],
+      ['department', 'Department'],
+      ['role', 'Role'],
+      ['registered', 'Registered'],
+      ['createdAt', 'Created At'],
+    ],
+  },
+  {
+    key: 'requestStatus',
+    title: 'Request/ticket status',
+    columns: [
+      ['id', 'ID'],
+      ['raisedBy', 'Raised By'],
+      ['raisedTo', 'Raised To'],
+      ['subject', 'Subject'],
+      ['priority', 'Priority'],
+      ['status', 'Status'],
+      ['createdAt', 'Created At'],
+      ['respondedAt', 'Responded At'],
+    ],
+  },
+  {
+    key: 'presentAbsent',
+    title: 'Present/Absent report',
+    columns: [
+      ['status', 'Status'],
+      ['count', 'Count'],
+    ],
+  },
+  {
+    key: 'departmentWise',
+    title: 'Department-wise report',
+    columns: [
+      ['department', 'Department'],
+      ['present', 'Present'],
+      ['halfday', 'Half Day'],
+      ['leave', 'Leave'],
+      ['absent', 'Absent'],
+      ['holiday', 'Holiday'],
+    ],
+  },
+  {
+    key: 'monthlySummary',
+    title: 'Monthly attendance summary',
+    columns: [
+      ['code', 'Code'],
+      ['name', 'Employee'],
+      ['department', 'Department'],
+      ['present', 'Present'],
+      ['halfday', 'Half Day'],
+      ['leave', 'Leave'],
+      ['absent', 'Absent'],
+      ['holiday', 'Holiday'],
+      ['totalHours', 'Total Hours'],
+    ],
+  },
+  {
+    key: 'odApproval',
+    title: 'OD approval report',
+    columns: [
+      ['id', 'ID'],
+      ['raisedBy', 'Raised By'],
+      ['raisedTo', 'Raised To'],
+      ['subject', 'Subject'],
+      ['priority', 'Priority'],
+      ['status', 'Status'],
+      ['createdAt', 'Created At'],
+      ['respondedAt', 'Responded At'],
+    ],
+  },
+];
+
+function reportCell(value) {
+  if (value == null) return '—';
+  if (typeof value === 'boolean') return value ? 'Yes' : 'No';
+  if (String(value).includes('T') && !Number.isNaN(Date.parse(value))) return formatDateTime(value);
+  return value;
+}
+
+function renderReportTable(def, rows) {
+  const body = rows.length
+    ? rows
+        .slice(0, 250)
+        .map(
+          (row) => `<tr>${def.columns.map(([key]) => `<td>${escapeHtml(reportCell(row[key]))}</td>`).join('')}</tr>`
+        )
+        .join('')
+    : `<tr><td colspan="${def.columns.length}" class="stat-sub" style="padding:18px;text-align:center;">No rows found.</td></tr>`;
+  const note = rows.length > 250 ? `<p class="stat-sub">Showing 250 of ${rows.length} rows. Export includes all rows.</p>` : '';
+  return `
+    <div class="panel">
+      <div class="panel-header">
+        <div>
+          <h3 class="panel-title">${escapeHtml(def.title)}</h3>
+          <p class="stat-sub">${rows.length} row(s)</p>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" data-report-export="${def.key}">Export Excel</button>
+      </div>
+      ${note}
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead><tr>${def.columns.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join('')}</tr></thead>
+          <tbody>${body}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function excelEscape(value) {
+  return escapeHtml(reportCell(value));
+}
+
+function exportReportToExcel(def, rows, suffix) {
+  const table = `
+    <table>
+      <thead><tr>${def.columns.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join('')}</tr></thead>
+      <tbody>
+        ${rows.map((row) => `<tr>${def.columns.map(([key]) => `<td>${excelEscape(row[key])}</td>`).join('')}</tr>`).join('')}
+      </tbody>
+    </table>`;
+  const blob = new Blob([`<html><meta charset="utf-8"><body>${table}</body></html>`], {
+    type: 'application/vnd.ms-excel;charset=utf-8;',
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${def.key}-${suffix}.xls`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  a.remove();
+}
+
+function exportAllReportsToExcel() {
+  if (!currentReports) return HRMS.toast('Load reports first', 'error');
+  const suffix = `${currentReports.range.from}-to-${currentReports.range.to}`;
+  const sheets = REPORT_DEFS.map((def) => {
+    const rows = currentReports.reports[def.key] || [];
+    return `<h2>${escapeHtml(def.title)}</h2>
+      <table>
+        <thead><tr>${def.columns.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map((row) => `<tr>${def.columns.map(([key]) => `<td>${excelEscape(row[key])}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>`;
+  }).join('<br />');
+  const blob = new Blob([`<html><meta charset="utf-8"><body>${sheets}</body></html>`], {
+    type: 'application/vnd.ms-excel;charset=utf-8;',
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `admin-reports-${suffix}.xls`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  a.remove();
+}
+
+async function loadAdminReports() {
+  const from = document.getElementById('reportFrom')?.value;
+  const to = document.getElementById('reportTo')?.value;
+  const container = document.getElementById('adminReportsContainer');
+  const cards = document.getElementById('reportsSummaryCards');
+  if (!container || !cards) return;
+  container.innerHTML = '<div class="panel"><p class="stat-sub">Loading reports…</p></div>';
+  const data = await api(`/api/admin/reports?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  currentReports = data;
+  const reports = data.reports || {};
+  cards.innerHTML = `
+    <div class="stat-card"><div class="stat-label">Attendance rows</div><div class="stat-value">${(reports.attendanceByEmployee || []).length}</div></div>
+    <div class="stat-card stat-success"><div class="stat-label">Employees</div><div class="stat-value">${(reports.employeeDirectory || []).length}</div></div>
+    <div class="stat-card stat-warning"><div class="stat-label">Requests</div><div class="stat-value">${(reports.requestStatus || []).length}</div></div>
+    <div class="stat-card stat-info"><div class="stat-label">OD Requests</div><div class="stat-value">${(reports.odApproval || []).length}</div></div>
+  `;
+  container.innerHTML = REPORT_DEFS.map((def) => renderReportTable(def, reports[def.key] || [])).join('');
+  container.querySelectorAll('[data-report-export]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const key = btn.getAttribute('data-report-export');
+      const def = REPORT_DEFS.find((r) => r.key === key);
+      if (!def) return;
+      exportReportToExcel(def, reports[key] || [], `${data.range.from}-to-${data.range.to}`);
+    });
+  });
+}
+
 async function loadAdminLeaveBalance() {
   const grid = document.getElementById('adminLeaveBalanceGrid');
   const summary = document.getElementById('adminLeaveBalanceSummary');
@@ -417,6 +641,8 @@ document.getElementById('addEmployeeForm').addEventListener('submit', async (e) 
 });
 document.getElementById('loadEmployeesBtn').addEventListener('click', () => loadEmployees().catch((e) => HRMS.toast(e.message, 'error')));
 document.getElementById('loadRolesBtn')?.addEventListener('click', () => loadRoleManagement().catch((e) => HRMS.toast(e.message, 'error')));
+document.getElementById('loadReportsBtn')?.addEventListener('click', () => loadAdminReports().catch((e) => HRMS.toast(e.message, 'error')));
+document.getElementById('exportAllReportsBtn')?.addEventListener('click', exportAllReportsToExcel);
 
 document.getElementById('newManagerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -1397,6 +1623,9 @@ HRMS.initSidebar({
     if (section === 'roles') {
       loadRoleManagement().catch((e) => HRMS.toast(e.message, 'error'));
     }
+    if (section === 'reports') {
+      loadAdminReports().catch((e) => HRMS.toast(e.message, 'error'));
+    }
   },
 });
 HRMS.initNavbarClock('navbarClock');
@@ -1417,6 +1646,7 @@ Promise.all([
   loadAdminLeaveBalance(),
   loadEmployees(),
   loadRoleManagement(),
+  loadAdminReports(),
   loadAdminDailyAttendance(),
   loadImportHistory(),
   loadAdminLeaves()

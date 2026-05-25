@@ -14,7 +14,6 @@ import {
   Headphones,
   Inbox,
   ListTodo,
-  Users,
 } from 'lucide-react';
 import { cn } from '@/lib/cn';
 
@@ -44,8 +43,7 @@ const group1: NavItem[] = [
 ];
 
 const group2: NavItem[] = [
-  { id: 'employees', label: 'Employees', icon: Users },
-  { id: 'teams', label: 'Teams', icon: Users },
+  { id: 'teams', label: 'Teams', icon: Network },
   { id: 'org', label: 'Org Chart', icon: Network },
 ];
 

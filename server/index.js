@@ -17,6 +17,7 @@ const saturdayConfigRoutes = require('./routes/saturdayConfig');
 const holidaysRoutes = require('./routes/holidays');
 const leaveBalanceRoutes = require('./routes/leaveBalance');
 const { startBirthdayReminderJob } = require('./jobs/birthdayReminders');
+const { startEsslAttendanceSync } = require('./jobs/esslAttendanceSync');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -57,8 +58,8 @@ app.use((req, res, next) => {
 // HTML pages — register BEFORE express.static so routes are never shadowed
 app.get('/', (_req, res) => sendPublicHtml(res, 'index.html'));
 app.get('/login', (_req, res) => sendPublicHtml(res, 'login.html'));
-app.get('/pricing', (_req, res) => sendPublicHtml(res, 'pricing.html'));
-app.get('/features', (_req, res) => sendPublicHtml(res, 'features.html'));
+app.get('/pricing', (_req, res) => res.redirect(301, '/'));
+app.get('/features', (_req, res) => res.redirect(301, '/'));
 app.get('/index.html', (_req, res) => res.redirect(301, '/login'));
 app.get('/employee/dashboard', (_req, res) => sendPublicHtml(res, 'employee-dashboard.html'));
 app.get('/employee/dashboard/', (_req, res) => res.redirect(301, '/employee/dashboard'));
@@ -99,4 +100,5 @@ app.listen(PORT, () => {
   console.log(`AVGC server running on http://localhost:${PORT}`);
   console.log('[AVGC] HTML dashboards: /employee/dashboard, /manager/dashboard, /admin/dashboard');
   startBirthdayReminderJob();
+  startEsslAttendanceSync();
 });

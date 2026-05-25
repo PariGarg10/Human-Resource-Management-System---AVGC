@@ -738,5 +738,4 @@ HRMS.initPunchScreen({
   api,
   ids: { clock: 'mgrPunchClock', date: 'mgrPunchDate', pill: 'mgrPunchPill', btn: 'mgrPunchBtn', msg: 'mgrPunchMsg' }
 });
-HRMS.renderLeadershipSection('mgrLeadershipHost');
 mountTeamHubWhenReady('org-chart');

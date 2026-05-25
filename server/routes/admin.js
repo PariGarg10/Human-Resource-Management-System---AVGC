@@ -14,6 +14,8 @@ const { getEffectiveAttendanceStatus } = require('../utils/attendanceView');
 const { filterUpcomingBirthdays } = require('../utils/birthdays');
 const { getHolidayDatesSet, isHolidayDate } = require('../utils/holidaysRange');
 const { createNotification } = require('../utils/notifications');
+const { getLeaveBalance } = require('../utils/leaveBalance');
+const { runEsslAttendanceSync } = require('../jobs/esslAttendanceSync');
 const {
   parseAttendanceRow,
   normalizePersonName,
@@ -197,6 +199,216 @@ router.get('/attendance/daily', async (req, res) => {
     return res.json({ date, records });
   } catch (err) {
     console.error('GET /admin/attendance/daily:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.post('/attendance/essl-sync', async (_req, res) => {
+  try {
+    const result = await runEsslAttendanceSync();
+    return res.json(result);
+  } catch (err) {
+    console.error('POST /admin/attendance/essl-sync:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+function reportDateRange(query) {
+  const now = new Date();
+  const year = Number(query.year) || now.getFullYear();
+  const month = Number(query.month) || now.getMonth() + 1;
+  const monthString = String(month).padStart(2, '0');
+  const lastDay = new Date(year, month, 0).getDate();
+  const from = String(query.from || `${year}-${monthString}-01`).slice(0, 10);
+  const to = String(query.to || `${year}-${monthString}-${String(lastDay).padStart(2, '0')}`).slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
+    return null;
+  }
+  return { from, to, month, year };
+}
+
+function statusCounts(rows) {
+  return rows.reduce(
+    (acc, row) => {
+      const status = String(row.status || 'absent').toLowerCase();
+      if (status === 'present') acc.present += 1;
+      else if (status === 'halfday') acc.halfday += 1;
+      else if (status === 'leave') acc.leave += 1;
+      else if (status === 'holiday') acc.holiday += 1;
+      else acc.absent += 1;
+      return acc;
+    },
+    { present: 0, halfday: 0, leave: 0, absent: 0, holiday: 0 }
+  );
+}
+
+router.get('/reports', async (req, res) => {
+  try {
+    const range = reportDateRange(req.query);
+    if (!range) return res.status(400).json({ message: 'Valid from/to or month/year is required' });
+    const { from, to, year } = range;
+
+    const attendanceResult = await pool.query(
+      `
+      SELECT e.id AS employeeid, e.employeecode, e.name, e.email, e.department,
+             d.day::date::text AS date, a.punchin, a.punchout, a.totalhours,
+             COALESCE(a.status, 'absent') AS status
+      FROM employees e
+      CROSS JOIN generate_series($1::date, $2::date, interval '1 day') d(day)
+      LEFT JOIN attendancelogs a
+        ON a.employeeid = e.id
+       AND a.date = d.day::date
+      WHERE COALESCE(e.isregistered, TRUE) = TRUE
+      ORDER BY e.name ASC, d.day ASC
+    `,
+      [from, to]
+    );
+    const attendanceRows = attendanceResult.rows.map((row) => ({
+      employeeId: row.employeeid,
+      code: row.employeecode,
+      name: row.name,
+      email: row.email,
+      department: row.department || '',
+      date: row.date,
+      punchIn: row.punchin,
+      punchOut: row.punchout,
+      totalHours: row.totalhours,
+      status: row.status,
+    }));
+
+    const employeeResult = await pool.query(
+      `
+      SELECT id, employeecode, name, email, department, role, isregistered, createdat
+      FROM employees
+      ORDER BY name ASC
+    `
+    );
+    const employees = employeeResult.rows;
+
+    const leaveRows = [];
+    for (const employee of employees) {
+      const balance = await getLeaveBalance(employee.id, year);
+      leaveRows.push({
+        employeeId: employee.id,
+        code: employee.employeecode,
+        name: employee.name,
+        department: employee.department || '',
+        totalLeave: balance.totals.total,
+        usedLeave: balance.totals.used,
+        remainingLeave: balance.totals.remaining,
+      });
+    }
+
+    const requestResult = await pool.query(
+      `
+      SELECT c.id, rb.name AS raised_by, rt.name AS raised_to, c.subject, c.priority, c.status,
+             c.created_at, c.responded_at
+      FROM concerns c
+      JOIN employees rb ON rb.id = c.raised_by
+      JOIN employees rt ON rt.id = c.raised_to
+      WHERE c.created_at::date BETWEEN $1::date AND $2::date
+      ORDER BY c.created_at DESC
+    `,
+      [from, to]
+    );
+
+    const presentAbsent = Object.entries(statusCounts(attendanceRows)).map(([status, count]) => ({ status, count }));
+
+    const byDepartment = new Map();
+    for (const row of attendanceRows) {
+      const key = row.department || 'Unassigned';
+      if (!byDepartment.has(key)) byDepartment.set(key, { department: key, present: 0, halfday: 0, leave: 0, absent: 0, holiday: 0 });
+      const bucket = byDepartment.get(key);
+      const status = String(row.status || 'absent').toLowerCase();
+      if (status === 'present') bucket.present += 1;
+      else if (status === 'halfday') bucket.halfday += 1;
+      else if (status === 'leave') bucket.leave += 1;
+      else if (status === 'holiday') bucket.holiday += 1;
+      else bucket.absent += 1;
+    }
+
+    const byEmployee = new Map();
+    for (const row of attendanceRows) {
+      if (!byEmployee.has(row.employeeId)) {
+        byEmployee.set(row.employeeId, {
+          employeeId: row.employeeId,
+          code: row.code,
+          name: row.name,
+          department: row.department || '',
+          present: 0,
+          halfday: 0,
+          leave: 0,
+          absent: 0,
+          holiday: 0,
+          totalHours: 0,
+        });
+      }
+      const bucket = byEmployee.get(row.employeeId);
+      const status = String(row.status || 'absent').toLowerCase();
+      if (status === 'present') bucket.present += 1;
+      else if (status === 'halfday') bucket.halfday += 1;
+      else if (status === 'leave') bucket.leave += 1;
+      else if (status === 'holiday') bucket.holiday += 1;
+      else bucket.absent += 1;
+      bucket.totalHours += Number(row.totalHours || 0);
+    }
+
+    const odResult = await pool.query(
+      `
+      SELECT c.id, rb.name AS raised_by, rt.name AS raised_to, c.subject, c.priority, c.status,
+             c.created_at, c.responded_at
+      FROM concerns c
+      JOIN employees rb ON rb.id = c.raised_by
+      JOIN employees rt ON rt.id = c.raised_to
+      WHERE c.created_at::date BETWEEN $1::date AND $2::date
+        AND (c.subject ILIKE '%od%' OR c.subject ILIKE '%on duty%' OR c.description ILIKE '%on duty%')
+      ORDER BY c.created_at DESC
+    `,
+      [from, to]
+    );
+
+    return res.json({
+      range,
+      reports: {
+        attendanceByEmployee: attendanceRows,
+        leaveTakenVsBalance: leaveRows,
+        employeeDirectory: employees.map((employee) => ({
+          id: employee.id,
+          code: employee.employeecode,
+          name: employee.name,
+          email: employee.email,
+          department: employee.department || '',
+          role: employee.role,
+          registered: Boolean(employee.isregistered),
+          createdAt: employee.createdat,
+        })),
+        requestStatus: requestResult.rows.map((row) => ({
+          id: row.id,
+          raisedBy: row.raised_by,
+          raisedTo: row.raised_to,
+          subject: row.subject,
+          priority: row.priority,
+          status: row.status,
+          createdAt: row.created_at,
+          respondedAt: row.responded_at,
+        })),
+        presentAbsent,
+        departmentWise: Array.from(byDepartment.values()),
+        monthlySummary: Array.from(byEmployee.values()),
+        odApproval: odResult.rows.map((row) => ({
+          id: row.id,
+          raisedBy: row.raised_by,
+          raisedTo: row.raised_to,
+          subject: row.subject,
+          priority: row.priority,
+          status: row.status,
+          createdAt: row.created_at,
+          respondedAt: row.responded_at,
+        })),
+      },
+    });
+  } catch (err) {
+    console.error('GET /admin/reports:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });
