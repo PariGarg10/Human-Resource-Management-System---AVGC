@@ -63,6 +63,11 @@ HRMS.initSidebar = function initSidebar(options = {}) {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
       const section = btn.getAttribute('data-nav');
+      if (typeof options.canNavigate === 'function' && !options.canNavigate(section)) {
+        if (typeof options.onBlocked === 'function') options.onBlocked(section);
+        closeMobile();
+        return;
+      }
       document.querySelectorAll('.sidebar-nav [data-nav]').forEach((b) => b.classList.remove('is-active'));
       btn.classList.add('is-active');
       document.querySelectorAll('.view-section').forEach((v) => v.classList.remove('is-active'));

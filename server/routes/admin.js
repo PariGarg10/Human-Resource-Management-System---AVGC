@@ -6,7 +6,9 @@ const path = require('path');
 const fs = require('fs');
 const { format } = require('date-fns');
 const { pool } = require('../db');
-const { authMiddleware, requireAdminOrFounder, enforcePasswordChange } = require('../middleware/auth');
+const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
+const { requireAdminAccess } = require('../middleware/adminAuth');
+const { requirePermission, PERMISSION_MODULES } = require('../utils/adminPermissions');
 const { logAudit } = require('../utils/audit');
 const { calculateTotalHours, getAttendanceStatus } = require('../utils/attendance');
 const { generateEmployeeCode } = require('../utils/employeeCode');
@@ -37,11 +39,25 @@ const {
 
 router.use(authMiddleware);
 router.use(enforcePasswordChange);
-router.use(requireAdminOrFounder);
+router.use(requireAdminAccess);
 
 const ROLE_OPTIONS = new Set(['employee', 'manager', 'admin', 'it_head']);
 
-router.post('/employees', async (req, res) => {
+router.get('/session', (req, res) => {
+  return res.json({
+    isSuperAdmin: req.isSuperAdmin,
+    permissions: req.adminPermissions,
+    admin: {
+      id: req.adminAccount?.id,
+      name: req.adminAccount?.name,
+      email: req.adminAccount?.email,
+      designation: req.adminAccount?.designation,
+      department: req.adminAccount?.department,
+    },
+  });
+});
+
+router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
   try {
     const { name, email, password, department, role } = req.body;
 
@@ -90,7 +106,7 @@ router.post('/employees', async (req, res) => {
   }
 });
 
-router.get('/employees', async (_req, res) => {
+router.get('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (_req, res) => {
   try {
     const { rows: employees } = await pool.query(
       'SELECT id, employeecode, name, email, department, role, isregistered, createdat FROM employees ORDER BY id ASC'
@@ -102,15 +118,18 @@ router.get('/employees', async (_req, res) => {
   }
 });
 
-router.patch('/employees/:id/role', async (req, res) => {
+router.patch('/employees/:id/role', requirePermission(PERMISSION_MODULES.ROLE_MANAGEMENT), async (req, res) => {
   try {
     const employeeId = Number(req.params.id);
-    const role = String(req.body.role || '').toLowerCase().trim();
+    const role = String(req.body.role || '').replace(/\s+/g, ' ').trim();
     if (!Number.isFinite(employeeId) || employeeId <= 0) {
       return res.status(400).json({ message: 'Valid employee id is required' });
     }
-    if (!ROLE_OPTIONS.has(role)) {
-      return res.status(400).json({ message: 'Role must be employee, manager, admin, or it_head' });
+    if (!role || role.length > 60) {
+      return res.status(400).json({ message: 'Role is required and must be 60 characters or fewer' });
+    }
+    if (/[\r\n\t]/.test(role)) {
+      return res.status(400).json({ message: 'Role cannot contain control characters' });
     }
 
     const targetResult = await pool.query('SELECT id, name, role FROM employees WHERE id = $1', [employeeId]);
@@ -130,7 +149,7 @@ router.patch('/employees/:id/role', async (req, res) => {
   }
 });
 
-router.get('/upcoming-birthdays', async (_req, res) => {
+router.get('/upcoming-birthdays', requirePermission(PERMISSION_MODULES.DASHBOARD_OVERVIEW), async (_req, res) => {
   try {
     const { rows } = await pool.query(
       `
@@ -155,7 +174,7 @@ router.get('/upcoming-birthdays', async (_req, res) => {
   }
 });
 
-router.get('/attendance/daily', async (req, res) => {
+router.get('/attendance/daily', requirePermission(PERMISSION_MODULES.ATTENDANCE), async (req, res) => {
   try {
     const { date } = req.query;
     if (!date) {
@@ -203,7 +222,7 @@ router.get('/attendance/daily', async (req, res) => {
   }
 });
 
-router.post('/attendance/essl-sync', async (_req, res) => {
+router.post('/attendance/essl-sync', requirePermission(PERMISSION_MODULES.ATTENDANCE), async (_req, res) => {
   try {
     const result = await runEsslAttendanceSync();
     return res.json(result);
@@ -242,11 +261,13 @@ function statusCounts(rows) {
   );
 }
 
-router.get('/reports', async (req, res) => {
+router.get('/reports', requirePermission(PERMISSION_MODULES.REPORTS_EXPORT), async (req, res) => {
   try {
     const range = reportDateRange(req.query);
     if (!range) return res.status(400).json({ message: 'Valid from/to or month/year is required' });
     const { from, to, year } = range;
+    const parsedEmployeeId = Number(req.query.employeeId || req.query.employeeid || '');
+    const employeeFilterId = Number.isFinite(parsedEmployeeId) && parsedEmployeeId > 0 ? parsedEmployeeId : null;
 
     const attendanceResult = await pool.query(
       `
@@ -259,9 +280,10 @@ router.get('/reports', async (req, res) => {
         ON a.employeeid = e.id
        AND a.date = d.day::date
       WHERE COALESCE(e.isregistered, TRUE) = TRUE
+        AND ($3::int IS NULL OR e.id = $3::int)
       ORDER BY e.name ASC, d.day ASC
     `,
-      [from, to]
+      [from, to, employeeFilterId]
     );
     const attendanceRows = attendanceResult.rows.map((row) => ({
       employeeId: row.employeeid,
@@ -280,8 +302,10 @@ router.get('/reports', async (req, res) => {
       `
       SELECT id, employeecode, name, email, department, role, isregistered, createdat
       FROM employees
+      WHERE ($1::int IS NULL OR id = $1::int)
       ORDER BY name ASC
-    `
+    `,
+      [employeeFilterId]
     );
     const employees = employeeResult.rows;
 
@@ -311,6 +335,38 @@ router.get('/reports', async (req, res) => {
     `,
       [from, to]
     );
+
+    const leaveRecordsResult = await pool.query(
+      `
+      SELECT l.id, e.id AS employeeid, e.employeecode, e.name, e.department,
+             l.leavetype, l.fromdate::text AS fromdate, l.todate::text AS todate,
+             l.reason, l.status, l.approvedby, approver.name AS approved_by,
+             l.createdat
+      FROM leaves l
+      JOIN employees e ON e.id = l.employeeid
+      LEFT JOIN employees approver ON approver.id = l.approvedby
+      WHERE l.todate >= $1::date
+        AND l.fromdate <= $2::date
+        AND ($3::int IS NULL OR e.id = $3::int)
+      ORDER BY l.fromdate DESC, e.name ASC
+    `,
+      [from, to, employeeFilterId]
+    );
+
+    const leaveRecords = leaveRecordsResult.rows.map((row) => ({
+      id: row.id,
+      employeeId: row.employeeid,
+      code: row.employeecode,
+      name: row.name,
+      department: row.department || '',
+      leaveType: row.leavetype,
+      fromDate: row.fromdate,
+      toDate: row.todate,
+      reason: row.reason || '',
+      status: row.status,
+      approvedBy: row.approved_by || '',
+      createdAt: row.createdat,
+    }));
 
     const presentAbsent = Object.entries(statusCounts(attendanceRows)).map(([status, count]) => ({ status, count }));
 
@@ -353,6 +409,21 @@ router.get('/reports', async (req, res) => {
       bucket.totalHours += Number(row.totalHours || 0);
     }
 
+    const combinedAttendanceLeave = attendanceRows.map((row) => {
+      const matchingLeave = leaveRecords.find(
+        (leave) =>
+          leave.employeeId === row.employeeId &&
+          row.date >= leave.fromDate &&
+          row.date <= leave.toDate
+      );
+      return {
+        ...row,
+        leaveType: matchingLeave?.leaveType || '',
+        leaveStatus: matchingLeave?.status || '',
+        leaveReason: matchingLeave?.reason || '',
+      };
+    });
+
     const odResult = await pool.query(
       `
       SELECT c.id, rb.name AS raised_by, rt.name AS raised_to, c.subject, c.priority, c.status,
@@ -371,8 +442,21 @@ router.get('/reports', async (req, res) => {
       range,
       reports: {
         attendanceByEmployee: attendanceRows,
+        allAttendanceRecords: attendanceRows,
         leaveTakenVsBalance: leaveRows,
+        leaveRecords,
+        combinedAttendanceLeave,
         employeeDirectory: employees.map((employee) => ({
+          id: employee.id,
+          code: employee.employeecode,
+          name: employee.name,
+          email: employee.email,
+          department: employee.department || '',
+          role: employee.role,
+          registered: Boolean(employee.isregistered),
+          createdAt: employee.createdat,
+        })),
+        allEmployeeData: employees.map((employee) => ({
           id: employee.id,
           code: employee.employeecode,
           name: employee.name,
@@ -395,6 +479,7 @@ router.get('/reports', async (req, res) => {
         presentAbsent,
         departmentWise: Array.from(byDepartment.values()),
         monthlySummary: Array.from(byEmployee.values()),
+        monthWiseAttendance: Array.from(byEmployee.values()),
         odApproval: odResult.rows.map((row) => ({
           id: row.id,
           raisedBy: row.raised_by,
@@ -413,7 +498,7 @@ router.get('/reports', async (req, res) => {
   }
 });
 
-router.post('/managers', async (req, res) => {
+router.post('/managers', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
   try {
     const { name, email, password, department } = req.body;
     if (!name || !email || !password) {
@@ -447,7 +532,7 @@ router.post('/managers', async (req, res) => {
   }
 });
 
-router.delete('/managers/:id', async (req, res) => {
+router.delete('/managers/:id', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
   try {
     const managerId = Number(req.params.id);
     const managerResult = await pool.query('SELECT id, role FROM employees WHERE id = $1', [managerId]);
@@ -465,7 +550,7 @@ router.delete('/managers/:id', async (req, res) => {
   }
 });
 
-router.post('/manager-assignments', async (req, res) => {
+router.post('/manager-assignments', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
   try {
     const { managerid, employeeid } = req.body;
     if (!managerid || !employeeid) {
@@ -488,7 +573,7 @@ router.post('/manager-assignments', async (req, res) => {
   }
 });
 
-router.post('/manager-assignments/bulk', async (req, res) => {
+router.post('/manager-assignments/bulk', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
   try {
     const { managerid, employeeids } = req.body;
     if (!managerid || !Array.isArray(employeeids)) {
@@ -519,7 +604,7 @@ router.post('/manager-assignments/bulk', async (req, res) => {
   }
 });
 
-router.get('/manager-assignments', async (req, res) => {
+router.get('/manager-assignments', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
   try {
     const { department, search } = req.query;
     let query = `
@@ -557,7 +642,7 @@ router.get('/manager-assignments', async (req, res) => {
   }
 });
 
-router.delete('/manager-assignments/:employeeid', async (req, res) => {
+router.delete('/manager-assignments/:employeeid', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
   try {
     const employeeid = Number(req.params.employeeid);
     await pool.query('DELETE FROM manageremployees WHERE employeeid = $1', [employeeid]);
@@ -569,7 +654,7 @@ router.delete('/manager-assignments/:employeeid', async (req, res) => {
   }
 });
 
-router.get('/leaves', async (req, res) => {
+router.get('/leaves', requirePermission(PERMISSION_MODULES.LEAVE_MANAGEMENT), async (req, res) => {
   try {
     const status = req.query.status;
     let query = `
@@ -593,7 +678,7 @@ router.get('/leaves', async (req, res) => {
   }
 });
 
-router.put('/leaves/:id/approve', async (req, res) => {
+router.put('/leaves/:id/approve', requirePermission(PERMISSION_MODULES.LEAVE_MANAGEMENT), async (req, res) => {
   try {
     const leaveId = Number(req.params.id);
     const leaveResult = await pool.query('SELECT * FROM leaves WHERE id = $1', [leaveId]);
@@ -642,7 +727,7 @@ router.put('/leaves/:id/approve', async (req, res) => {
   }
 });
 
-router.put('/leaves/:id/reject', async (req, res) => {
+router.put('/leaves/:id/reject', requirePermission(PERMISSION_MODULES.LEAVE_MANAGEMENT), async (req, res) => {
   try {
     const leaveId = Number(req.params.id);
     const leaveResult = await pool.query('SELECT * FROM leaves WHERE id = $1', [leaveId]);
@@ -665,7 +750,7 @@ router.put('/leaves/:id/reject', async (req, res) => {
   }
 });
 
-router.post('/import-attendance', upload.single('file'), async (req, res) => {
+router.post('/import-attendance', requirePermission(PERMISSION_MODULES.IMPORT_DATA), upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'Attendance file is required' });
   }
@@ -807,7 +892,7 @@ router.post('/import-attendance', upload.single('file'), async (req, res) => {
   }
 });
 
-router.post('/import-employees', upload.single('file'), async (req, res) => {
+router.post('/import-employees', requirePermission(PERMISSION_MODULES.IMPORT_DATA), upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'Employee file is required' });
 
   let parsed;
@@ -913,7 +998,7 @@ router.post('/import-employees', upload.single('file'), async (req, res) => {
   }
 });
 
-router.post('/import-employees/preview', upload.single('file'), async (req, res) => {
+router.post('/import-employees/preview', requirePermission(PERMISSION_MODULES.IMPORT_DATA), upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'Employee file is required' });
 
   try {
@@ -934,7 +1019,7 @@ router.post('/import-employees/preview', upload.single('file'), async (req, res)
   }
 });
 
-router.get('/import-history', async (_req, res) => {
+router.get('/import-history', requirePermission(PERMISSION_MODULES.IMPORT_DATA), async (_req, res) => {
   try {
     const { rows: history } = await pool.query('SELECT * FROM importhistory ORDER BY createdat DESC');
     return res.json({ history });

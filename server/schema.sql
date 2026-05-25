@@ -141,3 +141,41 @@ CREATE TABLE IF NOT EXISTS personal_tasks (
 );
 
 CREATE INDEX IF NOT EXISTS idx_personal_tasks_employee ON personal_tasks (employeeid, duedate);
+
+CREATE TABLE IF NOT EXISTS admins (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  passwordhash TEXT NOT NULL,
+  designation TEXT,
+  department TEXT,
+  is_super_admin BOOLEAN NOT NULL DEFAULT FALSE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  mustchangepassword BOOLEAN NOT NULL DEFAULT FALSE,
+  employee_id INTEGER UNIQUE REFERENCES employees(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS admin_permissions (
+  id SERIAL PRIMARY KEY,
+  admin_id INTEGER NOT NULL REFERENCES admins(id) ON DELETE CASCADE,
+  module_name TEXT NOT NULL,
+  can_access BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE (admin_id, module_name)
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_permissions_admin ON admin_permissions (admin_id);
+
+CREATE TABLE IF NOT EXISTS password_reset_tokens (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  user_type TEXT NOT NULL CHECK (user_type IN ('admin', 'manager', 'employee')),
+  email TEXT NOT NULL,
+  token_hash TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_password_reset_token_hash ON password_reset_tokens (token_hash);
+CREATE INDEX IF NOT EXISTS idx_password_reset_email_created ON password_reset_tokens (lower(email), created_at);

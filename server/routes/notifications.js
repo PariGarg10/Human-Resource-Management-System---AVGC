@@ -1,6 +1,8 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, enforcePasswordChange, requireRoles } = require('../middleware/auth');
+const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
+const { requireAdminAccess } = require('../middleware/adminAuth');
+const { requirePermission, PERMISSION_MODULES } = require('../utils/adminPermissions');
 const { broadcastToEmployeesAndManagers } = require('../utils/notifications');
 const { logAudit } = require('../utils/audit');
 
@@ -88,7 +90,7 @@ router.get('/:userId', async (req, res) => {
   }
 });
 
-router.post('/broadcast', requireRoles('admin'), async (req, res) => {
+router.post('/broadcast', requireAdminAccess, requirePermission(PERMISSION_MODULES.SETTINGS), async (req, res) => {
   try {
     const message = String(req.body.message || '').trim();
     if (!message) return res.status(400).json({ message: 'Message is required' });

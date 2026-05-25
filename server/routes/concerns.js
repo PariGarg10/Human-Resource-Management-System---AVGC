@@ -4,6 +4,8 @@ const fs = require('fs');
 const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
+const { resolveAdminContext } = require('../middleware/adminAuth');
+const { PERMISSION_MODULES } = require('../utils/adminPermissions');
 const { logAudit } = require('../utils/audit');
 
 const router = express.Router();
@@ -63,10 +65,35 @@ async function firstActiveAdmin(exceptId) {
   return result.rows[0];
 }
 
+async function firstActiveDirector(exceptId) {
+  const result = await pool.query(
+    `
+      SELECT id, name
+      FROM employees
+      WHERE id != $1
+        AND COALESCE(isregistered, TRUE) = TRUE
+        AND (
+          lower(COALESCE(role, '')) = 'director'
+          OR lower(COALESCE(role, '')) LIKE '%director%'
+          OR lower(COALESCE(name, '')) LIKE '%director%'
+        )
+      ORDER BY id ASC
+      LIMIT 1
+    `,
+    [exceptId]
+  );
+  return result.rows[0];
+}
+
 async function resolveRaisedTo(userId, raisedTo) {
   const key = String(raisedTo || '').toLowerCase().trim();
 
-  if (key === 'my_manager') {
+  if (key === 'director') {
+    const director = await firstActiveDirector(userId);
+    if (director) return director;
+  }
+
+  if (key === 'my_manager' || key === 'director') {
     const managerResult = await pool.query(
       `
         SELECT e.id, e.name
@@ -83,7 +110,7 @@ async function resolveRaisedTo(userId, raisedTo) {
     if (manager) return manager;
     const fallbackAdmin = await firstActiveAdmin(userId);
     if (fallbackAdmin) return fallbackAdmin;
-    throw new Error('No manager or admin is available for this concern');
+    throw new Error(key === 'director' ? 'No director, manager, or admin is available for this concern' : 'No manager or admin is available for this concern');
   }
 
   if (key === 'admin') {
@@ -119,7 +146,7 @@ async function resolveRaisedTo(userId, raisedTo) {
     throw new Error('No IT Head or admin is available for this concern');
   }
 
-  throw new Error('raisedTo must be Admin, IT Head, or My Manager');
+  throw new Error('raisedTo must be Admin, IT Head, or Director');
 }
 
 function rowToConcern(row) {
@@ -223,8 +250,12 @@ router.get('/inbox', async (req, res) => {
 });
 
 router.get('/all', async (req, res) => {
-  if (req.user.role !== 'admin') {
+  const ctx = await resolveAdminContext(req.user);
+  if (!ctx) {
     return res.status(403).json({ message: 'Only admins can view all requests' });
+  }
+  if (!ctx.isSuperAdmin && !ctx.permissions.includes(PERMISSION_MODULES.REQUEST_APPROVALS)) {
+    return res.status(403).json({ message: 'Forbidden: request approvals permission required' });
   }
   try {
     await ensureResponseAttachmentColumn();

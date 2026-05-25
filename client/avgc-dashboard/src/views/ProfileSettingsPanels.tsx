@@ -16,6 +16,8 @@ export function ProfilePanel({
   const [saveOk, setSaveOk] = useState(false);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [department, setDepartment] = useState('');
+  const [designation, setDesignation] = useState('');
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
   const [bio, setBio] = useState('');
@@ -34,6 +36,8 @@ export function ProfilePanel({
       setAvatarOverride(null);
       setName(p.name || '');
       setEmail(p.email || '');
+      setDepartment(p.department || '');
+      setDesignation(p.designation || p.role || '');
       setPhone(p.phone || '');
       setLocation(p.location || '');
       setBio(p.bio || '');
@@ -136,6 +140,20 @@ export function ProfilePanel({
       <p className="mt-1 text-sm text-slate-500">
         Update your details. Email is managed by your administrator and cannot be changed here.
       </p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Employee Name</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">{name || '—'}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Designation</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">{designation || '—'}</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Department</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">{department || '—'}</p>
+        </div>
+      </div>
       {saveOk && (
         <div
           className="mt-4 rounded-md border border-[#ed1d24]/30 bg-[rgba(237,29,36,0.08)] px-4 py-3 text-sm font-semibold text-[#ed1d24]"

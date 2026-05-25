@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcrypt');
 const { pool } = require('./db');
+const { replaceAdminPermissions, ALL_MODULES } = require('./utils/adminPermissions');
+const { generateEmployeeCode } = require('./utils/employeeCode');
 
 async function runSchema() {
   const schemaPath = path.join(__dirname, 'schema.sql');
@@ -16,6 +18,24 @@ async function runSchema() {
   `);
   await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_unique_date ON holidays (date)');
   await pool.query('ALTER TABLE concerns ADD COLUMN IF NOT EXISTS responseattachmenturl TEXT');
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      user_type TEXT NOT NULL CHECK (user_type IN ('admin', 'manager', 'employee')),
+      email TEXT NOT NULL,
+      token_hash TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(
+    'CREATE INDEX IF NOT EXISTS idx_password_reset_token_hash ON password_reset_tokens (token_hash)'
+  );
+  await pool.query(
+    'CREATE INDEX IF NOT EXISTS idx_password_reset_email_created ON password_reset_tokens (lower(email), created_at)'
+  );
   console.log('[db:init] Schema applied from server/schema.sql');
 }
 
@@ -47,9 +67,57 @@ async function seedDefaultAdmin() {
     INSERT INTO employees (employeecode, name, email, passwordhash, department, role, isregistered, mustchangepassword)
     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
   `,
-    ['ADMIN001', 'System Admin', 'admin@hrms.com', passwordhash, 'Administration', 'admin', true, true]
+    ['ADMIN001', 'System Admin', 'admin@hrms.com', passwordhash, 'Administration', 'admin', true, false]
   );
   console.log('[db:init] Seeded default admin');
+}
+
+async function seedSuperAdmin() {
+  const email = (process.env.SUPER_ADMIN_EMAIL || 'admin@hrms.com').trim();
+  const password = process.env.SUPER_ADMIN_PASSWORD || 'Admin@123';
+  const passwordhash = bcrypt.hashSync(password, 10);
+
+  let employee = await pool.query(
+    "SELECT id, name, email, department FROM employees WHERE lower(trim(email)) = lower($1) AND role = 'admin' LIMIT 1",
+    [email]
+  );
+  let employeeId = employee.rows[0]?.id;
+
+  if (!employeeId) {
+    const code = await generateEmployeeCode();
+    const insert = await pool.query(
+      `
+        INSERT INTO employees (employeecode, name, email, passwordhash, department, role, isregistered, mustchangepassword)
+        VALUES ($1, $2, $3, $4, $5, 'admin', TRUE, FALSE)
+        RETURNING id
+      `,
+      [code, 'Super Admin', email, passwordhash, 'Administration', 'admin']
+    );
+    employeeId = insert.rows[0].id;
+  } else {
+    await pool.query(
+      'UPDATE employees SET passwordhash = $1, mustchangepassword = FALSE WHERE id = $2',
+      [passwordhash, employeeId]
+    );
+  }
+
+  const adminInsert = await pool.query(
+    `
+      INSERT INTO admins (name, email, passwordhash, designation, department, is_super_admin, is_active, mustchangepassword, employee_id)
+      VALUES ($1, $2, $3, $4, $5, TRUE, TRUE, FALSE, $6)
+      ON CONFLICT (email) DO UPDATE SET
+        is_super_admin = TRUE,
+        is_active = TRUE,
+        mustchangepassword = FALSE,
+        passwordhash = EXCLUDED.passwordhash,
+        employee_id = COALESCE(admins.employee_id, EXCLUDED.employee_id)
+      RETURNING id
+    `,
+    ['Super Admin', email, passwordhash, 'Super Administrator', 'Administration', employeeId]
+  );
+  const adminId = adminInsert.rows[0].id;
+  await replaceAdminPermissions(pool, adminId, ALL_MODULES);
+  console.log(`[db:init] Super Admin ready (${email}) — password synced from env/default`);
 }
 
 async function seedSampleManagers() {
@@ -82,6 +150,7 @@ async function main() {
     await runSchema();
     await seedDemoEmployee();
     await seedDefaultAdmin();
+    await seedSuperAdmin();
     await seedSampleManagers();
     console.log('[db:init] Database initialization complete');
   } catch (err) {

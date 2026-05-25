@@ -67,6 +67,7 @@
       <button type="button" data-nav="biometric"><span class="nav-icon">◎</span><span>Biometric</span></button>
       <button type="button" data-nav="system"><span class="nav-icon">⚙</span><span>Settings</span></button>
       <button type="button" data-nav="roles"><span class="nav-icon">⛭</span><span>Roles</span></button>
+      <button type="button" data-nav="manage-admins" style="display:none;"><span class="nav-icon">🛡</span><span>Manage Admins</span></button>
       <div class="sidebar-nav-divider"></div>
       <div class="sidebar-nav-group-label">Account</div>
       <button type="button" data-nav="profile"><span class="nav-icon">●</span><span>Profile</span></button>
@@ -128,6 +129,22 @@
           <h2 class="panel-title">My leave balance</h2>
           <p class="stat-sub" id="adminLeaveBalanceSummary">Loading leave balance…</p>
           <div class="tile-grid" id="adminLeaveBalanceGrid" style="margin-top:16px;"></div>
+        </div>
+        <div class="panel" id="adminLeaveSummaryPanel">
+          <div class="panel-header">
+            <div>
+              <h2 class="panel-title">Leave Summary</h2>
+              <p class="stat-sub">Pending leave requests across all employees.</p>
+            </div>
+            <button type="button" class="btn btn-primary btn-sm" id="loadAdminLeaveSummaryBtn">Refresh</button>
+          </div>
+          <div class="stat-grid" id="adminLeaveSummaryCards"></div>
+          <div class="table-wrap" style="margin-top:16px;">
+            <table class="data-table">
+              <thead><tr><th>Leave Type</th><th>Pending Requests</th></tr></thead>
+              <tbody id="adminLeaveSummaryBody"></tbody>
+            </table>
+          </div>
         </div>
         <div class="panel" id="upcomingBirthdaysPanel">
           <h2 class="panel-title">Upcoming birthdays (next 7 days)</h2>
@@ -200,10 +217,10 @@
       <section id="view-requests-raise" class="view-section">
         <div class="panel">
           <h2 class="panel-title">Raise request</h2>
-          <p class="stat-sub">Send a workplace, IT, or HR request to Admin, IT Head, or your manager.</p>
+          <p class="stat-sub">Send a workplace, IT, or HR request to Admin, IT Head, or Director.</p>
           <form id="adminRequestForm" class="form-row" style="margin-top:16px;">
             <div class="form-group"><label>Subject</label><input id="adminReqSubject" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-            <div class="form-group"><label>Raise to</label><select id="adminReqRaisedTo" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"><option value="admin">Admin</option><option value="it_head">IT Head</option><option value="my_manager">My Manager</option></select></div>
+            <div class="form-group"><label>Raise to</label><select id="adminReqRaisedTo" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"><option value="admin">Admin</option><option value="it_head">IT Head</option><option value="director">Director</option></select></div>
             <div class="form-group"><label>Priority</label><select id="adminReqPriority" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"><option>Low</option><option selected>Medium</option><option>High</option><option>Urgent</option></select></div>
             <div class="form-group"><label>Attachment optional</label><input type="file" id="adminReqAttachment" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
             <div class="form-group" style="flex-basis:100%;"><label>Description</label><textarea id="adminReqDescription" rows="4" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea></div>
@@ -316,7 +333,8 @@
       <section id="view-calendar" class="view-section">
         <div class="panel">
           <h2 class="panel-title">Organization calendar</h2>
-          <p class="stat-sub">Use Attendance Monitoring with a date range by exporting reports. Month-wide company calendar view can be added when backend aggregates are exposed.</p>
+          <p class="stat-sub" style="margin-bottom:16px;">Your attendance calendar uses the same monthly view as the employee dashboard, including holidays and configured Saturdays.</p>
+          <div id="adminCalendarRoot"></div>
         </div>
       </section>
 
@@ -353,6 +371,7 @@
             <label for="employeeImportFile" class="btn btn-primary import-excel-cta" style="display:inline-flex;align-items:center;justify-content:center;margin-top:16px;cursor:pointer;">
               📊 Choose Excel file (.xlsx, .xls, .csv)
             </label>
+            <button type="button" class="btn btn-outline import-excel-cta" id="employeeSampleBtn" style="display:inline-flex;align-items:center;justify-content:center;margin-top:16px;margin-left:8px;">Download Sample Format</button>
             <span id="employeeImportFileName" class="stat-sub" style="display:block;margin-top:10px;font-weight:500;">No file selected.</span>
             <input type="file" id="employeeImportFile" accept=".xlsx,.xls,.csv" />
           </div>
@@ -401,7 +420,10 @@
               <p><strong>Drop attendance file</strong></p>
               <input type="file" id="attendanceFile" accept=".xlsx,.xls,.csv" required />
             </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:16px;">Import</button>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
+              <button type="submit" class="btn btn-primary">Import</button>
+              <button type="button" class="btn btn-outline" id="attendanceSampleBtn">Download Sample Format</button>
+            </div>
           </form>
           <p id="importMessage" class="message"></p>
           <div id="importSummary" class="stat-sub"></div>
@@ -427,13 +449,25 @@
           <div class="panel-header">
             <div>
               <h2 class="panel-title">Analytics & reports</h2>
-              <p class="stat-sub">Attendance, leave, employees, requests, department, monthly, and OD reports.</p>
+              <p class="stat-sub">Generate attendance, leave, employee, combined, ticket, and OD reports with employee/month/year filters.</p>
             </div>
             <div class="filters-inline">
               <label>From <input type="date" id="reportFrom" /></label>
               <label>To <input type="date" id="reportTo" /></label>
               <button type="button" class="btn btn-primary btn-sm" id="loadReportsBtn">Load reports</button>
               <button type="button" class="btn btn-outline btn-sm" id="exportAllReportsBtn">Export all Excel</button>
+            </div>
+          </div>
+          <div class="panel" style="border:1px dashed var(--border);padding:16px;margin-top:16px;">
+            <h3 class="panel-title" style="font-size:1rem;">Report Generation</h3>
+            <div class="form-row" style="align-items:flex-end;flex-wrap:wrap;margin-top:12px;">
+              <div class="form-group"><label>Report type</label><select id="reportTypeSelect" style="padding:12px;border-radius:8px;border:1px solid var(--border);min-width:220px;"><option value="allAttendanceRecords">All Attendance records</option><option value="monthWiseAttendance">Month-wise Attendance report</option><option value="leaveRecords">Leave records</option><option value="combinedAttendanceLeave">Combined Attendance + Leave report</option><option value="allEmployeeData">All Employee data report</option></select></div>
+              <div class="form-group"><label>Employee</label><select id="reportEmployeeFilter" style="padding:12px;border-radius:8px;border:1px solid var(--border);min-width:220px;"><option value="">All employees</option></select></div>
+              <div class="form-group"><label>Month</label><input type="number" id="reportMonthFilter" min="1" max="12" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100px;" /></div>
+              <div class="form-group"><label>Year</label><input type="number" id="reportYearFilter" min="2000" max="2100" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:110px;" /></div>
+              <button type="button" class="btn btn-primary" id="generateReportBtn">Generate</button>
+              <button type="button" class="btn btn-outline" id="exportSelectedReportExcelBtn">Export Excel</button>
+              <button type="button" class="btn btn-outline" id="exportSelectedReportPdfBtn">Export PDF</button>
             </div>
           </div>
           <div class="chart-wrap"><canvas id="adminAnalyticsChart"></canvas></div>
@@ -564,6 +598,67 @@
         </div>
       </section>
 
+      <section id="view-not-authorized" class="view-section">
+        <div class="panel" style="text-align:center;padding:48px 24px;">
+          <h2 class="panel-title">Not Authorized</h2>
+          <p class="stat-sub">You do not have permission to view this section. Contact your Super Admin if you need access.</p>
+          <button type="button" class="btn btn-primary" id="notAuthorizedHomeBtn">Go to Dashboard</button>
+        </div>
+      </section>
+
+      <section id="view-manage-admins" class="view-section">
+        <div class="panel">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+            <h2 class="panel-title" style="margin:0;">Manage Admins</h2>
+            <button type="button" class="btn btn-outline btn-sm" id="refreshManageAdminsBtn">Refresh</button>
+          </div>
+          <p class="stat-sub" style="margin-bottom:20px;">Create admin accounts and assign module permissions. Super Admin accounts cannot be restricted or deleted.</p>
+          <p id="manageAdminsMessage" class="message"></p>
+
+          <h3 style="font-size:1rem;margin:0 0 12px;">Create admin</h3>
+          <form id="createAdminForm" class="form-row" style="align-items:flex-start;margin-bottom:28px;">
+            <div class="form-group"><label>Name</label><input id="createAdminName" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group"><label>Email</label><input id="createAdminEmail" type="email" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group"><label>Password</label><input id="createAdminPassword" type="password" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group"><label>Designation</label><input id="createAdminDesignation" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group"><label>Department</label><input id="createAdminDepartment" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group" style="min-width:220px;flex:1;">
+              <label>Permissions</label>
+              <div id="createAdminPermissions" class="perm-checklist" style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:12px;"></div>
+            </div>
+            <div class="form-group" style="align-self:flex-end;"><button type="submit" class="btn btn-primary">Create admin</button></div>
+          </form>
+
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr><th>Name</th><th>Designation</th><th>Department</th><th>Email</th><th>Status</th><th>Permissions</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="manageAdminsBody"></tbody>
+            </table>
+          </div>
+
+          <div id="editAdminPanel" class="panel hidden" style="margin-top:24px;border:1px solid var(--border);">
+            <h3 style="font-size:1rem;margin:0 0 12px;">Edit admin</h3>
+            <form id="editAdminForm">
+              <input type="hidden" id="editAdminId" />
+              <div class="form-row">
+                <div class="form-group"><label>Name</label><input id="editAdminName" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+                <div class="form-group"><label>Designation</label><input id="editAdminDesignation" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+                <div class="form-group"><label>Department</label><input id="editAdminDepartment" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+                <div class="form-group"><label>New password (optional)</label><input id="editAdminPassword" type="password" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+                <div class="form-group" style="align-self:center;"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="editAdminActive" checked /> Active</label></div>
+              </div>
+              <div class="form-group"><label>Permissions</label><div id="editAdminPermissions" style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:12px;"></div></div>
+              <div style="display:flex;gap:8px;margin-top:12px;">
+                <button type="submit" class="btn btn-primary">Save changes</button>
+                <button type="button" class="btn btn-outline" id="cancelEditAdminBtn">Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </section>
+
       <section id="view-profile" class="view-section">
         <div class="panel">
           <h2 class="panel-title" id="adminProfileHeading">Profile</h2>
@@ -590,9 +685,34 @@
             </div>
           </form>
           <div class="tile-grid" style="margin-top:16px;">
-            <div class="tile"><strong>Employee code</strong><span id="profileCode">—</span></div>
+            <div class="tile"><strong>Employee Name</strong><span id="profileNameTile">—</span></div>
+            <div class="tile"><strong>Designation</strong><span id="profileDesignation">—</span></div>
             <div class="tile"><strong>Department</strong><span id="profileDept">—</span></div>
+            <div class="tile"><strong>Employee code</strong><span id="profileCode">—</span></div>
           </div>
+        </div>
+        <div class="panel" style="margin-top:20px;">
+          <h3 class="panel-title" style="font-size:1.05rem;">Security</h3>
+          <p class="stat-sub" style="margin-bottom:16px;">Change your sign-in password. Applies to your admin account and linked employee login.</p>
+          <form id="adminProfilePasswordForm" class="form-row" style="align-items:flex-end;max-width:640px;">
+            <div class="form-group" style="flex:1;min-width:160px;">
+              <label for="profileCurrentPassword">Current password</label>
+              <input id="profileCurrentPassword" type="password" required autocomplete="current-password" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" />
+            </div>
+            <div class="form-group" style="flex:1;min-width:160px;">
+              <label for="profileNewPassword">New password</label>
+              <input id="profileNewPassword" type="password" required autocomplete="new-password" minlength="8" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" />
+            </div>
+            <div class="form-group" style="flex:1;min-width:160px;">
+              <label for="profileConfirmPassword">Confirm new password</label>
+              <input id="profileConfirmPassword" type="password" required autocomplete="new-password" minlength="8" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" />
+            </div>
+            <div class="form-group">
+              <button type="submit" class="btn btn-primary">Update password</button>
+            </div>
+          </form>
+          <p class="stat-sub" style="margin:8px 0 0;font-size:12px;">At least 8 characters with letters and numbers.</p>
+          <p id="adminProfilePasswordMessage" class="message"></p>
         </div>
       </section>
     </main>
@@ -606,6 +726,8 @@
   <script src="/js/sidebar.js"></script>
   <script src="/js/navbar.js"></script>
   <script src="/js/punch.js"></script>
+  <script src="/js/admin-permissions.js"></script>
+  <script src="/js/admin-accounts.js"></script>
   <script type="module" src="/assets/avgc-dashboard/team-hub.js"></script>
   <script src="/js/admin-dashboard.js"></script>
 </body>

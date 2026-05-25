@@ -7,6 +7,7 @@ const authRoutes = require('./routes/auth');
 const biometricRoutes = require('./routes/biometric');
 const attendanceRoutes = require('./routes/attendance');
 const adminRoutes = require('./routes/admin');
+const adminAccountsRoutes = require('./routes/adminAccounts');
 const concernRoutes = require('./routes/concerns');
 const leaveRoutes = require('./routes/leaves');
 const managerRoutes = require('./routes/manager');
@@ -52,12 +53,16 @@ app.use((req, res, next) => {
   if (p === '/profile/') return res.redirect(301, '/profile');
   if (p === '/account/profile') return sendPublicHtml(res, 'employee-dashboard.html');
   if (p === '/account/profile/') return res.redirect(301, '/account/profile');
+  if (p === '/forgot-password') return sendPublicHtml(res, 'forgot-password.html');
+  if (p === '/reset-password') return sendPublicHtml(res, 'reset-password.html');
   next();
 });
 
 // HTML pages — register BEFORE express.static so routes are never shadowed
 app.get('/', (_req, res) => sendPublicHtml(res, 'index.html'));
 app.get('/login', (_req, res) => sendPublicHtml(res, 'login.html'));
+app.get('/forgot-password', (_req, res) => sendPublicHtml(res, 'forgot-password.html'));
+app.get('/reset-password', (_req, res) => sendPublicHtml(res, 'reset-password.html'));
 app.get('/pricing', (_req, res) => res.redirect(301, '/'));
 app.get('/features', (_req, res) => res.redirect(301, '/'));
 app.get('/index.html', (_req, res) => res.redirect(301, '/login'));
@@ -81,6 +86,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/biometric', biometricRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/accounts', adminAccountsRoutes);
 app.use('/api/concern', concernRoutes);
 app.use('/api/concerns', concernRoutes);
 app.use('/api/leave', leaveRoutes);

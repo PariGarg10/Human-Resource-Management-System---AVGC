@@ -50,6 +50,7 @@ function rowToProfile(row) {
     email: row.email,
     department: row.department,
     role: row.role,
+    designation: row.role,
     dateOfBirth: row.dateofbirth || null,
     phone: row.phone || null,
     location: row.location || null,

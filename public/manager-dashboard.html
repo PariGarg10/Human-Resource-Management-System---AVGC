@@ -152,6 +152,11 @@
 
       <section id="view-team-calendar" class="view-section">
         <div class="panel">
+          <h2 class="panel-title">Calendar</h2>
+          <p class="stat-sub" style="margin-bottom:16px;">Your attendance calendar uses the same monthly view as the employee dashboard, including holidays and configured Saturdays.</p>
+          <div id="managerCalendarRoot"></div>
+        </div>
+        <div class="panel">
           <div class="panel-header">
             <h2 class="panel-title">Team summary by month</h2>
             <div class="filters-inline">
@@ -232,10 +237,10 @@
       <section id="view-requests-raise" class="view-section">
         <div class="panel">
           <h2 class="panel-title">Raise request</h2>
-          <p class="stat-sub">Send a workplace, IT, or HR request to Admin, IT Head, or your manager.</p>
+          <p class="stat-sub">Send a workplace, IT, or HR request to Admin, IT Head, or Director.</p>
           <form id="mgrRequestForm" class="form-row" style="margin-top:16px;">
             <div class="form-group"><label>Subject</label><input id="mgrReqSubject" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-            <div class="form-group"><label>Raise to</label><select id="mgrReqRaisedTo" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"><option value="admin">Admin</option><option value="it_head">IT Head</option><option value="my_manager">My Manager</option></select></div>
+            <div class="form-group"><label>Raise to</label><select id="mgrReqRaisedTo" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"><option value="admin">Admin</option><option value="it_head">IT Head</option><option value="director">Director</option></select></div>
             <div class="form-group"><label>Priority</label><select id="mgrReqPriority" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"><option>Low</option><option selected>Medium</option><option>High</option><option>Urgent</option></select></div>
             <div class="form-group"><label>Attachment optional</label><input type="file" id="mgrReqAttachment" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
             <div class="form-group" style="flex-basis:100%;"><label>Description</label><textarea id="mgrReqDescription" rows="4" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea></div>
@@ -324,6 +329,8 @@
             </div>
           </form>
           <div class="tile-grid" style="margin-top:16px;">
+            <div class="tile"><strong>Employee Name</strong><span id="profileNameTile">—</span></div>
+            <div class="tile"><strong>Designation</strong><span id="profileDesignation">—</span></div>
             <div class="tile"><strong>Department</strong><span id="profileDept">—</span></div>
             <div class="tile"><strong>Employee code</strong><span id="profileCode">—</span></div>
           </div>

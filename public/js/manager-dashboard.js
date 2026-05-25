@@ -19,6 +19,10 @@ const passwordChangeRequired = Boolean(user.mustchangepassword);
 document.getElementById('sidebarUserName').textContent = user.name || 'Manager';
 document.getElementById('sidebarAvatar').textContent = (user.name || 'M').charAt(0).toUpperCase();
 document.getElementById('navProfileEmail').textContent = user.email || '';
+const profileNameTile = document.getElementById('profileNameTile');
+if (profileNameTile) profileNameTile.textContent = user.name || '—';
+const profileDesignation = document.getElementById('profileDesignation');
+if (profileDesignation) profileDesignation.textContent = user.role || '—';
 document.getElementById('profileDept').textContent = user.department || '—';
 document.getElementById('profileCode').textContent = user.employeecode || '—';
 
@@ -586,6 +590,10 @@ async function loadMgrProfileFromServer() {
     }
     document.getElementById('profileDept').textContent = profile.department || '—';
     document.getElementById('profileCode').textContent = profile.employeecode || '—';
+    const nameTile = document.getElementById('profileNameTile');
+    if (nameTile) nameTile.textContent = profile.name || '—';
+    const designationTile = document.getElementById('profileDesignation');
+    if (designationTile) designationTile.textContent = profile.designation || profile.role || '—';
   } catch (_e) {}
 }
 
@@ -679,7 +687,7 @@ document.getElementById('mgrProfileForm')?.addEventListener('submit', async (e) 
 
 HRMS.initNotificationBell((path, opts) => api(path, opts || {}));
 function mountTeamHubWhenReady(section) {
-  if (!['my-tasks', 'teams', 'org-chart'].includes(section)) return;
+  if (!['my-tasks', 'teams', 'org-chart', 'team-calendar'].includes(section)) return;
   const tryMount = (attempt) => {
     if (window.HRMS?.initTeamHubPanels) {
       window.HRMS.initTeamHubPanels();
@@ -693,6 +701,7 @@ function mountTeamHubWhenReady(section) {
 function onManagerNavigate(section) {
   mountTeamHubWhenReady(section);
   if (section === 'employees') loadEmployees().catch((e) => HRMS.toast(e.message, 'error'));
+  if (section === 'teams' || section === 'org-chart') window.HRMS?.refreshTeamHubPanels?.();
   if (section === 'team-attendance' || section === 'dashboard') {
     Promise.all([loadSummary(), loadDailyAttendance()]).catch((e) => HRMS.toast(e.message, 'error'));
   }
@@ -700,6 +709,7 @@ function onManagerNavigate(section) {
     loadLeaves().catch((e) => HRMS.toast(e.message, 'error'));
   }
   if (section === 'team-calendar') loadTeamSummary().catch((e) => HRMS.toast(e.message, 'error'));
+  if (section === 'team-calendar') window.HRMS?.mountAttendanceCalendar?.('#managerCalendarRoot');
   if (section === 'holiday-calendar') loadManagerHolidayCalendar().catch((e) => HRMS.toast(e.message, 'error'));
   if (section === 'requests-my') loadManagerMyRequests().catch((e) => HRMS.toast(e.message, 'error'));
   if (section === 'requests-inbox') loadManagerInboxRequests().catch((e) => HRMS.toast(e.message, 'error'));

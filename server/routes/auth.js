@@ -1,10 +1,29 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
 const { pool } = require('../db');
 const { authMiddleware } = require('../middleware/auth');
 const { logAudit } = require('../utils/audit');
+const { loadAdminPermissions, ALL_MODULES } = require('../utils/adminPermissions');
+const { generateEmployeeCode } = require('../utils/employeeCode');
+const {
+  requestPasswordReset,
+  resetPasswordWithToken,
+  validatePasswordStrength,
+} = require('../utils/passwordReset');
+
+async function verifyCurrentPassword(req, currentPassword) {
+  if (req.user.adminId) {
+    const adminResult = await pool.query('SELECT passwordhash FROM admins WHERE id = $1', [req.user.adminId]);
+    const admin = adminResult.rows[0];
+    if (admin?.passwordhash && bcrypt.compareSync(currentPassword, admin.passwordhash)) {
+      return true;
+    }
+  }
+  const userResult = await pool.query('SELECT passwordhash FROM employees WHERE id = $1', [req.user.id]);
+  const employee = userResult.rows[0];
+  return Boolean(employee?.passwordhash && bcrypt.compareSync(currentPassword, employee.passwordhash));
+}
 
 const router = express.Router();
 
@@ -72,9 +91,108 @@ async function issueLogin(res, email, password, allowedRole) {
   });
 }
 
+async function issueAdminLogin(res, email, password) {
+  if (!email || !password) {
+    return res.status(400).json({ message: 'Email and password are required' });
+  }
+
+  const loginId = String(email).trim();
+  const adminResult = await pool.query(
+    `
+      SELECT id, name, email, passwordhash, designation, department, is_super_admin, is_active,
+             employee_id, mustchangepassword
+      FROM admins
+      WHERE lower(trim(email)) = lower($1)
+    `,
+    [loginId]
+  );
+  const admin = adminResult.rows[0];
+
+  if (admin) {
+    if (!admin.is_active) {
+      return res.status(403).json({ message: 'This admin account is deactivated' });
+    }
+    if (!bcrypt.compareSync(password, admin.passwordhash)) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const permissions = admin.is_super_admin
+      ? ALL_MODULES
+      : await loadAdminPermissions(pool, admin.id);
+
+    let employeeId = admin.employee_id;
+    if (!employeeId) {
+      const employeecode = await generateEmployeeCode();
+      const empInsert = await pool.query(
+        `
+          INSERT INTO employees (employeecode, name, email, passwordhash, department, role, isregistered, mustchangepassword)
+          VALUES ($1, $2, $3, $4, $5, 'admin', TRUE, $6)
+          RETURNING id
+        `,
+        [
+          employeecode,
+          admin.name,
+          admin.email,
+          admin.passwordhash,
+          admin.department,
+          Boolean(admin.mustchangepassword),
+        ]
+      );
+      employeeId = empInsert.rows[0].id;
+      await pool.query('UPDATE admins SET employee_id = $1 WHERE id = $2', [employeeId, admin.id]);
+    }
+
+    const payload = {
+      id: employeeId,
+      adminId: admin.id,
+      name: admin.name,
+      email: admin.email,
+      role: 'admin',
+      isSuperAdmin: Boolean(admin.is_super_admin),
+      permissions,
+      mustchangepassword: Boolean(admin.mustchangepassword),
+      employeecode: null,
+    };
+
+    const empRow = await pool.query('SELECT employeecode, department FROM employees WHERE id = $1', [employeeId]);
+    if (empRow.rows[0]) {
+      payload.employeecode = empRow.rows[0].employeecode;
+      payload.department = empRow.rows[0].department || admin.department;
+    }
+
+    const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '8h' });
+
+    return res.json({
+      token,
+      employee: {
+        id: employeeId,
+        adminId: admin.id,
+        name: admin.name,
+        email: admin.email,
+        department: payload.department || admin.department,
+        role: 'admin',
+        designation: admin.designation,
+        isSuperAdmin: Boolean(admin.is_super_admin),
+        permissions,
+        mustchangepassword: Boolean(admin.mustchangepassword),
+        employeecode: payload.employeecode,
+      },
+    });
+  }
+
+  return issueLogin(res, email, password, 'admin');
+}
+
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
+    const adminTry = await pool.query(
+      'SELECT id FROM admins WHERE lower(trim(email)) = lower($1) AND is_active = TRUE',
+      [String(email || '').trim()]
+    );
+    if (adminTry.rows[0]) {
+      return await issueAdminLogin(res, email, password);
+    }
     return await issueLogin(res, email, password, null);
   } catch (err) {
     console.error('POST /login:', err.message);
@@ -105,7 +223,7 @@ router.post('/manager/login', async (req, res) => {
 router.post('/admin/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    return await issueLogin(res, email, password, 'admin');
+    return await issueAdminLogin(res, email, password);
   } catch (err) {
     console.error('POST /admin/login:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
@@ -171,9 +289,13 @@ router.post('/change-password', authMiddleware, async (req, res) => {
       return res.status(400).json({ message: 'currentPassword and newPassword are required' });
     }
 
-    const userResult = await pool.query('SELECT id, passwordhash FROM employees WHERE id = $1', [req.user.id]);
-    const user = userResult.rows[0];
-    if (!user || !bcrypt.compareSync(currentPassword, user.passwordhash)) {
+    const strengthError = validatePasswordStrength(newPassword);
+    if (strengthError) {
+      return res.status(400).json({ message: strengthError });
+    }
+
+    const currentValid = await verifyCurrentPassword(req, currentPassword);
+    if (!currentValid) {
       return res.status(401).json({ message: 'Current password is invalid' });
     }
 
@@ -182,6 +304,12 @@ router.post('/change-password', authMiddleware, async (req, res) => {
       passwordhash,
       req.user.id,
     ]);
+    if (req.user.adminId) {
+      await pool.query('UPDATE admins SET passwordhash = $1, mustchangepassword = FALSE WHERE id = $2', [
+        passwordhash,
+        req.user.adminId,
+      ]);
+    }
     await logAudit(req.user.id, 'PASSWORD_CHANGED', 'auth', null);
 
     return res.json({ message: 'Password updated successfully' });
@@ -198,28 +326,44 @@ router.post('/logout', (_req, res) => {
 router.post('/forgot-password', async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email) return res.status(400).json({ message: 'email is required' });
-    const employeeResult = await pool.query('SELECT id FROM employees WHERE email = $1', [email.trim()]);
-    const employee = employeeResult.rows[0];
-    if (!employee) {
-      return res.json({ message: 'If account exists, password reset instructions are generated.' });
+    if (!email || !String(email).trim()) {
+      return res.status(400).json({ message: 'email is required' });
     }
 
-    const tempPassword = `Tmp@${crypto.randomBytes(4).toString('hex')}`;
-    const passwordhash = bcrypt.hashSync(tempPassword, 10);
-    await pool.query('UPDATE employees SET passwordhash = $1, mustchangepassword = TRUE WHERE id = $2', [
-      passwordhash,
-      employee.id,
-    ]);
-    await logAudit(employee.id, 'FORGOT_PASSWORD', 'auth', null);
-
-    return res.json({
-      message: 'Temporary password generated. Change password after login.',
-      temporarypassword: tempPassword,
-    });
+    const result = await requestPasswordReset(email);
+    return res.status(200).json({ message: result.message });
   } catch (err) {
     console.error('POST /forgot-password:', err.message);
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(200).json({
+      message: 'If this email exists, a reset link has been sent to your inbox',
+    });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword } = req.body;
+    if (!token || !newPassword) {
+      return res.status(400).json({ message: 'token and newPassword are required' });
+    }
+
+    const strengthError = validatePasswordStrength(newPassword);
+    if (strengthError) {
+      return res.status(400).json({ message: strengthError });
+    }
+
+    const result = await resetPasswordWithToken(token, newPassword);
+    if (!result.ok) {
+      return res.status(400).json({ message: result.message, code: result.code });
+    }
+
+    return res.status(200).json({ message: result.message });
+  } catch (err) {
+    console.error('POST /reset-password:', err.message);
+    return res.status(400).json({
+      message: 'This link is invalid or has expired. Please request a new one.',
+      code: 'INVALID',
+    });
   }
 });
 

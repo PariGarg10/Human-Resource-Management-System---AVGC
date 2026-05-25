@@ -5,7 +5,9 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const { format, getDaysInMonth, startOfYear, endOfYear } = require('date-fns');
 const { pool } = require('../db');
-const { authMiddleware, requireRoles, enforcePasswordChange } = require('../middleware/auth');
+const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
+const { requireAdminAccess } = require('../middleware/adminAuth');
+const { requirePermission, PERMISSION_MODULES } = require('../utils/adminPermissions');
 const { getHolidaysForRange, normalizeHolidayDate, isValidHolidayDate } = require('../utils/holidaysRange');
 const { logAudit } = require('../utils/audit');
 
@@ -154,7 +156,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', requireRoles('admin'), async (req, res) => {
+router.post('/', requireAdminAccess, requirePermission(PERMISSION_MODULES.HOLIDAY_CALENDAR), async (req, res) => {
   try {
     const { holidayName, date, type } = req.body || {};
     if (!holidayName || !date || !type) {
@@ -189,7 +191,7 @@ router.post('/', requireRoles('admin'), async (req, res) => {
   }
 });
 
-router.put('/:id', requireRoles('admin'), async (req, res) => {
+router.put('/:id', requireAdminAccess, requirePermission(PERMISSION_MODULES.HOLIDAY_CALENDAR), async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ message: 'Invalid id' });
@@ -223,7 +225,7 @@ router.put('/:id', requireRoles('admin'), async (req, res) => {
   }
 });
 
-router.post('/import/preview', requireRoles('admin'), upload.single('file'), async (req, res) => {
+router.post('/import/preview', requireAdminAccess, requirePermission(PERMISSION_MODULES.HOLIDAY_CALENDAR), upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'Holiday Excel file is required' });
   try {
     const rows = parseHolidayWorkbook(req.file.path);
@@ -238,7 +240,7 @@ router.post('/import/preview', requireRoles('admin'), upload.single('file'), asy
   }
 });
 
-router.post('/import', requireRoles('admin'), upload.single('file'), async (req, res) => {
+router.post('/import', requireAdminAccess, requirePermission(PERMISSION_MODULES.HOLIDAY_CALENDAR), upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'Holiday Excel file is required' });
   try {
     const rows = parseHolidayWorkbook(req.file.path);
@@ -273,7 +275,7 @@ router.post('/import', requireRoles('admin'), upload.single('file'), async (req,
   }
 });
 
-router.delete('/:id', requireRoles('admin'), async (req, res) => {
+router.delete('/:id', requireAdminAccess, requirePermission(PERMISSION_MODULES.HOLIDAY_CALENDAR), async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!id) return res.status(400).json({ message: 'Invalid id' });

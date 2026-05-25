@@ -1,7 +1,9 @@
 const token = localStorage.getItem('token');
 if (!token) window.location.href = '/login';
 
-const user = JSON.parse(localStorage.getItem('employee') || '{}');
+let user = JSON.parse(localStorage.getItem('employee') || '{}');
+const PERMS = window.HRMS_ADMIN_PERMS;
+
 function isFounderProfile(profile) {
   const role = String(profile?.role || '').toLowerCase().trim();
   const name = String(profile?.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -16,6 +18,10 @@ if (user.role !== 'admin' && !isFounderProfile(user)) {
 document.getElementById('sidebarUserName').textContent = user.name || 'Admin';
 document.getElementById('sidebarAvatar').textContent = (user.name || 'A').charAt(0).toUpperCase();
 document.getElementById('navProfileEmail').textContent = user.email || '';
+const profileNameTile = document.getElementById('profileNameTile');
+if (profileNameTile) profileNameTile.textContent = user.name || '—';
+const profileDesignation = document.getElementById('profileDesignation');
+if (profileDesignation) profileDesignation.textContent = user.designation || user.role || '—';
 document.getElementById('profileDept').textContent = user.department || '—';
 document.getElementById('profileCode').textContent = user.employeecode || '—';
 document.getElementById('dailyDate').value = new Date().toISOString().slice(0, 10);
@@ -28,6 +34,10 @@ if (reportFromEl && reportToEl) {
   const now = new Date();
   reportFromEl.value = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
   reportToEl.value = now.toISOString().slice(0, 10);
+  const reportMonthFilter = document.getElementById('reportMonthFilter');
+  const reportYearFilter = document.getElementById('reportYearFilter');
+  if (reportMonthFilter) reportMonthFilter.value = String(now.getMonth() + 1);
+  if (reportYearFilter) reportYearFilter.value = String(now.getFullYear());
 }
 const ROLE_OPTIONS = [
   { value: 'employee', label: 'Employee' },
@@ -408,6 +418,57 @@ const REPORT_DEFS = [
   },
 ];
 
+const EXTRA_REPORT_DEFS = [
+  {
+    key: 'allAttendanceRecords',
+    title: 'All Attendance records',
+    columns: REPORT_DEFS[0].columns,
+  },
+  {
+    key: 'monthWiseAttendance',
+    title: 'Month-wise Attendance report',
+    columns: REPORT_DEFS[6].columns,
+  },
+  {
+    key: 'leaveRecords',
+    title: 'Leave records',
+    columns: [
+      ['code', 'Code'],
+      ['name', 'Employee'],
+      ['department', 'Department'],
+      ['leaveType', 'Leave Type'],
+      ['fromDate', 'From'],
+      ['toDate', 'To'],
+      ['status', 'Status'],
+      ['approvedBy', 'Approved By'],
+      ['reason', 'Reason'],
+    ],
+  },
+  {
+    key: 'combinedAttendanceLeave',
+    title: 'Combined Attendance + Leave report',
+    columns: [
+      ['code', 'Code'],
+      ['name', 'Employee'],
+      ['department', 'Department'],
+      ['date', 'Date'],
+      ['punchIn', 'Punch In'],
+      ['punchOut', 'Punch Out'],
+      ['totalHours', 'Hours'],
+      ['status', 'Attendance Status'],
+      ['leaveType', 'Leave Type'],
+      ['leaveStatus', 'Leave Status'],
+    ],
+  },
+  {
+    key: 'allEmployeeData',
+    title: 'All Employee data report',
+    columns: REPORT_DEFS[2].columns,
+  },
+];
+
+const REPORT_DEF_BY_KEY = new Map([...REPORT_DEFS, ...EXTRA_REPORT_DEFS].map((def) => [def.key, def]));
+
 function reportCell(value) {
   if (value == null) return '—';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
@@ -491,14 +552,67 @@ function exportAllReportsToExcel() {
   a.remove();
 }
 
+function exportReportToPdf(def, rows, suffix) {
+  const table = `
+    <table>
+      <thead><tr>${def.columns.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map((row) => `<tr>${def.columns.map(([key]) => `<td>${excelEscape(row[key])}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table>`;
+  const win = window.open('', '_blank');
+  if (!win) return HRMS.toast('Allow popups to export PDF', 'error');
+  win.document.write(`
+    <html>
+      <head>
+        <title>${escapeHtml(def.title)} ${escapeHtml(suffix)}</title>
+        <style>
+          body{font-family:Arial,sans-serif;padding:24px;color:#111827;}
+          h1{font-size:20px;margin:0 0 6px;}
+          p{margin:0 0 16px;color:#6b7280;}
+          table{width:100%;border-collapse:collapse;font-size:11px;}
+          th,td{border:1px solid #d1d5db;padding:6px;text-align:left;vertical-align:top;}
+          th{background:#f3f4f6;}
+        </style>
+      </head>
+      <body><h1>${escapeHtml(def.title)}</h1><p>${escapeHtml(suffix)}</p>${table}</body>
+    </html>
+  `);
+  win.document.close();
+  win.focus();
+  win.print();
+}
+
+function reportRangeFromMonthYear() {
+  const month = Number(document.getElementById('reportMonthFilter')?.value);
+  const year = Number(document.getElementById('reportYearFilter')?.value);
+  if (!month || !year) return null;
+  const from = `${year}-${String(month).padStart(2, '0')}-01`;
+  const lastDay = new Date(year, month, 0).getDate();
+  const to = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  return { from, to, month, year };
+}
+
+function reportQueryFromFilters() {
+  const range = reportRangeFromMonthYear();
+  const from = range?.from || document.getElementById('reportFrom')?.value;
+  const to = range?.to || document.getElementById('reportTo')?.value;
+  if (range) {
+    const fromEl = document.getElementById('reportFrom');
+    const toEl = document.getElementById('reportTo');
+    if (fromEl) fromEl.value = from;
+    if (toEl) toEl.value = to;
+  }
+  const query = new URLSearchParams({ from, to });
+  const employeeId = document.getElementById('reportEmployeeFilter')?.value;
+  if (employeeId) query.set('employeeId', employeeId);
+  return query.toString();
+}
+
 async function loadAdminReports() {
-  const from = document.getElementById('reportFrom')?.value;
-  const to = document.getElementById('reportTo')?.value;
   const container = document.getElementById('adminReportsContainer');
   const cards = document.getElementById('reportsSummaryCards');
   if (!container || !cards) return;
   container.innerHTML = '<div class="panel"><p class="stat-sub">Loading reports…</p></div>';
-  const data = await api(`/api/admin/reports?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+  const data = await api(`/api/admin/reports?${reportQueryFromFilters()}`);
   currentReports = data;
   const reports = data.reports || {};
   cards.innerHTML = `
@@ -516,6 +630,26 @@ async function loadAdminReports() {
       exportReportToExcel(def, reports[key] || [], `${data.range.from}-to-${data.range.to}`);
     });
   });
+}
+
+async function loadReportEmployeeFilter() {
+  const select = document.getElementById('reportEmployeeFilter');
+  if (!select) return;
+  const data = await api('/api/admin/employees');
+  select.innerHTML = '<option value="">All employees</option>' + (data.employees || [])
+    .map((emp) => `<option value="${emp.id}">${escapeHtml(emp.name)} (${escapeHtml(emp.employeecode || '—')})</option>`)
+    .join('');
+}
+
+function selectedReportDef() {
+  const key = document.getElementById('reportTypeSelect')?.value || 'allAttendanceRecords';
+  return REPORT_DEF_BY_KEY.get(key) || REPORT_DEF_BY_KEY.get('allAttendanceRecords');
+}
+
+function selectedReportRows() {
+  if (!currentReports) return null;
+  const def = selectedReportDef();
+  return { def, rows: currentReports.reports?.[def.key] || [] };
 }
 
 async function loadAdminLeaveBalance() {
@@ -552,13 +686,6 @@ async function loadEmployees() {
     .join('');
 }
 
-function roleOptionsHtml(currentRole) {
-  const current = String(currentRole || 'employee').toLowerCase().trim();
-  return ROLE_OPTIONS.map(
-    (role) => `<option value="${role.value}" ${role.value === current ? 'selected' : ''}>${role.label}</option>`
-  ).join('');
-}
-
 async function loadRoleManagement() {
   const body = document.getElementById('rolesBody');
   if (!body) return;
@@ -579,9 +706,7 @@ async function loadRoleManagement() {
         <td>${escapeHtml(emp.department || '—')}</td>
         <td>${escapeHtml(emp.role || 'employee')}</td>
         <td>
-          <select data-role-select="${emp.id}" style="padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);min-width:140px;">
-            ${roleOptionsHtml(emp.role)}
-          </select>
+          <input data-role-input="${emp.id}" value="${escapeHtml(emp.role || 'employee')}" placeholder="Type role name" style="padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);min-width:160px;width:100%;" />
         </td>
         <td><button type="button" class="btn btn-primary btn-sm" data-role-save="${emp.id}">Save role</button></td>
       </tr>`
@@ -592,15 +717,16 @@ async function loadRoleManagement() {
     body.querySelectorAll('button[data-role-save]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-role-save');
-        const select = body.querySelector(`select[data-role-select="${id}"]`);
-        if (!id || !select) return;
+        const input = body.querySelector(`input[data-role-input="${id}"]`);
+        if (!id || !input) return;
         try {
           await api(`/api/admin/employees/${id}/role`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: select.value }),
+            body: JSON.stringify({ role: input.value.trim() }),
           });
           HRMS.toast('Role updated', 'success');
+          window.HRMS?.refreshTeamHubPanels?.();
           await Promise.all([loadRoleManagement(), loadEmployees(), loadAdminStats()]);
         } catch (error) {
           HRMS.toast(error.message || 'Could not update role', 'error');
@@ -643,6 +769,17 @@ document.getElementById('loadEmployeesBtn').addEventListener('click', () => load
 document.getElementById('loadRolesBtn')?.addEventListener('click', () => loadRoleManagement().catch((e) => HRMS.toast(e.message, 'error')));
 document.getElementById('loadReportsBtn')?.addEventListener('click', () => loadAdminReports().catch((e) => HRMS.toast(e.message, 'error')));
 document.getElementById('exportAllReportsBtn')?.addEventListener('click', exportAllReportsToExcel);
+document.getElementById('generateReportBtn')?.addEventListener('click', () => loadAdminReports().catch((e) => HRMS.toast(e.message, 'error')));
+document.getElementById('exportSelectedReportExcelBtn')?.addEventListener('click', () => {
+  const selected = selectedReportRows();
+  if (!selected) return HRMS.toast('Generate reports first', 'error');
+  exportReportToExcel(selected.def, selected.rows, `${currentReports.range.from}-to-${currentReports.range.to}`);
+});
+document.getElementById('exportSelectedReportPdfBtn')?.addEventListener('click', () => {
+  const selected = selectedReportRows();
+  if (!selected) return HRMS.toast('Generate reports first', 'error');
+  exportReportToPdf(selected.def, selected.rows, `${currentReports.range.from}-to-${currentReports.range.to}`);
+});
 
 document.getElementById('newManagerForm').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -766,17 +903,41 @@ async function loadAdminLeaves() {
     .join('');
 }
 
+async function loadAdminLeaveSummary() {
+  const cards = document.getElementById('adminLeaveSummaryCards');
+  const body = document.getElementById('adminLeaveSummaryBody');
+  if (!cards || !body) return;
+  const data = await api('/api/admin/leaves?status=pending');
+  const leaves = data.leaves || [];
+  const byType = new Map();
+  for (const leave of leaves) {
+    const type = leave.leavetype || 'Other';
+    byType.set(type, (byType.get(type) || 0) + 1);
+  }
+  cards.innerHTML = `
+    <div class="stat-card stat-warning"><div class="stat-label">Total leaves pending</div><div class="stat-value">${leaves.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Leave types pending</div><div class="stat-value">${byType.size}</div></div>
+  `;
+  body.innerHTML = byType.size
+    ? Array.from(byType.entries())
+        .map(([type, count]) => `<tr><td>${escapeHtml(type)}</td><td>${count}</td></tr>`)
+        .join('')
+    : '<tr><td colspan="2" class="stat-sub" style="padding:18px;text-align:center;">No pending leaves.</td></tr>';
+}
+
 window.processLeave = async (id, action) => {
   try {
     await api(`/api/admin/leaves/${id}/${action}`, { method: 'PUT' });
     HRMS.toast(action === 'approve' ? 'Leave approved' : 'Leave rejected', 'success');
     await loadAdminLeaves();
+    await loadAdminLeaveSummary();
     await loadAdminStats();
   } catch (error) {
     HRMS.toast(error.message, 'error');
   }
 };
 document.getElementById('loadAdminLeavesBtn').addEventListener('click', () => loadAdminLeaves().catch((e) => HRMS.toast(e.message, 'error')));
+document.getElementById('loadAdminLeaveSummaryBtn')?.addEventListener('click', () => loadAdminLeaveSummary().catch((e) => HRMS.toast(e.message, 'error')));
 
 document.getElementById('broadcastForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -836,21 +997,68 @@ document.getElementById('biometricForm').addEventListener('submit', async (e) =>
   }
 });
 
-document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+function validateNewPassword(password) {
+  if (password.length < 8) return 'Password must be at least 8 characters';
+  if (!/[a-zA-Z]/.test(password)) return 'Password must include at least one letter';
+  if (!/[0-9]/.test(password)) return 'Password must include at least one number';
+  return null;
+}
+
+async function submitPasswordChange({ currentPassword, newPassword, messageEl, formEl }) {
+  const strengthError = validateNewPassword(newPassword);
+  if (strengthError) {
+    if (messageEl) messageEl.textContent = strengthError;
+    HRMS.toast(strengthError, 'error');
+    return;
+  }
+  await api('/api/auth/change-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  HRMS.toast('Password updated. Please sign in again.', 'success');
+  if (messageEl) messageEl.textContent = '';
+  if (formEl) formEl.reset();
+  setTimeout(logout, 900);
+}
+
+document.getElementById('changePasswordForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   try {
-    await api('/api/auth/change-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        currentPassword: document.getElementById('currentPassword').value,
-        newPassword: document.getElementById('newPassword').value
-      })
+    await submitPasswordChange({
+      currentPassword: document.getElementById('currentPassword').value,
+      newPassword: document.getElementById('newPassword').value,
+      messageEl: document.getElementById('passwordChangeMessage'),
+      formEl: e.target,
     });
-    HRMS.toast('Password updated', 'success');
-    setTimeout(logout, 900);
   } catch (error) {
     document.getElementById('passwordChangeMessage').textContent = error.message;
+    HRMS.toast(error.message, 'error');
+  }
+});
+
+document.getElementById('adminProfilePasswordForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('adminProfilePasswordMessage');
+  if (msg) msg.textContent = '';
+  const newPassword = document.getElementById('profileNewPassword').value;
+  const confirmPassword = document.getElementById('profileConfirmPassword').value;
+  if (newPassword !== confirmPassword) {
+    const text = 'New passwords do not match';
+    if (msg) msg.textContent = text;
+    HRMS.toast(text, 'error');
+    return;
+  }
+  try {
+    await submitPasswordChange({
+      currentPassword: document.getElementById('profileCurrentPassword').value,
+      newPassword,
+      messageEl: msg,
+      formEl: e.target,
+    });
+  } catch (error) {
+    if (msg) msg.textContent = error.message;
+    HRMS.toast(error.message, 'error');
   }
 });
 
@@ -940,6 +1148,10 @@ async function loadAdminProfileFromServer() {
     }
     document.getElementById('profileDept').textContent = profile.department || '—';
     document.getElementById('profileCode').textContent = profile.employeecode || '—';
+    const nameTile = document.getElementById('profileNameTile');
+    if (nameTile) nameTile.textContent = profile.name || '—';
+    const designationTile = document.getElementById('profileDesignation');
+    if (designationTile) designationTile.textContent = profile.designation || profile.role || '—';
   } catch (_e) {}
 }
 
@@ -1060,6 +1272,57 @@ function escapeHtml(value) {
     "'": '&#39;'
   }[ch]));
 }
+
+function downloadSampleExcel(filename, headers, rows) {
+  const table = `
+    <table>
+      <thead><tr>${headers.map((h) => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map((row) => `<tr>${headers.map((h) => `<td>${escapeHtml(row[h] || '')}</td>`).join('')}</tr>`).join('')}</tbody>
+    </table>`;
+  const blob = new Blob([`<html><meta charset="utf-8"><body>${table}</body></html>`], {
+    type: 'application/vnd.ms-excel;charset=utf-8;',
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  a.remove();
+}
+
+document.getElementById('employeeSampleBtn')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const headers = ['Name', 'Email', 'Employee Code', 'Role', 'Department'];
+  downloadSampleExcel('employee-import-sample.xls', headers, [
+    {
+      Name: 'Amit Sharma',
+      Email: 'amit.sharma@example.com',
+      'Employee Code': 'EMP001',
+      Role: 'employee',
+      Department: 'Operations',
+    },
+  ]);
+});
+
+document.getElementById('attendanceSampleBtn')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  const headers = ['Name', 'Employee Code', 'Date', 'Shift', 'InTime', 'OutTime', 'Work Dur.', 'OT', 'Tot. Dur.', 'Status'];
+  downloadSampleExcel('attendance-import-sample.xls', headers, [
+    {
+      Name: 'Amit Sharma',
+      'Employee Code': 'EMP001',
+      Date: new Date().toISOString().slice(0, 10),
+      Shift: 'General',
+      InTime: '09:30',
+      OutTime: '18:30',
+      'Work Dur.': '09:00',
+      OT: '00:00',
+      'Tot. Dur.': '09:00',
+      Status: 'Present',
+    },
+  ]);
+});
 
 document.getElementById('employeeImportFile')?.addEventListener('change', () => {
   employeeImportReady = false;
@@ -1597,7 +1860,7 @@ async function loadPublicHolidayCalendar() {
 }
 
 function mountTeamHubWhenReady(section) {
-  if (!['my-tasks', 'org-chart'].includes(section)) return;
+  if (!['my-tasks', 'org-chart', 'calendar'].includes(section)) return;
   const tryMount = (attempt) => {
     if (window.HRMS?.initTeamHubPanels) {
       window.HRMS.initTeamHubPanels();
@@ -1608,8 +1871,31 @@ function mountTeamHubWhenReady(section) {
   tryMount(0);
 }
 
+function hasPerm(moduleKey) {
+  if (!PERMS) return true;
+  if (PERMS.isSuperAdmin(user) || isFounderProfile(user)) return true;
+  return PERMS.getPermissions(user).includes(moduleKey);
+}
+
+function navigateToFirstAllowed() {
+  const btn = [...document.querySelectorAll('.sidebar-nav [data-nav]')].find(
+    (el) => el.style.display !== 'none' && PERMS?.canAccessSection(el.getAttribute('data-nav'), user)
+  );
+  if (btn) btn.click();
+}
+
 HRMS.initSidebar({
+  canNavigate(section) {
+    if (!PERMS) return true;
+    return PERMS.canAccessSection(section, user);
+  },
+  onBlocked() {
+    PERMS?.showNotAuthorized();
+  },
   onNavigate(section) {
+    if (section === 'manage-admins' && window.HRMS.initManageAdmins) {
+      window.HRMS.initManageAdmins(api);
+    }
     mountTeamHubWhenReady(section);
     if (section === 'system') {
       initSaturdayAdminPanel();
@@ -1623,8 +1909,15 @@ HRMS.initSidebar({
     if (section === 'roles') {
       loadRoleManagement().catch((e) => HRMS.toast(e.message, 'error'));
     }
+    if (section === 'org-chart') {
+      window.HRMS?.refreshTeamHubPanels?.();
+    }
     if (section === 'reports') {
+      loadReportEmployeeFilter().catch(() => {});
       loadAdminReports().catch((e) => HRMS.toast(e.message, 'error'));
+    }
+    if (section === 'calendar') {
+      window.HRMS?.mountAttendanceCalendar?.('#adminCalendarRoot');
     }
   },
 });
@@ -1635,22 +1928,69 @@ HRMS.initNavbarSearch(['employeesBody', 'dailyBody', 'importHistoryBody', 'admin
 
 if (user.mustchangepassword) show('passwordChangeSection');
 
-loadAdminProfileFromServer().catch(() => {});
-refreshBirthdayBanner().catch(() => {});
-loadAdminMyRequests().catch(() => {});
-loadAdminInboxRequests().catch(() => {});
-loadAdminAllRequests().catch(() => {});
+document.getElementById('notAuthorizedHomeBtn')?.addEventListener('click', () => {
+  if (PERMS?.canAccessSection('dashboard', user)) {
+    document.querySelector('.sidebar-nav [data-nav="dashboard"]')?.click();
+  } else {
+    navigateToFirstAllowed();
+  }
+});
 
-Promise.all([
-  loadAdminStats(),
-  loadAdminLeaveBalance(),
-  loadEmployees(),
-  loadRoleManagement(),
-  loadAdminReports(),
-  loadAdminDailyAttendance(),
-  loadImportHistory(),
-  loadAdminLeaves()
-]).catch(console.error);
+async function initAdminRbac() {
+  if (!PERMS) return;
+  if (isFounderProfile(user)) {
+    user = PERMS.persistAdminUser({
+      isSuperAdmin: true,
+      permissions: Object.values(PERMS.MODULE),
+    });
+  } else {
+    try {
+      user = await PERMS.refreshSession(api);
+    } catch (e) {
+      if (!PERMS.isSuperAdmin(user) && !(user.permissions || []).length) {
+        logout();
+        return;
+      }
+    }
+  }
+  PERMS.applySidebarPermissions(user);
+  if (!PERMS.canAccessSection('dashboard', user)) {
+    const dash = document.getElementById('view-dashboard');
+    if (dash?.classList.contains('is-active')) {
+      dash.classList.remove('is-active');
+      navigateToFirstAllowed();
+    }
+  }
+  if (PERMS.isSuperAdmin(user) && window.HRMS.initManageAdmins) {
+    window.HRMS.initManageAdmins(api);
+  }
+}
+
+function scheduleDataLoads() {
+  const M = PERMS?.MODULE || {};
+  const tasks = [];
+  if (!PERMS || hasPerm(M.DASHBOARD_OVERVIEW)) {
+    tasks.push(loadAdminStats(), loadAdminLeaveBalance(), loadAdminLeaveSummary());
+    refreshBirthdayBanner().catch(() => {});
+  }
+  if (!PERMS || hasPerm(M.EMPLOYEE_MANAGEMENT)) tasks.push(loadEmployees());
+  if (!PERMS || hasPerm(M.ROLE_MANAGEMENT)) tasks.push(loadRoleManagement());
+  if (!PERMS || hasPerm(M.REPORTS_EXPORT)) {
+    tasks.push(loadAdminReports(), loadReportEmployeeFilter());
+  }
+  if (!PERMS || hasPerm(M.ATTENDANCE)) tasks.push(loadAdminDailyAttendance());
+  if (!PERMS || hasPerm(M.IMPORT_DATA)) tasks.push(loadImportHistory());
+  if (!PERMS || hasPerm(M.LEAVE_MANAGEMENT)) tasks.push(loadAdminLeaves());
+  loadAdminProfileFromServer().catch(() => {});
+  loadAdminMyRequests().catch(() => {});
+  if (!PERMS || hasPerm(M.REQUEST_APPROVALS)) {
+    loadAdminInboxRequests().catch(() => {});
+    loadAdminAllRequests().catch(() => {});
+  }
+  Promise.all(tasks).catch(console.error);
+}
+
+initAdminRbac().then(() => scheduleDataLoads()).catch(() => scheduleDataLoads());
 
 function loadOfficeForm() {
   const o = HRMS.getOfficeLocation();

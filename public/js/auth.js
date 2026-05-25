@@ -2,9 +2,6 @@ const form = document.getElementById('loginForm');
 const messageEl = document.getElementById('message');
 const registerForm = document.getElementById('registerForm');
 const registerMessage = document.getElementById('registerMessage');
-const forgotForm = document.getElementById('forgotForm');
-const forgotMessage = document.getElementById('forgotMessage');
-
 function normalizeRole(role) {
   return String(role || 'employee').toLowerCase().trim();
 }
@@ -59,7 +56,11 @@ form.addEventListener('submit', async (e) => {
 
     const employee = {
       ...data.employee,
-      role: normalizeRole(data.employee?.role || 'employee')
+      role: normalizeRole(data.employee?.role || 'employee'),
+      adminId: data.employee?.adminId ?? null,
+      isSuperAdmin: Boolean(data.employee?.isSuperAdmin),
+      permissions: Array.isArray(data.employee?.permissions) ? data.employee.permissions : [],
+      designation: data.employee?.designation || null,
     };
     localStorage.setItem('token', data.token);
     localStorage.setItem('employee', JSON.stringify(employee));
@@ -89,20 +90,3 @@ registerForm.addEventListener('submit', async (e) => {
   }
 });
 
-forgotForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  forgotMessage.textContent = '';
-  try {
-    const response = await fetch('/api/auth/forgot-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: document.getElementById('forgotEmail').value.trim() })
-    });
-    const data = await response.json();
-    forgotMessage.textContent = data.temporarypassword
-      ? `${data.message} Temporary password: ${data.temporarypassword}`
-      : (data.message || 'If account exists, reset is initiated');
-  } catch (_error) {
-    forgotMessage.textContent = 'Network error while resetting password';
-  }
-});

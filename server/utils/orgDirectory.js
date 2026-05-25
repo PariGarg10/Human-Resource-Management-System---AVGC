@@ -39,11 +39,19 @@ function personFromRow(row) {
   };
 }
 
+function roleLabel(role) {
+  return String(role || '')
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+}
+
 function buildOrgSections(employees) {
   const founder = [];
   const managers = [];
-  const fulltime = [];
   const interns = [];
+  const customRoleSections = new Map();
 
   for (const row of employees) {
     const person = personFromRow(row);
@@ -55,23 +63,30 @@ function buildOrgSections(employees) {
       managers.push(person);
     } else if (isIntern(row)) {
       interns.push(person);
-    } else if (role === 'employee') {
-      fulltime.push(person);
+    } else if (role === 'employee' || role === 'full time employee' || role === 'full-time employee') {
+      // The org/team charts intentionally do not show a Full-time Employees bucket.
+      continue;
     } else {
-      fulltime.push(person);
+      const sectionId = `role-${role.replace(/[^a-z0-9]+/g, '-') || 'custom'}`;
+      if (!customRoleSections.has(sectionId)) {
+        customRoleSections.set(sectionId, { id: sectionId, label: roleLabel(role) || 'Other Roles', people: [] });
+      }
+      customRoleSections.get(sectionId).people.push(person);
     }
   }
 
   const sortByName = (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
   founder.sort(sortByName);
   managers.sort(sortByName);
-  fulltime.sort(sortByName);
   interns.sort(sortByName);
+  for (const section of customRoleSections.values()) {
+    section.people.sort(sortByName);
+  }
 
   const sections = [
     { id: 'founder', label: 'Founder', people: founder },
     { id: 'managers', label: 'Managers', people: managers },
-    { id: 'fulltime', label: 'Full-time Employees', people: fulltime },
+    ...Array.from(customRoleSections.values()).sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })),
     { id: 'interns', label: 'Interns', people: interns },
   ];
 

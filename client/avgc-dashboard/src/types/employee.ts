@@ -5,6 +5,7 @@ export type EmployeeUser = {
   department?: string;
   employeecode?: string;
   role?: string;
+  designation?: string;
   mustchangepassword?: boolean;
   dateOfBirth?: string | null;
   phone?: string | null;
@@ -21,6 +22,7 @@ export type UserProfile = {
   email: string;
   department?: string | null;
   role?: string;
+  designation?: string | null;
   dateOfBirth?: string | null;
   phone?: string | null;
   location?: string | null;

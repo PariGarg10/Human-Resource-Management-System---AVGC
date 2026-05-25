@@ -1,7 +1,9 @@
 const express = require('express');
 const { format, startOfYear, endOfYear, getDay } = require('date-fns');
 const { pool } = require('../db');
-const { authMiddleware, requireRoles, enforcePasswordChange } = require('../middleware/auth');
+const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
+const { requireAdminAccess } = require('../middleware/adminAuth');
+const { requirePermission, PERMISSION_MODULES } = require('../utils/adminPermissions');
 const { parseYmdLocal, getSaturdayConfigMerged } = require('../utils/saturdayConfigRange');
 
 const router = express.Router();
@@ -54,7 +56,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.post('/', requireRoles('admin'), async (req, res) => {
+router.post('/', requireAdminAccess, requirePermission(PERMISSION_MODULES.SETTINGS), async (req, res) => {
   const entries = req.body && Array.isArray(req.body.entries) ? req.body.entries : null;
   if (!entries || !entries.length) {
     return res.status(400).json({ message: 'entries array is required' });

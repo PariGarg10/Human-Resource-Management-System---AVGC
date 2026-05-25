@@ -8,6 +8,7 @@
     "dev": "node server/index.js",
     "build": "npm run build:dashboard",
     "db:init": "node server/initDb.js",
+    "db:reset-super-admin": "node server/scripts/reset-super-admin.js",
     "build:dashboard": "cd client/avgc-dashboard && npm install --include=dev && npm run build"
   },
   "keywords": [
@@ -27,6 +28,7 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.8",
     "pg": "^8.20.0",
     "pg-pool": "^3.10.0",
     "xlsx": "^0.18.5",
