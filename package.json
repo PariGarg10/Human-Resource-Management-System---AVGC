@@ -8,7 +8,7 @@
     "dev": "node server/index.js",
     "build": "npm run build:dashboard",
     "db:init": "node server/initDb.js",
-    "build:dashboard": "npm run build --prefix client/avgc-dashboard"
+    "build:dashboard": "cd client/avgc-dashboard && npm install --include=dev && npm run build"
   },
   "keywords": [
     "hrms",
