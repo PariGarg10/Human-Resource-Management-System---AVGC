@@ -96,9 +96,21 @@ app.use('/api/saturday-config', saturdayConfigRoutes);
 app.use('/api/holidays', holidaysRoutes);
 app.use('/api/leave-balance', leaveBalanceRoutes);
 
-app.listen(PORT, () => {
-  console.log(`AVGC server running on http://localhost:${PORT}`);
-  console.log('[AVGC] HTML dashboards: /employee/dashboard, /manager/dashboard, /admin/dashboard');
+function startBackgroundJobs() {
+  if (process.env.VERCEL) {
+    console.log('[AVGC] Background jobs disabled on Vercel serverless.');
+    return;
+  }
   startBirthdayReminderJob();
   startEsslAttendanceSync();
-});
+}
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`AVGC server running on http://localhost:${PORT}`);
+    console.log('[AVGC] HTML dashboards: /employee/dashboard, /manager/dashboard, /admin/dashboard');
+    startBackgroundJobs();
+  });
+}
+
+module.exports = app;
