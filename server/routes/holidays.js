@@ -1,7 +1,6 @@
 const express = require('express');
-const path = require('path');
-const fs = require('fs');
 const multer = require('multer');
+const { getUploadsRoot } = require('../utils/storagePaths');
 const XLSX = require('xlsx');
 const { format, getDaysInMonth, startOfYear, endOfYear } = require('date-fns');
 const { pool } = require('../db');
@@ -13,8 +12,7 @@ const { logAudit } = require('../utils/audit');
 
 const router = express.Router();
 const ALLOWED_TYPES = new Set(['national', 'festival', 'optional']);
-const uploadDir = path.join(__dirname, '..', '..', 'uploads');
-fs.mkdirSync(uploadDir, { recursive: true });
+const uploadDir = getUploadsRoot('holidays');
 const upload = multer({ dest: uploadDir });
 const TYPE_ALIASES = new Map([
   ['national', 'national'],

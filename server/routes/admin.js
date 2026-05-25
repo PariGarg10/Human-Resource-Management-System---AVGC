@@ -4,6 +4,7 @@ const multer = require('multer');
 const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
+const { getUploadsRoot } = require('../utils/storagePaths');
 const { format } = require('date-fns');
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
@@ -17,7 +18,6 @@ const { filterUpcomingBirthdays } = require('../utils/birthdays');
 const { getHolidayDatesSet, isHolidayDate } = require('../utils/holidaysRange');
 const { createNotification } = require('../utils/notifications');
 const { getLeaveBalance } = require('../utils/leaveBalance');
-const { runEsslAttendanceSync } = require('../jobs/esslAttendanceSync');
 const {
   parseAttendanceRow,
   normalizePersonName,
@@ -26,8 +26,7 @@ const {
 } = require('../utils/attendanceImport');
 
 const router = express.Router();
-const uploadDir = path.join(__dirname, '..', '..', 'uploads');
-fs.mkdirSync(uploadDir, { recursive: true });
+const uploadDir = getUploadsRoot();
 const upload = multer({ dest: uploadDir });
 
 const {
@@ -224,6 +223,7 @@ router.get('/attendance/daily', requirePermission(PERMISSION_MODULES.ATTENDANCE)
 
 router.post('/attendance/essl-sync', requirePermission(PERMISSION_MODULES.ATTENDANCE), async (_req, res) => {
   try {
+    const { runEsslAttendanceSync } = require('../jobs/esslAttendanceSync');
     const result = await runEsslAttendanceSync();
     return res.json(result);
   } catch (err) {

@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { getPublicDir } = require('./utils/storagePaths');
 
 const authRoutes = require('./routes/auth');
 const biometricRoutes = require('./routes/biometric');
@@ -22,7 +23,7 @@ const { startEsslAttendanceSync } = require('./jobs/esslAttendanceSync');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const publicDir = path.join(__dirname, '..', 'public');
+const publicDir = getPublicDir();
 
 function sendPublicHtml(res, filename) {
   const absolutePath = path.resolve(publicDir, filename);
@@ -78,8 +79,22 @@ app.get('/manager/dashboard/', (_req, res) => res.redirect(301, '/manager/dashbo
 app.get('/admin/manager-assignments', (_req, res) => sendPublicHtml(res, 'admin-manager-assignments.html'));
 app.use(express.static(publicDir, { index: false }));
 
-app.get('/health', (_req, res) => {
-  res.json({ ok: true });
+app.get('/health', async (_req, res) => {
+  const payload = { ok: true, vercel: Boolean(process.env.VERCEL) };
+  if (!process.env.DATABASE_URL) {
+    payload.database = 'missing DATABASE_URL';
+    return res.status(503).json(payload);
+  }
+  try {
+    const { pool } = require('./db');
+    await pool.query('SELECT 1');
+    payload.database = 'connected';
+  } catch (err) {
+    payload.database = 'error';
+    payload.dbError = err.message;
+    return res.status(503).json(payload);
+  }
+  return res.json(payload);
 });
 
 app.use('/api/auth', authRoutes);

@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
 const multer = require('multer');
+const { getUploadsRoot } = require('../utils/storagePaths');
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { resolveAdminContext } = require('../middleware/adminAuth');
@@ -9,8 +9,7 @@ const { PERMISSION_MODULES } = require('../utils/adminPermissions');
 const { logAudit } = require('../utils/audit');
 
 const router = express.Router();
-const uploadDir = path.join(__dirname, '..', '..', 'public', 'uploads', 'concerns');
-fs.mkdirSync(uploadDir, { recursive: true });
+const uploadDir = getUploadsRoot('concerns');
 
 const upload = multer({
   storage: multer.diskStorage({

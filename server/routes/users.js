@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
 const multer = require('multer');
+const { getUploadsRoot } = require('../utils/storagePaths');
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { buildOrgSections } = require('../utils/orgDirectory');
@@ -11,8 +11,7 @@ const { ageFromDateOfBirth } = require('../utils/birthdays');
 
 const router = express.Router();
 
-const profileUploadDir = path.join(__dirname, '..', '..', 'public', 'uploads', 'profile-photos');
-fs.mkdirSync(profileUploadDir, { recursive: true });
+const profileUploadDir = getUploadsRoot('profile-photos');
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, profileUploadDir),

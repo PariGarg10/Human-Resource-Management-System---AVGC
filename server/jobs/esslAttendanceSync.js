@@ -1,5 +1,8 @@
-const ZKLib = require('zklib-js');
 const { upsertAttendanceFromDeviceRecords } = require('../utils/deviceAttendance');
+
+function loadZKLib() {
+  return require('zklib-js');
+}
 
 let syncRunning = false;
 let timer = null;
@@ -23,6 +26,7 @@ function config() {
 }
 
 async function fetchDeviceLogs(cfg) {
+  const ZKLib = loadZKLib();
   const zk = new ZKLib(cfg.ip, cfg.port, cfg.timeout, cfg.inport);
   try {
     await zk.createSocket();
