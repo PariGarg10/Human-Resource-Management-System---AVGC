@@ -1,7 +1,12 @@
 const express = require('express');
 const path = require('path');
 const multer = require('multer');
-const { getUploadsRoot } = require('../utils/storagePaths');
+const {
+  getProfilePhotoUploadDir,
+  normalizeProfilePhotoUrl,
+  profilePhotoPublicUrl,
+  resolveProfilePhotoPath,
+} = require('../utils/profilePhoto');
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { buildOrgSections } = require('../utils/orgDirectory');
@@ -11,7 +16,7 @@ const { ageFromDateOfBirth } = require('../utils/birthdays');
 
 const router = express.Router();
 
-const profileUploadDir = getUploadsRoot('profile-photos');
+const profileUploadDir = getProfilePhotoUploadDir();
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, profileUploadDir),
@@ -54,7 +59,7 @@ function rowToProfile(row) {
     phone: row.phone || null,
     location: row.location || null,
     bio: row.bio || null,
-    profilePhotoUrl: row.profilephotourl || null,
+    profilePhotoUrl: normalizeProfilePhotoUrl(row.profilephotourl),
     age: ageFromDateOfBirth(row.dateofbirth),
     createdAt: row.createdat,
   };
@@ -123,7 +128,7 @@ async function handlePatch(req, res, userId) {
 
     let photoUrl;
     if (req.file) {
-      photoUrl = `/uploads/profile-photos/${req.file.filename}`;
+      photoUrl = profilePhotoPublicUrl(req.file.filename);
     }
 
     const updated = await applyProfileUpdate(userId, fields, photoUrl);
@@ -279,6 +284,29 @@ router.delete('/my-tasks/:taskId', authMiddleware, enforcePasswordChange, async 
   } catch (err) {
     console.error('DELETE /users/my-tasks/:taskId:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/profile-photo/:filename', (req, res) => {
+  try {
+    const filePath = resolveProfilePhotoPath(req.params.filename);
+    if (!filePath) {
+      return res.status(404).json({ message: 'Photo not found' });
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    const types = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+    };
+    res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    return res.sendFile(path.resolve(filePath));
+  } catch (err) {
+    console.error('GET /users/profile-photo:', err.message);
+    return res.status(500).json({ message: 'Could not load photo' });
   }
 });
 

@@ -39,15 +39,23 @@ function permissionsFromRows(rows) {
 }
 
 async function loadAdminPermissions(pool, adminId) {
-  const { rows } = await pool.query(
-    `
-      SELECT module_name, can_access
-      FROM admin_permissions
-      WHERE admin_id = $1 AND can_access = TRUE
-    `,
-    [adminId]
-  );
-  return permissionsFromRows(rows);
+  try {
+    const { rows } = await pool.query(
+      `
+        SELECT module_name, can_access
+        FROM admin_permissions
+        WHERE admin_id = $1 AND can_access = TRUE
+      `,
+      [adminId]
+    );
+    return permissionsFromRows(rows);
+  } catch (err) {
+    if (err.code === '42P01') {
+      console.warn('[adminPermissions] admin_permissions table missing — run npm run db:init');
+      return [];
+    }
+    throw err;
+  }
 }
 
 async function replaceAdminPermissions(pool, adminId, modules) {

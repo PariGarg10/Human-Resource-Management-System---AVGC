@@ -27,12 +27,96 @@ router.use(authMiddleware);
 router.use(enforcePasswordChange);
 
 const PRIORITIES = new Set(['Low', 'Medium', 'High', 'Urgent']);
-let responseAttachmentColumnReady = false;
+let concernSchemaReady = false;
 
-async function ensureResponseAttachmentColumn() {
-  if (responseAttachmentColumnReady) return;
+async function ensureConcernSchema() {
+  if (concernSchemaReady) return;
   await pool.query('ALTER TABLE concerns ADD COLUMN IF NOT EXISTS responseattachmenturl TEXT');
-  responseAttachmentColumnReady = true;
+  await pool.query(
+    'ALTER TABLE concerns ADD COLUMN IF NOT EXISTS awaiting_reply_from INTEGER REFERENCES employees(id) ON DELETE SET NULL'
+  );
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS concern_messages (
+      id SERIAL PRIMARY KEY,
+      concern_id INTEGER NOT NULL REFERENCES concerns(id) ON DELETE CASCADE,
+      author_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      body TEXT NOT NULL,
+      attachmenturl TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(
+    'CREATE INDEX IF NOT EXISTS idx_concern_messages_concern ON concern_messages (concern_id, created_at ASC)'
+  );
+  await pool.query(`
+    UPDATE concerns
+    SET awaiting_reply_from = raised_to
+    WHERE status = 'Open' AND awaiting_reply_from IS NULL
+  `);
+  await pool.query(`
+    UPDATE concerns
+    SET awaiting_reply_from = raised_by
+    WHERE status = 'Responded' AND awaiting_reply_from IS NULL
+  `);
+  await pool.query(`
+    UPDATE concerns
+    SET awaiting_reply_from = NULL
+    WHERE status = 'Closed'
+  `);
+  concernSchemaReady = true;
+}
+
+function resolveAwaitingReply(concern) {
+  if (concern.status === 'Closed') return null;
+  if (concern.awaiting_reply_from) return concern.awaiting_reply_from;
+  if (concern.status === 'Open' && !concern.response) return concern.raised_to;
+  if (concern.status === 'Responded') return concern.raised_by;
+  return concern.raised_to;
+}
+
+function canUserReply(concern, userId) {
+  if (concern.status === 'Closed') return false;
+  const awaiting = resolveAwaitingReply(concern);
+  return awaiting === userId;
+}
+
+async function loadConcernMessages(concernIds) {
+  if (!concernIds.length) return new Map();
+  const { rows } = await pool.query(
+    `
+      SELECT cm.id, cm.concern_id, cm.author_id, cm.body, cm.attachmenturl, cm.created_at,
+             e.name AS author_name
+      FROM concern_messages cm
+      JOIN employees e ON e.id = cm.author_id
+      WHERE cm.concern_id = ANY($1::int[])
+      ORDER BY cm.created_at ASC
+    `,
+    [concernIds]
+  );
+  const byConcern = new Map();
+  for (const row of rows) {
+    const list = byConcern.get(row.concern_id) || [];
+    list.push({
+      id: row.id,
+      authorId: row.author_id,
+      authorName: row.author_name,
+      body: row.body,
+      attachmentUrl: row.attachmenturl || null,
+      createdAt: row.created_at,
+    });
+    byConcern.set(row.concern_id, list);
+  }
+  return byConcern;
+}
+
+async function mapConcernsWithMessages(rows) {
+  const messageMap = await loadConcernMessages(rows.map((r) => r.id));
+  return rows.map((row) => {
+    const concern = rowToConcern(row);
+    concern.messages = messageMap.get(row.id) || [];
+    concern.awaitingReplyFrom = resolveAwaitingReply(row);
+    return concern;
+  });
 }
 
 async function activeEmployee(id) {
@@ -160,10 +244,12 @@ function rowToConcern(row) {
     response: row.response || null,
     attachmentUrl: row.attachmenturl || null,
     responseAttachmentUrl: row.responseattachmenturl || null,
+    awaitingReplyFrom: resolveAwaitingReply(row),
     createdAt: row.created_at,
     respondedAt: row.responded_at || null,
     raisedByName: row.raised_by_name,
     raisedToName: row.raised_to_name,
+    messages: [],
   };
 }
 
@@ -182,7 +268,7 @@ function concernSelect(whereClause) {
 
 router.post('/', upload.single('attachment'), async (req, res) => {
   try {
-    await ensureResponseAttachmentColumn();
+    await ensureConcernSchema();
     const subject = String(req.body.subject || '').trim();
     const description = String(req.body.description || '').trim();
     const raisedToValue = req.body.raisedTo || req.body.raised_to;
@@ -205,11 +291,11 @@ router.post('/', upload.single('attachment'), async (req, res) => {
     const attachmentUrl = req.file ? `/uploads/concerns/${req.file.filename}` : null;
     const insertResult = await pool.query(
       `
-      INSERT INTO concerns (raised_by, raised_to, subject, description, priority, attachmenturl)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO concerns (raised_by, raised_to, subject, description, priority, attachmenturl, awaiting_reply_from)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING id
     `,
-      [req.user.id, recipient.id, subject, description, priority, attachmentUrl]
+      [req.user.id, recipient.id, subject, description, priority, attachmentUrl, recipient.id]
     );
 
     await pool.query(
@@ -228,9 +314,12 @@ router.post('/', upload.single('attachment'), async (req, res) => {
 
 router.get('/my', async (req, res) => {
   try {
-    await ensureResponseAttachmentColumn();
+    await ensureConcernSchema();
     const { rows } = await pool.query(concernSelect('WHERE c.raised_by = $1'), [req.user.id]);
-    return res.json({ concerns: rows.map(rowToConcern) });
+    const concerns = await mapConcernsWithMessages(rows);
+    return res.json({
+      concerns: concerns.map((c) => ({ ...c, canReply: canUserReply(rows.find((r) => r.id === c.id), req.user.id) })),
+    });
   } catch (err) {
     console.error('GET /concerns/my:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
@@ -239,9 +328,12 @@ router.get('/my', async (req, res) => {
 
 router.get('/inbox', async (req, res) => {
   try {
-    await ensureResponseAttachmentColumn();
+    await ensureConcernSchema();
     const { rows } = await pool.query(concernSelect('WHERE c.raised_to = $1'), [req.user.id]);
-    return res.json({ concerns: rows.map(rowToConcern) });
+    const concerns = await mapConcernsWithMessages(rows);
+    return res.json({
+      concerns: concerns.map((c) => ({ ...c, canReply: canUserReply(rows.find((r) => r.id === c.id), req.user.id) })),
+    });
   } catch (err) {
     console.error('GET /concerns/inbox:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
@@ -257,9 +349,10 @@ router.get('/all', async (req, res) => {
     return res.status(403).json({ message: 'Forbidden: request approvals permission required' });
   }
   try {
-    await ensureResponseAttachmentColumn();
+    await ensureConcernSchema();
     const { rows } = await pool.query(concernSelect(''));
-    return res.json({ concerns: rows.map(rowToConcern) });
+    const concerns = await mapConcernsWithMessages(rows);
+    return res.json({ concerns });
   } catch (err) {
     console.error('GET /concerns/all:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
@@ -268,10 +361,10 @@ router.get('/all', async (req, res) => {
 
 router.patch('/:id/respond', upload.single('responseAttachment'), async (req, res) => {
   try {
-    await ensureResponseAttachmentColumn();
+    await ensureConcernSchema();
     const id = Number(req.params.id);
     const response = String(req.body.response || '').trim();
-    const close = Boolean(req.body.close);
+    const close = req.body.close === true || req.body.close === 'true';
 
     if (!Number.isFinite(id)) return res.status(400).json({ message: 'Invalid concern id' });
     if (!response) return res.status(400).json({ message: 'Response is required' });
@@ -279,31 +372,71 @@ router.patch('/:id/respond', upload.single('responseAttachment'), async (req, re
     const concernResult = await pool.query('SELECT * FROM concerns WHERE id = $1', [id]);
     const concern = concernResult.rows[0];
     if (!concern) return res.status(404).json({ message: 'Concern not found' });
-    if (concern.raised_to !== req.user.id) {
-      return res.status(403).json({ message: 'You can only respond to concerns assigned to you' });
-    }
     if (!(await activeEmployee(concern.raised_by))) {
       return res.status(404).json({ message: 'Concern raiser not found' });
     }
+    if (!(await activeEmployee(concern.raised_to))) {
+      return res.status(404).json({ message: 'Concern recipient not found' });
+    }
 
-    const nextStatus = close ? 'Closed' : 'Responded';
-    const responseAttachmentUrl = req.file ? `/uploads/concerns/${req.file.filename}` : concern.responseattachmenturl || null;
+    const isAssignee = concern.raised_to === req.user.id;
+    const isRaiser = concern.raised_by === req.user.id;
+    if (!isAssignee && !isRaiser) {
+      return res.status(403).json({ message: 'You are not part of this request thread' });
+    }
+    if (!canUserReply(concern, req.user.id)) {
+      return res.status(403).json({
+        message: 'Wait for the other party to respond before you can reply again',
+      });
+    }
+    if (close && !isAssignee) {
+      return res.status(403).json({ message: 'Only the assigned recipient can close this request' });
+    }
+
+    const messageAttachmentUrl = req.file ? `/uploads/concerns/${req.file.filename}` : null;
+    await pool.query(
+      `
+      INSERT INTO concern_messages (concern_id, author_id, body, attachmenturl)
+      VALUES ($1, $2, $3, $4)
+    `,
+      [id, req.user.id, response, messageAttachmentUrl]
+    );
+
+    const nextStatus = close ? 'Closed' : concern.status === 'Open' ? 'Responded' : 'Responded';
+    const nextAwaiting = close ? null : isAssignee ? concern.raised_by : concern.raised_to;
+    const responseAttachmentUrl = messageAttachmentUrl || concern.responseattachmenturl || null;
+    const notifyUserId = isAssignee ? concern.raised_by : concern.raised_to;
+
     await pool.query(
       `
       UPDATE concerns
-      SET status = $1, response = $2, responseattachmenturl = $3, responded_at = NOW()
-      WHERE id = $4
+      SET status = $1,
+          response = $2,
+          responseattachmenturl = $3,
+          responded_at = NOW(),
+          awaiting_reply_from = $4
+      WHERE id = $5
     `,
-      [nextStatus, response, responseAttachmentUrl, id]
+      [nextStatus, response, responseAttachmentUrl, nextAwaiting, id]
     );
+
+    const notifyMessage = close
+      ? `Your request "${concern.subject}" was closed with a response.`
+      : isAssignee
+        ? `Your request "${concern.subject}" has a new response — you can reply now.`
+        : `Request "${concern.subject}" has a follow-up from the requester — you can reply now.`;
 
     await pool.query(
       `INSERT INTO notifications (userid, message, type, isread, subjectemployeeid) VALUES ($1, $2, 'concern_response', FALSE, $3)`,
-      [concern.raised_by, `Your concern "${concern.subject}" has been ${nextStatus.toLowerCase()}.`, req.user.id]
+      [notifyUserId, notifyMessage, req.user.id]
     );
 
-    await logAudit(req.user.id, 'CONCERN_RESPONDED', 'concerns', { concernId: id, status: nextStatus });
-    return res.json({ message: `Concern marked as ${nextStatus}`, status: nextStatus });
+    await logAudit(req.user.id, 'CONCERN_RESPONDED', 'concerns', { concernId: id, status: nextStatus, close });
+    return res.json({
+      message: close ? 'Request closed' : 'Response sent',
+      status: nextStatus,
+      awaitingReplyFrom: nextAwaiting,
+    });
   } catch (err) {
     console.error('PATCH /concerns/:id/respond:', err.message);
     return res.status(500).json({ message: 'Internal server error' });

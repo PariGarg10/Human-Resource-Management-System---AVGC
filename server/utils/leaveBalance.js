@@ -2,9 +2,14 @@ const { format, eachDayOfInterval, getDay } = require('date-fns');
 const { pool } = require('../db');
 const { getHolidayDatesSet } = require('./holidaysRange');
 const { getSaturdayConfigMerged } = require('./saturdayConfigRange');
+const {
+  ensureLeaveEntitlementsSchema,
+  getEffectiveEntitlementsForEmployee,
+  getPeriodBounds,
+} = require('./leaveEntitlements');
 
-const LEAVE_POLICIES = [
-  { type: 'Casual Leave', total: 12 },
+const LEGACY_LEAVE_POLICIES = [
+  { type: 'Casual Leave', total: 12, aliases: ['Paid Leave'] },
   { type: 'Sick Leave', total: 12 },
   { type: 'Earned Leave', total: 15, aliases: ['Paid Leave'] },
   { type: 'Work From Home', total: 24 },
@@ -15,16 +20,26 @@ function dateFromYmd(dateStr) {
   return new Date(y, m - 1, d);
 }
 
-function normalizeType(type) {
-  const policy = LEAVE_POLICIES.find((p) => p.type === type || (p.aliases || []).includes(type));
-  return policy ? policy.type : type;
+function normalizeType(type, entitlements) {
+  const raw = String(type || '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!raw) return raw;
+  const lower = raw.toLowerCase();
+  const match = entitlements.find((e) => e.leave_type.toLowerCase() === lower);
+  if (match) return match.leave_type;
+  for (const legacy of LEGACY_LEAVE_POLICIES) {
+    if (legacy.type.toLowerCase() === lower || (legacy.aliases || []).some((a) => a.toLowerCase() === lower)) {
+      const legacyMatch = entitlements.find((e) => e.leave_type.toLowerCase() === legacy.type.toLowerCase());
+      return legacyMatch ? legacyMatch.leave_type : legacy.type;
+    }
+  }
+  return raw;
 }
 
-async function countChargeableLeaveDays(fromdate, todate, year) {
-  const yearStart = `${year}-01-01`;
-  const yearEnd = `${year}-12-31`;
-  const startStr = fromdate > yearStart ? fromdate : yearStart;
-  const endStr = todate < yearEnd ? todate : yearEnd;
+async function countChargeableLeaveDays(fromdate, todate, rangeFrom, rangeTo) {
+  const startStr = fromdate > rangeFrom ? fromdate : rangeFrom;
+  const endStr = todate < rangeTo ? todate : rangeTo;
   if (startStr > endStr) return 0;
 
   const holidayDates = await getHolidayDatesSet(startStr, endStr);
@@ -45,6 +60,24 @@ async function countChargeableLeaveDays(fromdate, todate, year) {
 }
 
 async function getLeaveBalance(employeeId, year = new Date().getFullYear()) {
+  await ensureLeaveEntitlementsSchema();
+  const now = new Date();
+  const refDate = year === now.getFullYear() ? now : new Date(year, 6, 1);
+  const entitlements = await getEffectiveEntitlementsForEmployee(employeeId);
+
+  const entitlementKeys = entitlements.map((e) => ({
+    row: e,
+    bounds: getPeriodBounds(e.period, refDate),
+    type: e.leave_type,
+  }));
+
+  let minFrom = `${year}-01-01`;
+  let maxTo = `${year}-12-31`;
+  if (entitlementKeys.length) {
+    minFrom = entitlementKeys.reduce((min, e) => (e.bounds.from < min ? e.bounds.from : min), entitlementKeys[0].bounds.from);
+    maxTo = entitlementKeys.reduce((max, e) => (e.bounds.to > max ? e.bounds.to : max), entitlementKeys[0].bounds.to);
+  }
+
   const { rows } = await pool.query(
     `
       SELECT leavetype, fromdate::text AS fromdate, todate::text AS todate
@@ -54,46 +87,61 @@ async function getLeaveBalance(employeeId, year = new Date().getFullYear()) {
         AND todate >= $2::date
         AND fromdate <= $3::date
     `,
-    [employeeId, `${year}-01-01`, `${year}-12-31`]
+    [employeeId, minFrom, maxTo]
   );
 
-  const usedByType = new Map(LEAVE_POLICIES.map((policy) => [policy.type, 0]));
+  const usedByKey = new Map(entitlementKeys.map((e) => [`${e.type}|${e.bounds.period}`, 0]));
+
   for (const row of rows) {
-    const type = normalizeType(row.leavetype);
-    if (!usedByType.has(type)) continue;
-    usedByType.set(
-      type,
-      usedByType.get(type) + (await countChargeableLeaveDays(row.fromdate, row.todate, year))
+    for (const ent of entitlementKeys) {
+      const type = normalizeType(row.leavetype, entitlements);
+      if (type.toLowerCase() !== ent.type.toLowerCase()) continue;
+      const key = `${ent.type}|${ent.bounds.period}`;
+      usedByKey.set(
+        key,
+        (usedByKey.get(key) || 0) +
+          (await countChargeableLeaveDays(row.fromdate, row.todate, ent.bounds.from, ent.bounds.to))
+      );
+    }
+  }
+
+  const casualEnt = entitlementKeys.find((e) => e.type.toLowerCase() === 'casual leave');
+  if (casualEnt) {
+    const attendanceResult = await pool.query(
+      `
+        SELECT date::text AS date, totalhours
+        FROM attendancelogs
+        WHERE employeeid = $1
+          AND date >= $2::date
+          AND date <= $3::date
+          AND totalhours IS NOT NULL
+          AND status != 'leave'
+      `,
+      [employeeId, casualEnt.bounds.from, casualEnt.bounds.to]
     );
+
+    let attendanceDeduction = 0;
+    for (const row of attendanceResult.rows) {
+      if (row.totalhours > 4 && row.totalhours < 8.5) attendanceDeduction += 0.5;
+      else if (row.totalhours < 4) attendanceDeduction += 1;
+    }
+    const key = `${casualEnt.type}|${casualEnt.bounds.period}`;
+    usedByKey.set(key, (usedByKey.get(key) || 0) + attendanceDeduction);
   }
 
-  const attendanceResult = await pool.query(
-    `
-      SELECT date::text AS date, totalhours
-      FROM attendancelogs
-      WHERE employeeid = $1
-        AND date >= $2::date
-        AND date <= $3::date
-        AND totalhours IS NOT NULL
-        AND status != 'leave'
-    `,
-    [employeeId, `${year}-01-01`, `${year}-12-31`]
-  );
-
-  let attendanceDeduction = 0;
-  for (const row of attendanceResult.rows) {
-    if (row.totalhours > 4 && row.totalhours < 8.5) attendanceDeduction += 0.5;
-    else if (row.totalhours < 4) attendanceDeduction += 1;
-  }
-  usedByType.set('Casual Leave', (usedByType.get('Casual Leave') || 0) + attendanceDeduction);
-
-  const balances = LEAVE_POLICIES.map((policy) => {
-    const used = usedByType.get(policy.type) || 0;
+  const balances = entitlementKeys.map((ent) => {
+    const total = Number(ent.row.allotted_days);
+    const key = `${ent.type}|${ent.bounds.period}`;
+    const used = usedByKey.get(key) || 0;
     return {
-      type: policy.type,
-      total: policy.total,
+      type: ent.type,
+      total,
       used,
-      remaining: Math.max(0, policy.total - used),
+      remaining: Math.max(0, total - used),
+      period: ent.bounds.period,
+      periodLabel: ent.bounds.periodLabel,
+      periodFrom: ent.bounds.from,
+      periodTo: ent.bounds.to,
     };
   });
 
@@ -109,4 +157,4 @@ async function getLeaveBalance(employeeId, year = new Date().getFullYear()) {
   return { employeeId, year, balances, totals };
 }
 
-module.exports = { LEAVE_POLICIES, getLeaveBalance };
+module.exports = { getLeaveBalance, LEGACY_LEAVE_POLICIES };

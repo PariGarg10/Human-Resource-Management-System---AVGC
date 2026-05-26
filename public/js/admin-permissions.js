@@ -24,6 +24,7 @@
     'org-chart': MODULE.EMPLOYEE_MANAGEMENT,
     attendance: MODULE.ATTENDANCE,
     leaves: MODULE.LEAVE_MANAGEMENT,
+    'leave-entitlements': MODULE.LEAVE_MANAGEMENT,
     'import-employees': MODULE.IMPORT_DATA,
     'import-attendance': MODULE.IMPORT_DATA,
     reports: MODULE.REPORTS_EXPORT,

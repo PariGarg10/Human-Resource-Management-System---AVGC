@@ -138,7 +138,8 @@ async function loadManagerLeaveBalance() {
       .map(
         (item) => `
     <div class="tile">
-      <strong>${item.type}</strong>
+      <strong>${escapeHtml(item.type)}</strong>
+      <span class="stat-sub" style="display:block;margin:4px 0;">${escapeHtml(item.periodLabel || 'Yearly')}</span>
       <span>${item.remaining} remaining</span>
       <small class="stat-sub">${item.used} used of ${item.total}</small>
     </div>`
@@ -269,16 +270,73 @@ function responseSummary(request) {
   return `${escapeHtml(request.response || '—')}${attachment}`;
 }
 
-function responseFormHtml(requestId) {
+function requestMessagesHtml(request) {
+  const messages = request.messages?.length
+    ? request.messages
+    : request.response
+      ? [{ authorName: 'Latest', body: request.response, attachmentUrl: request.responseAttachmentUrl }]
+      : [];
+  if (!messages.length) return '<p class="stat-sub">No replies yet.</p>';
+  return messages
+    .map((m) => {
+      const file = m.attachmentUrl
+        ? ` <a href="${escapeHtml(m.attachmentUrl)}" target="_blank" rel="noreferrer">View file</a>`
+        : '';
+      return `<div class="stat-sub" style="margin-bottom:8px;padding:8px;border-radius:8px;background:var(--bg-secondary);"><strong>${escapeHtml(m.authorName || 'Reply')}</strong><br/>${escapeHtml(m.body)}${file}</div>`;
+    })
+    .join('');
+}
+
+function responseFormHtml(requestId, prefix, showClose) {
+  const closeBtn = showClose
+    ? `<button type="button" class="btn btn-outline btn-sm" data-${prefix}-req-close="${requestId}">Reply &amp; close</button>`
+    : '';
   return `
-    <div style="min-width:260px;">
-      <textarea data-req-response="${requestId}" rows="2" placeholder="Write response..." style="padding:8px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea>
-      <input type="file" data-req-file="${requestId}" style="margin-top:6px;font-size:12px;width:100%;" />
+    <div style="margin-top:8px;">
+      <textarea data-${prefix}-req-response="${requestId}" rows="2" placeholder="Write your reply..." style="padding:8px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea>
+      <input type="file" data-${prefix}-req-file="${requestId}" style="margin-top:6px;font-size:12px;width:100%;" />
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
-        <button type="button" class="btn btn-primary btn-sm" data-req-reply="${requestId}">Respond</button>
-        <button type="button" class="btn btn-outline btn-sm" data-req-close="${requestId}">Respond & Close</button>
+        <button type="button" class="btn btn-primary btn-sm" data-${prefix}-req-reply="${requestId}">Send reply</button>
+        ${closeBtn}
       </div>
     </div>`;
+}
+
+function requestThreadCell(request, prefix, { showClose = false } = {}) {
+  const waiting =
+    request.status !== 'Closed' && !request.canReply
+      ? '<p class="stat-sub" style="margin-top:6px;">Waiting for the other party to reply.</p>'
+      : '';
+  const form = request.canReply ? responseFormHtml(request.id, prefix, showClose) : '';
+  return `<div style="min-width:260px;">${requestMessagesHtml(request)}${waiting}${form}</div>`;
+}
+
+function bindManagerRequestHandlers(root, prefix, reload) {
+  if (!root) return;
+  root.querySelectorAll(`[data-${prefix}-req-reply]`).forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try {
+        await respondToManagerRequest(btn.getAttribute(`data-${prefix}-req-reply`), false, prefix);
+        await reload();
+      } catch (e) {
+        HRMS.toast(e.message || 'Could not respond', 'error');
+      }
+    });
+  });
+  root.querySelectorAll(`[data-${prefix}-req-close]`).forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try {
+        await respondToManagerRequest(btn.getAttribute(`data-${prefix}-req-close`), true, prefix);
+        await reload();
+      } catch (e) {
+        HRMS.toast(e.message || 'Could not close request', 'error');
+      }
+    });
+  });
+}
+
+async function reloadManagerRequests() {
+  await Promise.all([loadManagerMyRequests(), loadManagerInboxRequests()]);
 }
 
 async function submitManagerRequest(e) {
@@ -302,13 +360,19 @@ async function loadManagerMyRequests() {
   if (!body) return;
   const rows = data.concerns || [];
   body.innerHTML = rows.length
-    ? rows.map((r) => `<tr><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.raisedToName || '—')}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}</td><td>${responseSummary(r)}</td></tr>`).join('')
+    ? rows
+        .map(
+          (r) =>
+            `<tr><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.raisedToName || '—')}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}</td><td>${requestThreadCell(r, 'mgr-my', { showClose: false })}</td></tr>`
+        )
+        .join('')
     : requestRowsEmpty(5);
+  bindManagerRequestHandlers(body, 'mgr-my', reloadManagerRequests);
 }
 
-async function respondToManagerRequest(id, close) {
-  const responseEl = document.querySelector(`[data-req-response="${id}"]`);
-  const fileEl = document.querySelector(`[data-req-file="${id}"]`);
+async function respondToManagerRequest(id, close, prefix = 'mgr') {
+  const responseEl = document.querySelector(`[data-${prefix}-req-response="${id}"]`);
+  const fileEl = document.querySelector(`[data-${prefix}-req-file="${id}"]`);
   const response = responseEl?.value?.trim() || '';
   if (!response) {
     HRMS.toast('Write a response first', 'error');
@@ -331,28 +395,14 @@ async function loadManagerInboxRequests() {
   if (!body) return;
   const rows = data.concerns || [];
   body.innerHTML = rows.length
-    ? rows.map((r) => `<tr><td>${escapeHtml(r.raisedByName || '—')}</td><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}</td><td>${r.status !== 'Closed' ? responseFormHtml(r.id) : responseSummary(r)}</td></tr>`).join('')
+    ? rows
+        .map(
+          (r) =>
+            `<tr><td>${escapeHtml(r.raisedByName || '—')}</td><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}</td><td>${r.status === 'Closed' ? requestMessagesHtml(r) : requestThreadCell(r, 'mgr', { showClose: true })}</td></tr>`
+        )
+        .join('')
     : requestRowsEmpty(5);
-  body.querySelectorAll('[data-req-reply]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      try {
-        await respondToManagerRequest(btn.getAttribute('data-req-reply'), false);
-        await loadManagerInboxRequests();
-      } catch (e) {
-        HRMS.toast(e.message || 'Could not respond', 'error');
-      }
-    });
-  });
-  body.querySelectorAll('[data-req-close]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      try {
-        await respondToManagerRequest(btn.getAttribute('data-req-close'), true);
-        await loadManagerInboxRequests();
-      } catch (e) {
-        HRMS.toast(e.message || 'Could not close request', 'error');
-      }
-    });
-  });
+  bindManagerRequestHandlers(body, 'mgr', reloadManagerRequests);
 }
 
 async function loadEmployees() {
@@ -539,10 +589,11 @@ function applyMgrProfileToForm(profile) {
   const img = document.getElementById('mgrProfilePhotoPreview');
   if (img && initEl) {
     if (profile.profilePhotoUrl) {
-      img.src = profile.profilePhotoUrl;
+      img.src = HRMS.profilePhotoSrc(profile.profilePhotoUrl);
       img.classList.remove('hidden');
       initEl.classList.add('hidden');
     } else {
+      img.removeAttribute('src');
       img.classList.add('hidden');
       initEl.classList.remove('hidden');
       initEl.textContent = (profile.name || '?').charAt(0).toUpperCase();
@@ -572,21 +623,12 @@ async function loadMgrProfileFromServer() {
     document.getElementById('sidebarUserName').textContent = profile.name || 'Manager';
     const mph = document.getElementById('mgrProfileHeading');
     if (mph) mph.textContent = profile.name || 'Profile';
-    const side = document.getElementById('sidebarAvatar');
-    if (side && profile.profilePhotoUrl) {
-      side.innerHTML =
-        '<img class="sidebar-avatar-img" src="' +
-        profile.profilePhotoUrl +
-        '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" />';
-    } else if (side) {
-      side.textContent = (profile.name || 'M').charAt(0).toUpperCase();
-    }
-    const navImg = document.getElementById('navAvatar');
-    if (navImg && profile.profilePhotoUrl) {
-      navImg.src = profile.profilePhotoUrl + '?t=' + Date.now();
-      navImg.classList.remove('hidden');
-    } else if (navImg) {
-      navImg.classList.add('hidden');
+    if (profile.profilePhotoUrl) {
+      HRMS.updateAvatarEverywhere(profile.profilePhotoUrl, profile.name);
+    } else {
+      const side = document.getElementById('sidebarAvatar');
+      if (side) side.textContent = (profile.name || 'M').charAt(0).toUpperCase();
+      document.getElementById('navAvatar')?.classList.add('hidden');
     }
     document.getElementById('profileDept').textContent = profile.department || '—';
     document.getElementById('profileCode').textContent = profile.employeecode || '—';
@@ -638,7 +680,6 @@ document.getElementById('mgrProfilePhoto')?.addEventListener('change', (e) => {
     img.classList.remove('hidden');
     initEl.classList.add('hidden');
   }
-  HRMS.updateAvatarEverywhere(url);
 });
 
 document.getElementById('mgrProfileForm')?.addEventListener('submit', async (e) => {
@@ -662,18 +703,11 @@ document.getElementById('mgrProfileForm')?.addEventListener('submit', async (e) 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || 'Save failed');
     HRMS.toast('Profile saved successfully ✓', 'success');
-    if (data.profile && data.profile.profilePhotoUrl) {
-      HRMS.updateAvatarEverywhere(data.profile.profilePhotoUrl);
+    const photoInput = document.getElementById('mgrProfilePhoto');
+    if (photoInput) photoInput.value = '';
+    if (data.profile?.profilePhotoUrl) {
+      HRMS.updateAvatarEverywhere(data.profile.profilePhotoUrl, data.profile.name);
     }
-    try {
-      localStorage.setItem(
-        'user_profile',
-        JSON.stringify({
-          name: data.profile?.name || document.getElementById('mgrProfileName').value.trim(),
-          profilePhotoUrl: data.profile?.profilePhotoUrl || null
-        })
-      );
-    } catch (_e) {}
     HRMS.syncNavProfileName(
       data.profile?.name || document.getElementById('mgrProfileName').value.trim(),
       data.profile?.email || ''

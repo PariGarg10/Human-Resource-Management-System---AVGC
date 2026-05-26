@@ -3,6 +3,15 @@ import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 
+type ConcernMessage = {
+  id: number;
+  authorId: number;
+  authorName?: string;
+  body: string;
+  attachmentUrl?: string | null;
+  createdAt: string;
+};
+
 type Concern = {
   id: number;
   raisedBy: number;
@@ -13,6 +22,9 @@ type Concern = {
   status: string;
   response?: string | null;
   attachmentUrl?: string | null;
+  responseAttachmentUrl?: string | null;
+  canReply?: boolean;
+  messages?: ConcernMessage[];
   createdAt: string;
   respondedAt?: string | null;
   raisedByName?: string;
@@ -30,6 +42,14 @@ function ConcernCard({
 }) {
   const [reply, setReply] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const isInbox = mode === 'inbox';
+  const canReply = Boolean(concern.canReply);
+  const messages =
+    concern.messages?.length
+      ? concern.messages
+      : concern.response
+        ? [{ id: 0, authorId: 0, authorName: 'Latest', body: concern.response, createdAt: concern.respondedAt || concern.createdAt }]
+        : [];
 
   async function respond(close = false) {
     if (!reply.trim()) {
@@ -38,12 +58,14 @@ function ConcernCard({
     }
     setSubmitting(true);
     try {
-      await api(`/api/concern/${concern.id}/respond`, {
+      const body = new FormData();
+      body.set('response', reply.trim());
+      body.set('close', close ? 'true' : 'false');
+      await api(`/api/concerns/${concern.id}/respond`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ response: reply, close }),
+        body,
       });
-      toast(close ? 'Concern closed' : 'Response sent', 'success');
+      toast(close ? 'Request closed' : 'Reply sent', 'success');
       setReply('');
       onResponded?.();
     } catch (e) {
@@ -75,24 +97,37 @@ function ConcernCard({
           View attachment
         </a>
       )}
-      {concern.response && (
-        <div className="mt-4 rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-950">
-          <p className="font-semibold">Response</p>
-          <p className="mt-1 whitespace-pre-wrap">{concern.response}</p>
+      {messages.length > 0 && (
+        <div className="mt-4 space-y-2">
+          {messages.map((message) => (
+            <div key={message.id} className="rounded-lg border border-emerald-100 bg-emerald-50 p-3 text-sm text-emerald-950">
+              <p className="font-semibold">{message.authorName || 'Reply'}</p>
+              <p className="mt-1 whitespace-pre-wrap">{message.body}</p>
+              {message.attachmentUrl && (
+                <a href={message.attachmentUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block font-semibold text-[#ed1d24] hover:underline">
+                  View attachment
+                </a>
+              )}
+            </div>
+          ))}
         </div>
       )}
       <p className="mt-3 text-xs text-slate-400">
         Raised {new Date(concern.createdAt).toLocaleString()}
-        {concern.respondedAt ? ` · Responded ${new Date(concern.respondedAt).toLocaleString()}` : ''}
+        {concern.respondedAt ? ` · Last reply ${new Date(concern.respondedAt).toLocaleString()}` : ''}
       </p>
 
-      {mode === 'inbox' && concern.status !== 'Closed' && (
+      {concern.status !== 'Closed' && !canReply && (
+        <p className="mt-4 border-t border-slate-100 pt-4 text-sm text-slate-500">Waiting for the other party to reply.</p>
+      )}
+
+      {canReply && (
         <div className="mt-4 space-y-3 border-t border-slate-100 pt-4">
           <textarea
             value={reply}
             onChange={(e) => setReply(e.target.value)}
             rows={3}
-            placeholder="Write a response..."
+            placeholder="Write your reply..."
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
           />
           <div className="flex flex-wrap gap-2">
@@ -102,16 +137,18 @@ function ConcernCard({
               onClick={() => respond(false)}
               className="rounded-xl bg-avgc-brand px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
             >
-              Mark Responded
+              Send reply
             </button>
-            <button
-              type="button"
-              disabled={submitting}
-              onClick={() => respond(true)}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
-            >
-              Respond & Close
-            </button>
+            {isInbox && (
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => respond(true)}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-700 disabled:opacity-60"
+              >
+                Reply &amp; close
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -258,7 +295,10 @@ export function MyConcernsPanel() {
       <h2 className="text-lg font-semibold text-slate-900">My concerns</h2>
       {loading && <EmptyState text="Loading concerns..." />}
       {!loading && rows.length === 0 && <EmptyState text="No concerns raised yet." />}
-      {!loading && rows.map((concern) => <ConcernCard key={concern.id} concern={concern} mode="my" />)}
+      {!loading &&
+        rows.map((concern) => (
+          <ConcernCard key={concern.id} concern={concern} mode="my" onResponded={() => load().catch(() => {})} />
+        ))}
     </div>
   );
 }

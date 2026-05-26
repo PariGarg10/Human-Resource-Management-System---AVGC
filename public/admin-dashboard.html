@@ -44,11 +44,13 @@
       <button type="button" data-nav="employees"><span class="nav-icon">👤</span><span>Employees</span></button>
       <button type="button" data-nav="managers"><span class="nav-icon">👔</span><span>Teams</span></button>
       <button type="button" data-nav="org-chart"><span class="nav-icon">⬡</span><span>Org Chart</span></button>
-      <a href="/managers" class=""><span class="nav-icon">🔗</span><span>Manager directory</span></a>
+      <button type="button" data-nav="assignments"><span class="nav-icon">🔗</span><span>Manager assignments</span></button>
+      <a href="/managers" class=""><span class="nav-icon">📋</span><span>Manager directory</span></a>
       <div class="sidebar-nav-divider"></div>
       <div class="sidebar-nav-group-label">Time &amp; attendance</div>
       <button type="button" data-nav="attendance"><span class="nav-icon">▣</span><span>Attendance</span></button>
       <button type="button" data-nav="leaves"><span class="nav-icon">☰</span><span>Leave Management</span></button>
+      <button type="button" data-nav="leave-entitlements"><span class="nav-icon">◫</span><span>Leave allowances</span></button>
       <button type="button" data-nav="punch"><span class="nav-icon">⌖</span><span>Punch In/Out</span></button>
       <div class="sidebar-nav-divider"></div>
       <div class="sidebar-nav-group-label">Requests</div>
@@ -60,7 +62,6 @@
       <div class="sidebar-nav-group-label">Administration</div>
       <button type="button" data-nav="office-location"><span class="nav-icon">⌖</span><span>Office GPS</span></button>
       <button type="button" data-nav="broadcast"><span class="nav-icon">🔔</span><span>Broadcast</span></button>
-      <button type="button" data-nav="assignments"><span class="nav-icon">🔗</span><span>Assignments</span></button>
       <button type="button" data-nav="import-employees"><span class="nav-icon">⬆</span><span>Import data</span></button>
       <button type="button" data-nav="import-attendance"><span class="nav-icon">📊</span><span>Import attendance</span></button>
       <button type="button" data-nav="reports"><span class="nav-icon">▤</span><span>Analytics</span></button>
@@ -290,14 +291,15 @@
           <p id="adminMessage" class="message"></p>
           <button type="button" class="btn btn-outline btn-sm" id="loadEmployeesBtn">Refresh</button>
           <div class="table-wrap" style="margin-top:16px;">
-            <table class="data-table"><thead><tr><th>ID</th><th>Code</th><th>Name</th><th>Email</th><th>Dept</th><th>Role</th></tr></thead><tbody id="employeesBody"></tbody></table>
+            <table class="data-table"><thead><tr><th>ID</th><th>Code</th><th>Name</th><th>Email</th><th>Dept</th><th>Role</th><th></th></tr></thead><tbody id="employeesBody"></tbody></table>
           </div>
         </div>
       </section>
 
       <section id="view-managers" class="view-section">
         <div class="panel">
-          <h2 class="panel-title">Create manager</h2>
+          <h2 class="panel-title">Create or promote manager</h2>
+          <p class="stat-sub" style="margin-bottom:12px;">If the person is already in Employees, enter their same work email here to promote them (their employee code stays the same). Use a new email only for someone not yet in the directory.</p>
           <form id="newManagerForm" class="form-row">
             <div class="form-group"><label>Name</label><input id="mgrName" required style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
             <div class="form-group"><label>Email</label><input id="mgrEmail" type="email" required style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
@@ -332,7 +334,7 @@
 
       <section id="view-calendar" class="view-section">
         <div class="panel">
-          <h2 class="panel-title">Organization calendar</h2>
+          <h2 class="panel-title">Attendance calender</h2>
           <p class="stat-sub" style="margin-bottom:16px;">Your attendance calendar uses the same monthly view as the employee dashboard, including holidays and configured Saturdays.</p>
           <div id="adminCalendarRoot"></div>
         </div>
@@ -341,7 +343,7 @@
       <section id="view-holiday-calendar" class="view-section">
         <div class="panel">
           <h2 class="panel-title">Holiday calendar</h2>
-          <p class="stat-sub" style="margin-bottom:16px;">National Holiday, Festival, and Optional holidays are visible to employee, manager, and admin roles.</p>
+          <p class="stat-sub" style="margin-bottom:16px;">National Holiday, Festival, and Optional holidays are visible to employee, manager, and admin roles. Admins with holiday access can remove entries below.</p>
           <div class="form-row" style="align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
             <div class="form-group" style="margin:0;">
               <label>Year</label>
@@ -352,7 +354,7 @@
           <p id="holPublicMessage" class="message"></p>
           <div class="table-wrap">
             <table class="data-table">
-              <thead><tr><th>Date</th><th>Holiday</th><th>Type</th></tr></thead>
+              <thead><tr><th>Date</th><th>Holiday</th><th>Type</th><th id="holPublicActionsHead">Actions</th></tr></thead>
               <tbody id="holPublicTableBody"></tbody>
             </table>
           </div>
@@ -428,6 +430,61 @@
           <p id="importMessage" class="message"></p>
           <div id="importSummary" class="stat-sub"></div>
           <div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>ID</th><th>File</th><th>Total</th><th>OK</th><th>Fail</th><th>When</th></tr></thead><tbody id="importHistoryBody"></tbody></table></div>
+        </div>
+      </section>
+
+      <section id="view-leave-entitlements" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Leave allowances</h2>
+          <p class="stat-sub" style="margin-bottom:16px;">Set how many days each leave type allows for everyone (or one employee). Choose whether the allowance resets monthly, quarterly, or yearly.</p>
+          <form id="leaveEntitlementForm" class="form-row" style="align-items:flex-end;">
+            <input type="hidden" id="leaveEntitlementId" value="" />
+            <div class="form-group" style="flex:1;min-width:160px;">
+              <label for="leaveEntitlementType">Leave type</label>
+              <input id="leaveEntitlementType" required placeholder="e.g. Casual Leave" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" />
+            </div>
+            <div class="form-group" style="min-width:120px;">
+              <label for="leaveEntitlementDays">Days</label>
+              <input id="leaveEntitlementDays" type="number" min="0" step="0.5" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" />
+            </div>
+            <div class="form-group" style="min-width:140px;">
+              <label for="leaveEntitlementPeriod">Period</label>
+              <select id="leaveEntitlementPeriod" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;">
+                <option value="monthly">Monthly</option>
+                <option value="quarterly">Quarterly</option>
+                <option value="yearly" selected>Yearly</option>
+              </select>
+            </div>
+            <div class="form-group" style="flex:1;min-width:200px;">
+              <label for="leaveEntitlementEmployee">Applies to</label>
+              <select id="leaveEntitlementEmployee" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;">
+                <option value="">Everyone (organization)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <button type="submit" class="btn btn-primary" id="leaveEntitlementSubmitBtn">Add allowance</button>
+              <button type="button" class="btn btn-outline hidden" id="leaveEntitlementCancelBtn" style="margin-top:8px;">Cancel edit</button>
+            </div>
+          </form>
+          <p id="leaveEntitlementMessage" class="message"></p>
+          <div class="panel-header" style="margin-top:20px;">
+            <h3 class="panel-title" style="font-size:1.05rem;">Current allowances</h3>
+            <button type="button" class="btn btn-outline btn-sm" id="loadLeaveEntitlementsBtn">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Leave type</th>
+                  <th>Days</th>
+                  <th>Period</th>
+                  <th>Applies to</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="leaveEntitlementsBody"></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -568,6 +625,7 @@
             <label for="holImportFile" class="btn btn-primary import-excel-cta" style="display:inline-flex;align-items:center;justify-content:center;cursor:pointer;">
               📊 Choose holiday Excel (.xlsx, .xls)
             </label>
+            <button type="button" class="btn btn-outline import-excel-cta" id="holSampleBtn" style="display:inline-flex;align-items:center;justify-content:center;margin-left:8px;">Download sample format</button>
             <span id="holImportFileName" class="stat-sub" style="display:block;margin-top:10px;font-weight:500;">No file selected.</span>
             <input type="file" id="holImportFile" accept=".xlsx,.xls" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" aria-hidden="true" tabindex="-1" />
             <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:14px;">

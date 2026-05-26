@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { getPublicDir } = require('./utils/storagePaths');
+const { getPublicDir, getUploadsRoot } = require('./utils/storagePaths');
 
 const authRoutes = require('./routes/auth');
 const biometricRoutes = require('./routes/biometric');
@@ -77,6 +77,11 @@ app.get('/manager/login', (_req, res) => sendPublicHtml(res, 'manager-login.html
 app.get('/manager/dashboard', (_req, res) => sendPublicHtml(res, 'manager-dashboard.html'));
 app.get('/manager/dashboard/', (_req, res) => res.redirect(301, '/manager/dashboard'));
 app.get('/admin/manager-assignments', (_req, res) => sendPublicHtml(res, 'admin-manager-assignments.html'));
+app.use(
+  '/uploads',
+  express.static(path.join(publicDir, 'uploads'), { index: false, maxAge: '1h', fallthrough: true })
+);
+app.use('/uploads', express.static(getUploadsRoot(), { index: false, maxAge: '1h', fallthrough: true }));
 app.use(express.static(publicDir, { index: false }));
 
 app.get('/health', async (_req, res) => {
@@ -116,6 +121,12 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/saturday-config', saturdayConfigRoutes);
 app.use('/api/holidays', holidaysRoutes);
 app.use('/api/leave-balance', leaveBalanceRoutes);
+
+app.use((err, req, res, _next) => {
+  console.error('[AVGC] Unhandled error:', req.method, req.path, err.stack || err.message);
+  if (res.headersSent) return;
+  res.status(500).json({ message: err.message || 'Internal server error' });
+});
 
 function startBackgroundJobs() {
   if (process.env.VERCEL) {

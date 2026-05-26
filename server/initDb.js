@@ -36,6 +36,18 @@ async function runSchema() {
   await pool.query(
     'CREATE INDEX IF NOT EXISTS idx_password_reset_email_created ON password_reset_tokens (lower(email), created_at)'
   );
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS holidays (
+      id SERIAL PRIMARY KEY,
+      holiday_name TEXT NOT NULL,
+      date DATE NOT NULL,
+      type TEXT NOT NULL CHECK (type IN ('national', 'festival', 'optional')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (date)
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays (date)');
+  await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_unique_date ON holidays (date)');
   console.log('[db:init] Schema applied from server/schema.sql');
 }
 

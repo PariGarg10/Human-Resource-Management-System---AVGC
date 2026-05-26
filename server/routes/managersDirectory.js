@@ -1,6 +1,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { authMiddleware, requireRoles } = require('../middleware/auth');
+const { normalizeProfilePhotoUrl } = require('../utils/profilePhoto');
 
 const router = express.Router();
 
@@ -23,7 +24,7 @@ router.get('/', authMiddleware, requireRoles('admin'), async (_req, res) => {
         name: m.name,
         email: m.email,
         department: m.department,
-        profilePhotoUrl: m.profilephotourl || null,
+        profilePhotoUrl: normalizeProfilePhotoUrl(m.profilephotourl),
         joinDate: m.createdat,
       })),
     });

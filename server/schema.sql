@@ -50,6 +50,26 @@ CREATE TABLE IF NOT EXISTS leaves (
   createdat TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS leave_entitlements (
+  id SERIAL PRIMARY KEY,
+  leave_type TEXT NOT NULL,
+  allotted_days NUMERIC(8,2) NOT NULL CHECK (allotted_days >= 0),
+  period TEXT NOT NULL CHECK (period IN ('monthly', 'quarterly', 'yearly')),
+  employee_id INTEGER REFERENCES employees(id) ON DELETE CASCADE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_leave_entitlements_org
+  ON leave_entitlements (lower(trim(leave_type)), period)
+  WHERE employee_id IS NULL AND is_active = TRUE;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_leave_entitlements_employee
+  ON leave_entitlements (employee_id, lower(trim(leave_type)), period)
+  WHERE employee_id IS NOT NULL AND is_active = TRUE;
+
 CREATE TABLE IF NOT EXISTS importhistory (
   id SERIAL PRIMARY KEY,
   filename TEXT NOT NULL,
@@ -102,12 +122,24 @@ CREATE TABLE IF NOT EXISTS concerns (
   response TEXT,
   attachmenturl TEXT,
   responseattachmenturl TEXT,
+  awaiting_reply_from INTEGER REFERENCES employees(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   responded_at TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS idx_concerns_raised_by ON concerns (raised_by, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_concerns_raised_to ON concerns (raised_to, status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS concern_messages (
+  id SERIAL PRIMARY KEY,
+  concern_id INTEGER NOT NULL REFERENCES concerns(id) ON DELETE CASCADE,
+  author_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  body TEXT NOT NULL,
+  attachmenturl TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_concern_messages_concern ON concern_messages (concern_id, created_at ASC);
 
 CREATE TABLE IF NOT EXISTS saturday_config (
   date DATE PRIMARY KEY NOT NULL,

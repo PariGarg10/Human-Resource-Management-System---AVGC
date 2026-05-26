@@ -65,6 +65,10 @@ function formatDateTime(value) {
 async function api(path, options = {}, withAuth = true) {
   const headers = { ...(options.headers || {}) };
   if (withAuth) headers.Authorization = `Bearer ${token}`;
+  if (options.body instanceof FormData) {
+    delete headers['Content-Type'];
+    delete headers['content-type'];
+  }
   const response = await fetch(path, { ...options, headers });
   const data = await response.json().catch(() => ({}));
   if (response.status === 401) {
@@ -75,7 +79,35 @@ async function api(path, options = {}, withAuth = true) {
     show('passwordChangeSection');
     throw new Error(data.message || 'Password change required');
   }
-  if (!response.ok) throw new Error(data.message || 'Request failed');
+  if (!response.ok) throw new Error(data.message || `Request failed (${response.status})`);
+  return data;
+}
+
+async function uploadHolidayFile(path, file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(path, { method: 'POST', headers, body: formData });
+  const text = await response.text();
+  let data = {};
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    data = {};
+  }
+  if (response.status === 401) {
+    logout();
+    throw new Error('Unauthorized — please sign in again');
+  }
+  if (response.status === 403 && data.requiresPasswordChange) {
+    show('passwordChangeSection');
+    throw new Error(data.message || 'Password change required');
+  }
+  if (!response.ok) {
+    const detail = data.detail ? ` ${data.detail}` : '';
+    throw new Error((data.message || `Upload failed (${response.status})`) + detail);
+  }
   return data;
 }
 
@@ -105,16 +137,69 @@ function responseSummary(request) {
   return `${escapeHtml(request.response || '—')}${attachment}`;
 }
 
-function responseFormHtml(requestId, prefix) {
+function requestMessagesHtml(request) {
+  const messages = request.messages?.length
+    ? request.messages
+    : request.response
+      ? [{ authorName: 'Latest', body: request.response, attachmentUrl: request.responseAttachmentUrl }]
+      : [];
+  if (!messages.length) return '<p class="stat-sub">No replies yet.</p>';
+  return messages
+    .map((m) => {
+      const file = m.attachmentUrl
+        ? ` <a href="${escapeHtml(m.attachmentUrl)}" target="_blank" rel="noreferrer">View file</a>`
+        : '';
+      return `<div class="stat-sub" style="margin-bottom:8px;padding:8px;border-radius:8px;background:var(--bg-secondary);"><strong>${escapeHtml(m.authorName || 'Reply')}</strong><br/>${escapeHtml(m.body)}${file}</div>`;
+    })
+    .join('');
+}
+
+function responseFormHtml(requestId, prefix, showClose) {
+  const closeBtn = showClose
+    ? `<button type="button" class="btn btn-outline btn-sm" data-${prefix}-req-close="${requestId}">Reply &amp; close</button>`
+    : '';
   return `
-    <div style="min-width:260px;">
-      <textarea data-${prefix}-req-response="${requestId}" rows="2" placeholder="Write response..." style="padding:8px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea>
+    <div style="margin-top:8px;">
+      <textarea data-${prefix}-req-response="${requestId}" rows="2" placeholder="Write your reply..." style="padding:8px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea>
       <input type="file" data-${prefix}-req-file="${requestId}" style="margin-top:6px;font-size:12px;width:100%;" />
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
-        <button type="button" class="btn btn-primary btn-sm" data-${prefix}-req-reply="${requestId}">Respond</button>
-        <button type="button" class="btn btn-outline btn-sm" data-${prefix}-req-close="${requestId}">Respond & Close</button>
+        <button type="button" class="btn btn-primary btn-sm" data-${prefix}-req-reply="${requestId}">Send reply</button>
+        ${closeBtn}
       </div>
     </div>`;
+}
+
+function requestThreadCell(request, prefix, { showClose = false } = {}) {
+  const waiting =
+    request.status !== 'Closed' && !request.canReply
+      ? '<p class="stat-sub" style="margin-top:6px;">Waiting for the other party to reply.</p>'
+      : '';
+  const form = request.canReply ? responseFormHtml(request.id, prefix, showClose) : '';
+  return `<div style="min-width:260px;">${requestMessagesHtml(request)}${waiting}${form}</div>`;
+}
+
+function bindRequestReplyHandlers(root, prefix, reload) {
+  if (!root) return;
+  root.querySelectorAll(`[data-${prefix}-req-reply]`).forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try {
+        await respondToAdminRequest(btn.getAttribute(`data-${prefix}-req-reply`), false, prefix);
+        await reload();
+      } catch (e) {
+        HRMS.toast(e.message || 'Could not respond', 'error');
+      }
+    });
+  });
+  root.querySelectorAll(`[data-${prefix}-req-close]`).forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      try {
+        await respondToAdminRequest(btn.getAttribute(`data-${prefix}-req-close`), true, prefix);
+        await reload();
+      } catch (e) {
+        HRMS.toast(e.message || 'Could not close request', 'error');
+      }
+    });
+  });
 }
 
 async function submitAdminRequest(e) {
@@ -132,6 +217,10 @@ async function submitAdminRequest(e) {
   }
 }
 
+async function reloadAdminRequests() {
+  await Promise.all([loadAdminMyRequests(), loadAdminInboxRequests(), loadAdminAllRequests()]);
+}
+
 async function loadAdminMyRequests() {
   const data = await api('/api/concerns/my');
   const body = document.getElementById('adminMyRequestsBody');
@@ -141,15 +230,16 @@ async function loadAdminMyRequests() {
     ? rows
         .map(
           (r) =>
-            `<tr><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.raisedToName || '—')}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}</td><td>${responseSummary(r)}</td></tr>`
+            `<tr><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.raisedToName || '—')}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}</td><td>${requestThreadCell(r, 'admin-my', { showClose: false })}</td></tr>`
         )
         .join('')
     : requestRowsEmpty(5);
+  bindRequestReplyHandlers(body, 'admin-my', reloadAdminRequests);
 }
 
-async function respondToAdminRequest(id, close) {
-  const responseEl = document.querySelector(`[data-admin-req-response="${id}"]`);
-  const fileEl = document.querySelector(`[data-admin-req-file="${id}"]`);
+async function respondToAdminRequest(id, close, prefix = 'admin') {
+  const responseEl = document.querySelector(`[data-${prefix}-req-response="${id}"]`);
+  const fileEl = document.querySelector(`[data-${prefix}-req-file="${id}"]`);
   const response = responseEl?.value?.trim() || '';
   if (!response) {
     HRMS.toast('Write a response first', 'error');
@@ -175,30 +265,11 @@ async function loadAdminInboxRequests() {
     ? rows
         .map(
           (r) =>
-            `<tr><td>${escapeHtml(r.raisedByName || '—')}</td><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}</td><td>${r.status !== 'Closed' ? responseFormHtml(r.id, 'admin') : responseSummary(r)}</td></tr>`
+            `<tr><td>${escapeHtml(r.raisedByName || '—')}</td><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}</td><td>${r.status === 'Closed' ? requestMessagesHtml(r) : requestThreadCell(r, 'admin', { showClose: true })}</td></tr>`
         )
         .join('')
     : requestRowsEmpty(5);
-  body.querySelectorAll('[data-admin-req-reply]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      try {
-        await respondToAdminRequest(btn.getAttribute('data-admin-req-reply'), false);
-        await Promise.all([loadAdminInboxRequests(), loadAdminAllRequests()]);
-      } catch (e) {
-        HRMS.toast(e.message || 'Could not respond', 'error');
-      }
-    });
-  });
-  body.querySelectorAll('[data-admin-req-close]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      try {
-        await respondToAdminRequest(btn.getAttribute('data-admin-req-close'), true);
-        await Promise.all([loadAdminInboxRequests(), loadAdminAllRequests()]);
-      } catch (e) {
-        HRMS.toast(e.message || 'Could not close request', 'error');
-      }
-    });
-  });
+  bindRequestReplyHandlers(body, 'admin', reloadAdminRequests);
 }
 
 async function loadAdminAllRequests() {
@@ -210,7 +281,7 @@ async function loadAdminAllRequests() {
     ? rows
         .map(
           (r) =>
-            `<tr><td>${escapeHtml(r.raisedByName || '—')}</td><td>${escapeHtml(r.raisedToName || '—')}</td><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}${r.response ? `<div class="stat-sub" style="margin-top:4px;">Responded: ${responseSummary(r)}</div>` : ''}</td></tr>`
+            `<tr><td>${escapeHtml(r.raisedByName || '—')}</td><td>${escapeHtml(r.raisedToName || '—')}</td><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}<div style="margin-top:4px;">${requestMessagesHtml(r)}</div></td></tr>`
         )
         .join('')
     : requestRowsEmpty(5);
@@ -664,7 +735,8 @@ async function loadAdminLeaveBalance() {
       .map(
         (item) => `
     <div class="tile">
-      <strong>${item.type}</strong>
+      <strong>${escapeHtml(item.type)}</strong>
+      <span class="stat-sub" style="display:block;margin:4px 0;">${escapeHtml(item.periodLabel || 'Yearly')}</span>
       <span>${item.remaining} remaining</span>
       <small class="stat-sub">${item.used} used of ${item.total}</small>
     </div>`
@@ -676,14 +748,43 @@ async function loadAdminLeaveBalance() {
   }
 }
 
+async function removeEmployee(employeeId, employeeName) {
+  const label = employeeName || `ID ${employeeId}`;
+  if (!window.confirm(`Remove employee "${label}"? This cannot be undone.`)) return;
+  await api(`/api/admin/employees/${employeeId}`, { method: 'DELETE' });
+  HRMS.toast('Employee removed', 'success');
+  await Promise.all([loadEmployees(), loadRoleManagement(), loadAdminStats()]);
+  window.HRMS?.refreshTeamHubPanels?.();
+}
+
 async function loadEmployees() {
+  const body = document.getElementById('employeesBody');
+  if (!body) return;
   const data = await api('/api/admin/employees');
-  document.getElementById('employeesBody').innerHTML = data.employees
-    .map(
-      (emp) => `
-    <tr><td>${emp.id}</td><td>${emp.employeecode}</td><td>${emp.name}</td><td>${emp.email}</td><td>${emp.department || '—'}</td><td>${emp.role || 'employee'}</td></tr>`
-    )
-    .join('');
+  const employees = data.employees || [];
+  body.innerHTML = employees.length
+    ? employees
+        .map((emp) => {
+          const isSelf = Number(emp.id) === Number(user.id);
+          const removeBtn = isSelf
+            ? '<span class="stat-sub">—</span>'
+            : `<button type="button" class="btn btn-outline btn-sm" data-remove-employee="${emp.id}">Remove</button>`;
+          return `<tr><td>${emp.id}</td><td>${escapeHtml(emp.employeecode)}</td><td>${escapeHtml(emp.name)}</td><td>${escapeHtml(emp.email)}</td><td>${escapeHtml(emp.department || '—')}</td><td>${escapeHtml(emp.role || 'employee')}</td><td>${removeBtn}</td></tr>`;
+        })
+        .join('')
+    : '<tr><td colspan="7" class="stat-sub" style="padding:24px;text-align:center;">No employees found.</td></tr>';
+  body.querySelectorAll('[data-remove-employee]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-remove-employee');
+      const row = btn.closest('tr');
+      const name = row?.children?.[2]?.textContent?.trim();
+      try {
+        await removeEmployee(id, name);
+      } catch (e) {
+        HRMS.toast(e.message || 'Could not remove employee', 'error');
+      }
+    });
+  });
 }
 
 async function loadRoleManagement() {
@@ -785,7 +886,7 @@ document.getElementById('newManagerForm').addEventListener('submit', async (e) =
   e.preventDefault();
   const msg = document.getElementById('mgrMessage');
   try {
-    await api('/api/admin/managers', {
+    const result = await api('/api/admin/managers', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -795,7 +896,7 @@ document.getElementById('newManagerForm').addEventListener('submit', async (e) =
         department: document.getElementById('mgrDept').value.trim()
       })
     });
-    HRMS.toast('Manager created', 'success');
+    HRMS.toast(result.promoted ? 'Employee promoted to manager' : 'Manager created', 'success');
     e.target.reset();
     await loadEmployees();
     await loadAdminStats();
@@ -882,6 +983,154 @@ async function loadImportHistory() {
     )
     .join('');
 }
+
+let leaveEntitlementEmployees = [];
+
+function resetLeaveEntitlementForm() {
+  document.getElementById('leaveEntitlementId').value = '';
+  document.getElementById('leaveEntitlementType').value = '';
+  document.getElementById('leaveEntitlementDays').value = '';
+  document.getElementById('leaveEntitlementPeriod').value = 'yearly';
+  document.getElementById('leaveEntitlementEmployee').value = '';
+  document.getElementById('leaveEntitlementSubmitBtn').textContent = 'Add allowance';
+  document.getElementById('leaveEntitlementCancelBtn')?.classList.add('hidden');
+}
+
+function periodLabel(period) {
+  if (period === 'monthly') return 'Monthly';
+  if (period === 'quarterly') return 'Quarterly';
+  return 'Yearly';
+}
+
+async function ensureLeaveEntitlementEmployeeOptions() {
+  const select = document.getElementById('leaveEntitlementEmployee');
+  if (!select || leaveEntitlementEmployees.length) return;
+  const data = await api('/api/admin/employees');
+  leaveEntitlementEmployees = data.employees || [];
+  const current = select.value;
+  select.innerHTML =
+    '<option value="">Everyone (organization)</option>' +
+    leaveEntitlementEmployees
+      .map(
+        (emp) =>
+          `<option value="${emp.id}">${escapeHtml(emp.name)} (${escapeHtml(emp.employeecode)})</option>`
+      )
+      .join('');
+  if (current) select.value = current;
+}
+
+async function loadLeaveEntitlements() {
+  const body = document.getElementById('leaveEntitlementsBody');
+  if (!body) return;
+  const msg = document.getElementById('leaveEntitlementMessage');
+  if (msg) msg.textContent = '';
+  try {
+    await ensureLeaveEntitlementEmployeeOptions();
+    const data = await api('/api/admin/leave-entitlements');
+    const rows = data.entitlements || [];
+    body.innerHTML = rows.length
+      ? rows
+          .map((row) => {
+            const scope = row.employeeId
+              ? `${escapeHtml(row.employeeName || 'Employee')} (${escapeHtml(row.employeeCode || row.employeeId)})`
+              : 'Everyone';
+            return `<tr>
+              <td>${escapeHtml(row.leaveType)}</td>
+              <td>${row.allottedDays}</td>
+              <td>${escapeHtml(row.periodLabel || periodLabel(row.period))}</td>
+              <td>${scope}</td>
+              <td style="white-space:nowrap;">
+                <button type="button" class="btn btn-outline btn-sm" data-edit-entitlement="${row.id}">Edit</button>
+                <button type="button" class="btn btn-outline btn-sm" data-delete-entitlement="${row.id}">Remove</button>
+              </td>
+            </tr>`;
+          })
+          .join('')
+      : '<tr><td colspan="5" class="stat-sub" style="padding:24px;text-align:center;">No leave allowances configured yet.</td></tr>';
+
+    body.querySelectorAll('[data-edit-entitlement]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const row = rows.find((r) => String(r.id) === btn.getAttribute('data-edit-entitlement'));
+        if (!row) return;
+        document.getElementById('leaveEntitlementId').value = row.id;
+        document.getElementById('leaveEntitlementType').value = row.leaveType;
+        document.getElementById('leaveEntitlementDays').value = row.allottedDays;
+        document.getElementById('leaveEntitlementPeriod').value = row.period;
+        document.getElementById('leaveEntitlementEmployee').value = row.employeeId || '';
+        document.getElementById('leaveEntitlementSubmitBtn').textContent = 'Save changes';
+        document.getElementById('leaveEntitlementCancelBtn')?.classList.remove('hidden');
+        document.getElementById('leaveEntitlementType')?.focus();
+      });
+    });
+
+    body.querySelectorAll('[data-delete-entitlement]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-delete-entitlement');
+        const row = rows.find((r) => String(r.id) === id);
+        if (!window.confirm(`Remove allowance for "${row?.leaveType || 'this type'}"?`)) return;
+        try {
+          await api(`/api/admin/leave-entitlements/${id}`, { method: 'DELETE' });
+          HRMS.toast('Allowance removed', 'success');
+          resetLeaveEntitlementForm();
+          await loadLeaveEntitlements();
+          loadAdminLeaveBalance().catch(() => {});
+        } catch (e) {
+          HRMS.toast(e.message || 'Could not remove', 'error');
+        }
+      });
+    });
+  } catch (e) {
+    body.innerHTML = '';
+    if (msg) msg.textContent = e.message || 'Could not load allowances';
+    HRMS.toast(e.message || 'Could not load allowances', 'error');
+  }
+}
+
+document.getElementById('leaveEntitlementForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('leaveEntitlementMessage');
+  if (msg) msg.textContent = '';
+  const id = document.getElementById('leaveEntitlementId').value.trim();
+  const payload = {
+    leaveType: document.getElementById('leaveEntitlementType').value.trim(),
+    allottedDays: Number(document.getElementById('leaveEntitlementDays').value),
+    period: document.getElementById('leaveEntitlementPeriod').value,
+    employeeId: document.getElementById('leaveEntitlementEmployee').value || null,
+  };
+  try {
+    if (id) {
+      await api(`/api/admin/leave-entitlements/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      HRMS.toast('Allowance updated', 'success');
+    } else {
+      await api('/api/admin/leave-entitlements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      HRMS.toast('Allowance added', 'success');
+    }
+    resetLeaveEntitlementForm();
+    await loadLeaveEntitlements();
+    loadAdminLeaveBalance().catch(() => {});
+  } catch (err) {
+    if (msg) msg.textContent = err.message;
+    HRMS.toast(err.message || 'Could not save allowance', 'error');
+  }
+});
+
+document.getElementById('leaveEntitlementCancelBtn')?.addEventListener('click', () => {
+  resetLeaveEntitlementForm();
+  const msg = document.getElementById('leaveEntitlementMessage');
+  if (msg) msg.textContent = '';
+});
+
+document.getElementById('loadLeaveEntitlementsBtn')?.addEventListener('click', () => {
+  loadLeaveEntitlements().catch((e) => HRMS.toast(e.message, 'error'));
+});
 
 async function loadAdminLeaves() {
   const status = document.getElementById('leaveStatusFilter').value;
@@ -1097,10 +1346,11 @@ function applyAdminProfileToForm(profile) {
   const img = document.getElementById('profilePhotoPreview');
   if (img && initEl) {
     if (profile.profilePhotoUrl) {
-      img.src = profile.profilePhotoUrl;
+      img.src = HRMS.profilePhotoSrc(profile.profilePhotoUrl);
       img.classList.remove('hidden');
       initEl.classList.add('hidden');
     } else {
+      img.removeAttribute('src');
       img.classList.add('hidden');
       initEl.classList.remove('hidden');
       initEl.textContent = (profile.name || '?').charAt(0).toUpperCase();
@@ -1130,21 +1380,12 @@ async function loadAdminProfileFromServer() {
     document.getElementById('sidebarUserName').textContent = profile.name || 'Admin';
     const aph = document.getElementById('adminProfileHeading');
     if (aph) aph.textContent = profile.name || 'Profile';
-    const side = document.getElementById('sidebarAvatar');
-    if (side && profile.profilePhotoUrl) {
-      side.innerHTML =
-        '<img class="sidebar-avatar-img" src="' +
-        profile.profilePhotoUrl +
-        '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" />';
-    } else if (side) {
-      side.textContent = (profile.name || 'A').charAt(0).toUpperCase();
-    }
-    const navImg = document.getElementById('navAvatar');
-    if (navImg && profile.profilePhotoUrl) {
-      navImg.src = profile.profilePhotoUrl + '?t=' + Date.now();
-      navImg.classList.remove('hidden');
-    } else if (navImg) {
-      navImg.classList.add('hidden');
+    if (profile.profilePhotoUrl) {
+      HRMS.updateAvatarEverywhere(profile.profilePhotoUrl, profile.name);
+    } else {
+      const side = document.getElementById('sidebarAvatar');
+      if (side) side.textContent = (profile.name || 'A').charAt(0).toUpperCase();
+      document.getElementById('navAvatar')?.classList.add('hidden');
     }
     document.getElementById('profileDept').textContent = profile.department || '—';
     document.getElementById('profileCode').textContent = profile.employeecode || '—';
@@ -1196,7 +1437,6 @@ document.getElementById('adminProfilePhoto')?.addEventListener('change', (e) => 
     img.classList.remove('hidden');
     initEl.classList.add('hidden');
   }
-  HRMS.updateAvatarEverywhere(url);
 });
 
 document.getElementById('adminProfileForm')?.addEventListener('submit', async (e) => {
@@ -1220,18 +1460,11 @@ document.getElementById('adminProfileForm')?.addEventListener('submit', async (e
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || 'Save failed');
     HRMS.toast('Profile saved successfully ✓', 'success');
-    if (data.profile && data.profile.profilePhotoUrl) {
-      HRMS.updateAvatarEverywhere(data.profile.profilePhotoUrl);
+    const photoInput = document.getElementById('adminProfilePhoto');
+    if (photoInput) photoInput.value = '';
+    if (data.profile?.profilePhotoUrl) {
+      HRMS.updateAvatarEverywhere(data.profile.profilePhotoUrl, data.profile.name);
     }
-    try {
-      localStorage.setItem(
-        'user_profile',
-        JSON.stringify({
-          name: data.profile?.name || document.getElementById('adminProfileName').value.trim(),
-          profilePhotoUrl: data.profile?.profilePhotoUrl || null
-        })
-      );
-    } catch (_e) {}
     HRMS.syncNavProfileName(
       data.profile?.name || document.getElementById('adminProfileName').value.trim(),
       data.profile?.email || ''
@@ -1303,6 +1536,34 @@ document.getElementById('employeeSampleBtn')?.addEventListener('click', (e) => {
       Department: 'Operations',
     },
   ]);
+});
+
+document.getElementById('holSampleBtn')?.addEventListener('click', async (e) => {
+  e.stopPropagation();
+  try {
+    const headers = {};
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const response = await fetch('/api/holidays/import/sample', { headers });
+    if (!response.ok) {
+      const headers = ['Holiday Name', 'Date', 'Type'];
+      downloadSampleExcel('holiday-import-sample.xls', headers, [
+        { 'Holiday Name': 'Republic Day', Date: '26/01/2026', Type: 'National Holiday' },
+        { 'Holiday Name': 'Holi', Date: '14/03/2026', Type: 'Festival' },
+        { 'Holiday Name': 'Optional leave day', Date: '15/08/2026', Type: 'Optional' },
+      ]);
+      return;
+    }
+    const blob = await response.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'holiday-import-sample.xlsx';
+    document.body.appendChild(a);
+    a.click();
+    URL.revokeObjectURL(a.href);
+    a.remove();
+  } catch {
+    HRMS.toast('Could not download sample file', 'error');
+  }
 });
 
 document.getElementById('attendanceSampleBtn')?.addEventListener('click', (e) => {
@@ -1662,16 +1923,8 @@ async function loadHolidayAdminList() {
       });
     });
     tbody.querySelectorAll('[data-hol-del]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
-        const id = Number(btn.getAttribute('data-hol-del'));
-        if (!window.confirm('Delete this holiday?')) return;
-        try {
-          await api(`/api/holidays/${id}`, { method: 'DELETE' });
-          HRMS.toast('Holiday deleted', 'success');
-          await loadHolidayAdminList();
-        } catch (e) {
-          HRMS.toast(e.message || 'Delete failed', 'error');
-        }
+      btn.addEventListener('click', () => {
+        deleteHolidayById(Number(btn.getAttribute('data-hol-del')), loadHolidayAdminList);
       });
     });
   } catch (e) {
@@ -1722,9 +1975,7 @@ function initHolidayAdminPanel() {
         return;
       }
       try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const result = await api('/api/holidays/import/preview', { method: 'POST', body: formData });
+        const result = await uploadHolidayFile('/api/holidays/import/preview', file);
         holidayImportReady = true;
         if (msg) msg.textContent = result.errors?.length ? `${result.errors.length} row(s) have errors and will fail.` : '';
         if (summary) summary.textContent = `${result.totalrows} row(s) found. Showing up to 100 rows.`;
@@ -1756,9 +2007,7 @@ function initHolidayAdminPanel() {
         return;
       }
       try {
-        const formData = new FormData();
-        formData.append('file', file);
-        const result = await api('/api/holidays/import', { method: 'POST', body: formData });
+        const result = await uploadHolidayFile('/api/holidays/import', file);
         if (msg) {
           msg.textContent = `${result.successfulimports} imported, ${result.failedrows} failed`;
           if (result.errors?.length) {
@@ -1836,6 +2085,9 @@ async function loadPublicHolidayCalendar() {
   const y = Number(document.getElementById('holPublicYear')?.value);
   const msg = document.getElementById('holPublicMessage');
   const body = document.getElementById('holPublicTableBody');
+  const actionsHead = document.getElementById('holPublicActionsHead');
+  const allowRemove = canManageHolidays();
+  if (actionsHead) actionsHead.style.display = allowRemove ? '' : 'none';
   if (msg) msg.textContent = '';
   if (!body) return;
   if (!y || y < 2000 || y > 2100) {
@@ -1845,14 +2097,24 @@ async function loadPublicHolidayCalendar() {
   try {
     const data = await api(`/api/holidays?year=${y}`);
     const holidays = data.holidays || [];
+    const emptyColspan = allowRemove ? 4 : 3;
+    const actionCell = (h) =>
+      allowRemove
+        ? `<td><button type="button" class="btn btn-outline btn-sm" data-hol-public-del="${h.id}">Remove</button></td>`
+        : '';
     body.innerHTML = holidays.length
       ? holidays
           .map(
             (h) =>
-              `<tr><td>${escapeHolAttr(h.date)}</td><td>${escapeHolAttr(h.holidayName)}</td><td>${holidayTypeBadge(h.type)}</td></tr>`
+              `<tr><td>${escapeHolAttr(h.date)}</td><td>${escapeHolAttr(h.holidayName)}</td><td>${holidayTypeBadge(h.type)}</td>${actionCell(h)}</tr>`
           )
           .join('')
-      : '<tr><td colspan="3" class="stat-sub" style="padding:16px;text-align:center;">No holidays found for this year.</td></tr>';
+      : `<tr><td colspan="${emptyColspan}" class="stat-sub" style="padding:16px;text-align:center;">No holidays found for this year.</td></tr>`;
+    body.querySelectorAll('[data-hol-public-del]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        deleteHolidayById(Number(btn.getAttribute('data-hol-public-del')), loadPublicHolidayCalendar);
+      });
+    });
   } catch (e) {
     if (msg) msg.textContent = e.message || 'Could not load holiday calendar';
     HRMS.toast(e.message || 'Could not load holiday calendar', 'error');
@@ -1875,6 +2137,27 @@ function hasPerm(moduleKey) {
   if (!PERMS) return true;
   if (PERMS.isSuperAdmin(user) || isFounderProfile(user)) return true;
   return PERMS.getPermissions(user).includes(moduleKey);
+}
+
+function canManageHolidays() {
+  if (!PERMS) return true;
+  if (PERMS.isSuperAdmin(user) || isFounderProfile(user)) return true;
+  const p = PERMS.getPermissions(user);
+  return (
+    p.includes(PERMS.MODULE.HOLIDAY_CALENDAR) ||
+    p.includes(PERMS.MODULE.SETTINGS)
+  );
+}
+
+async function deleteHolidayById(id, onSuccess) {
+  if (!window.confirm('Remove this holiday from the calendar?')) return;
+  try {
+    await api(`/api/holidays/${id}`, { method: 'DELETE' });
+    HRMS.toast('Holiday removed', 'success');
+    if (typeof onSuccess === 'function') await onSuccess();
+  } catch (e) {
+    HRMS.toast(e.message || 'Remove failed', 'error');
+  }
 }
 
 function navigateToFirstAllowed() {
@@ -1908,6 +2191,9 @@ HRMS.initSidebar({
     }
     if (section === 'roles') {
       loadRoleManagement().catch((e) => HRMS.toast(e.message, 'error'));
+    }
+    if (section === 'leave-entitlements') {
+      loadLeaveEntitlements().catch((e) => HRMS.toast(e.message, 'error'));
     }
     if (section === 'org-chart') {
       window.HRMS?.refreshTeamHubPanels?.();
@@ -1980,7 +2266,9 @@ function scheduleDataLoads() {
   }
   if (!PERMS || hasPerm(M.ATTENDANCE)) tasks.push(loadAdminDailyAttendance());
   if (!PERMS || hasPerm(M.IMPORT_DATA)) tasks.push(loadImportHistory());
-  if (!PERMS || hasPerm(M.LEAVE_MANAGEMENT)) tasks.push(loadAdminLeaves());
+  if (!PERMS || hasPerm(M.LEAVE_MANAGEMENT)) {
+    tasks.push(loadAdminLeaves(), loadLeaveEntitlements());
+  }
   loadAdminProfileFromServer().catch(() => {});
   loadAdminMyRequests().catch(() => {});
   if (!PERMS || hasPerm(M.REQUEST_APPROVALS)) {
@@ -1990,7 +2278,15 @@ function scheduleDataLoads() {
   Promise.all(tasks).catch(console.error);
 }
 
-initAdminRbac().then(() => scheduleDataLoads()).catch(() => scheduleDataLoads());
+initAdminRbac()
+  .then(() => {
+    initHolidayAdminPanel();
+    scheduleDataLoads();
+  })
+  .catch(() => {
+    initHolidayAdminPanel();
+    scheduleDataLoads();
+  });
 
 function loadOfficeForm() {
   const o = HRMS.getOfficeLocation();

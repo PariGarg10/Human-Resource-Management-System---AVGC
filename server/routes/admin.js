@@ -19,6 +19,12 @@ const { getHolidayDatesSet, isHolidayDate } = require('../utils/holidaysRange');
 const { createNotification } = require('../utils/notifications');
 const { getLeaveBalance } = require('../utils/leaveBalance');
 const {
+  listEntitlements,
+  createEntitlement,
+  updateEntitlement,
+  deleteEntitlement,
+} = require('../utils/leaveEntitlements');
+const {
   parseAttendanceRow,
   normalizePersonName,
   normalizeImportDate,
@@ -113,6 +119,48 @@ router.get('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMEN
     return res.json({ employees });
   } catch (err) {
     console.error('GET /admin/employees:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.delete('/employees/:id', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
+  try {
+    const employeeId = Number(req.params.id);
+    if (!Number.isFinite(employeeId) || employeeId <= 0) {
+      return res.status(400).json({ message: 'Valid employee id is required' });
+    }
+    if (employeeId === req.user.id) {
+      return res.status(400).json({ message: 'You cannot remove your own account' });
+    }
+
+    const targetResult = await pool.query('SELECT id, name, email, role FROM employees WHERE id = $1', [employeeId]);
+    const target = targetResult.rows[0];
+    if (!target) return res.status(404).json({ message: 'Employee not found' });
+
+    const adminResult = await pool.query(
+      'SELECT id, is_super_admin FROM admins WHERE employee_id = $1',
+      [employeeId]
+    );
+    const linkedAdmin = adminResult.rows[0];
+    if (linkedAdmin?.is_super_admin) {
+      return res.status(400).json({ message: 'Cannot remove a Super Admin account from here' });
+    }
+
+    await pool.query('DELETE FROM manageremployees WHERE managerid = $1 OR employeeid = $1', [employeeId]);
+    if (linkedAdmin) {
+      await pool.query('DELETE FROM admin_permissions WHERE admin_id = $1', [linkedAdmin.id]);
+      await pool.query('DELETE FROM admins WHERE id = $1', [linkedAdmin.id]);
+    }
+    await pool.query('DELETE FROM employees WHERE id = $1', [employeeId]);
+
+    await logAudit(req.user.id, 'EMPLOYEE_REMOVED', 'employees', {
+      employeeId,
+      email: target.email,
+      role: target.role,
+    });
+    return res.json({ message: 'Employee removed successfully' });
+  } catch (err) {
+    console.error('DELETE /admin/employees/:id:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -504,28 +552,80 @@ router.post('/managers', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMEN
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'name, email, and password are required' });
     }
-    const generatedCode = await generateEmployeeCode();
+    const trimmedName = String(name).trim();
+    const normalizedEmail = String(email).trim().toLowerCase();
     const passwordhash = bcrypt.hashSync(password, 10);
+    const dept = department ? String(department).trim() : null;
+
+    const existingResult = await pool.query(
+      'SELECT id, employeecode, name, email, role FROM employees WHERE lower(trim(email)) = $1',
+      [normalizedEmail]
+    );
+    const existing = existingResult.rows[0];
+
+    if (existing) {
+      if (existing.role === 'manager') {
+        return res.status(409).json({ message: 'This user is already a manager' });
+      }
+      if (existing.role === 'admin' || existing.role === 'it_head') {
+        return res.status(400).json({
+          message: `Cannot promote a user with role "${existing.role}" from this form`,
+        });
+      }
+
+      const updated = await pool.query(
+        `
+        UPDATE employees
+        SET name = $1,
+            passwordhash = $2,
+            department = COALESCE($3, department),
+            role = 'manager',
+            isregistered = TRUE,
+            mustchangepassword = FALSE
+        WHERE id = $4
+        RETURNING id, employeecode, email
+      `,
+        [trimmedName, passwordhash, dept, existing.id]
+      );
+
+      await logAudit(req.user.id, 'MANAGER_PROMOTED', 'employees', {
+        employeecode: existing.employeecode,
+        previousRole: existing.role,
+      });
+      return res.json({
+        id: updated.rows[0].id,
+        employeecode: updated.rows[0].employeecode,
+        name: trimmedName,
+        email: updated.rows[0].email,
+        role: 'manager',
+        promoted: true,
+      });
+    }
+
+    const generatedCode = await generateEmployeeCode();
     const result = await pool.query(
       `
       INSERT INTO employees (employeecode, name, email, passwordhash, department, role, isregistered, mustchangepassword)
       VALUES ($1, $2, $3, $4, $5, 'manager', TRUE, FALSE)
       RETURNING id
     `,
-      [generatedCode, name, email, passwordhash, department || null]
+      [generatedCode, trimmedName, normalizedEmail, passwordhash, dept]
     );
 
     await logAudit(req.user.id, 'MANAGER_CREATED', 'employees', { employeecode: generatedCode });
     return res.status(201).json({
       id: result.rows[0].id,
       employeecode: generatedCode,
-      name,
-      email,
+      name: trimmedName,
+      email: normalizedEmail,
       role: 'manager',
+      promoted: false,
     });
   } catch (error) {
     if (error.code === '23505') {
-      return res.status(409).json({ message: 'Manager with same code or email already exists' });
+      return res.status(409).json({
+        message: 'A user with this email or employee code already exists. Use the same email to promote an existing employee.',
+      });
     }
     console.error('POST /admin/managers:', error.message);
     return res.status(500).json({ message: 'Internal server error' });
@@ -650,6 +750,87 @@ router.delete('/manager-assignments/:employeeid', requirePermission(PERMISSION_M
     return res.json({ message: 'Manager assignment removed' });
   } catch (err) {
     console.error('DELETE /admin/manager-assignments:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/leave-entitlements', requirePermission(PERMISSION_MODULES.LEAVE_MANAGEMENT), async (req, res) => {
+  try {
+    const employeeId = req.query.employeeId ? Number(req.query.employeeId) : null;
+    const entitlements = await listEntitlements({
+      employeeId: Number.isFinite(employeeId) && employeeId > 0 ? employeeId : null,
+      includeInactive: req.query.includeInactive === 'true',
+    });
+    return res.json({ entitlements });
+  } catch (err) {
+    console.error('GET /admin/leave-entitlements:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.post('/leave-entitlements', requirePermission(PERMISSION_MODULES.LEAVE_MANAGEMENT), async (req, res) => {
+  try {
+    const entitlement = await createEntitlement(req.body, req.user.id);
+    await logAudit(req.user.id, 'LEAVE_ENTITLEMENT_CREATED', 'leave_entitlements', {
+      id: entitlement.id,
+      leaveType: entitlement.leaveType,
+      period: entitlement.period,
+    });
+    return res.status(201).json({ entitlement, message: 'Leave entitlement saved' });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({
+        message: 'An active entitlement with this type and period already exists for that scope',
+      });
+    }
+    if (err.message && !err.code) {
+      return res.status(400).json({ message: err.message });
+    }
+    console.error('POST /admin/leave-entitlements:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.put('/leave-entitlements/:id', requirePermission(PERMISSION_MODULES.LEAVE_MANAGEMENT), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ message: 'Valid entitlement id is required' });
+    }
+    const entitlement = await updateEntitlement(id, req.body);
+    await logAudit(req.user.id, 'LEAVE_ENTITLEMENT_UPDATED', 'leave_entitlements', { id });
+    return res.json({ entitlement, message: 'Leave entitlement updated' });
+  } catch (err) {
+    if (err.message === 'Leave entitlement not found') {
+      return res.status(404).json({ message: err.message });
+    }
+    if (err.code === '23505') {
+      return res.status(409).json({
+        message: 'An active entitlement with this type and period already exists for that scope',
+      });
+    }
+    if (err.message && !err.code) {
+      return res.status(400).json({ message: err.message });
+    }
+    console.error('PUT /admin/leave-entitlements/:id:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.delete('/leave-entitlements/:id', requirePermission(PERMISSION_MODULES.LEAVE_MANAGEMENT), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ message: 'Valid entitlement id is required' });
+    }
+    await deleteEntitlement(id);
+    await logAudit(req.user.id, 'LEAVE_ENTITLEMENT_DELETED', 'leave_entitlements', { id });
+    return res.json({ message: 'Leave entitlement removed' });
+  } catch (err) {
+    if (err.message === 'Leave entitlement not found') {
+      return res.status(404).json({ message: err.message });
+    }
+    console.error('DELETE /admin/leave-entitlements/:id:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });

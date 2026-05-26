@@ -31,45 +31,117 @@ HRMS.initProfileDropdown = function initProfileDropdown() {
   document.addEventListener('click', () => wrap.classList.remove('is-open'));
 };
 
+HRMS.normalizeProfilePhotoUrl = function normalizeProfilePhotoUrl(url) {
+  if (!url) return '';
+  const value = String(url).trim();
+  if (!value || value.indexOf('blob:') === 0) return value;
+  const match = value.match(/profile-photos\/([^/?#]+)/i);
+  if (match && match[1]) {
+    return `/uploads/profile-photos/${match[1]}`;
+  }
+  return value.startsWith('/') ? value : `/${value}`;
+};
+
+HRMS.profilePhotoSrc = function profilePhotoSrc(url) {
+  const normalized = HRMS.normalizeProfilePhotoUrl(url);
+  if (!normalized) return '';
+  if (normalized.indexOf('blob:') === 0) return normalized;
+  const sep = normalized.includes('?') ? '&' : '?';
+  return `${normalized}${sep}t=${Date.now()}`;
+};
+
+HRMS.showProfilePhotoInitials = function showProfilePhotoInitials(name) {
+  const letter = (name || '?').charAt(0).toUpperCase();
+  document
+    .querySelectorAll('#profilePhotoPreview, #mgrProfilePhotoPreview, #navAvatar')
+    .forEach((img) => {
+      img.removeAttribute('src');
+      img.classList.add('hidden');
+    });
+  ['profilePhotoInitial', 'mgrProfilePhotoInitial'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = letter;
+    el.classList.remove('hidden');
+  });
+  const side = document.getElementById('sidebarAvatar');
+  if (side) {
+    side.innerHTML = '';
+    side.textContent = letter;
+  }
+};
+
+HRMS.applyProfilePhotoToDom = function applyProfilePhotoToDom(url, displayName) {
+  if (!url || String(url).indexOf('blob:') === 0) return;
+  const normalized = HRMS.normalizeProfilePhotoUrl(url);
+  const src = HRMS.profilePhotoSrc(normalized);
+  let employee = {};
+  try {
+    employee = JSON.parse(localStorage.getItem('employee') || '{}');
+  } catch (_e) {}
+  const name = displayName || employee.name || '?';
+
+  function bindImg(img) {
+    img.onerror = () => {
+      img.onerror = null;
+      HRMS.showProfilePhotoInitials(name);
+    };
+    img.onload = () => {
+      ['profilePhotoInitial', 'mgrProfilePhotoInitial'].forEach((id) => {
+        document.getElementById(id)?.classList.add('hidden');
+      });
+    };
+    img.src = src;
+    img.classList.remove('hidden');
+  }
+
+  document
+    .querySelectorAll(
+      '.profile-chip img, .navbar-avatar, .user-avatar, [data-avatar], #profileAvatar, #navAvatar, #profilePhotoPreview, #mgrProfilePhotoPreview'
+    )
+    .forEach(bindImg);
+
+  const side = document.getElementById('sidebarAvatar');
+  if (side) {
+    const img = document.createElement('img');
+    img.className = 'sidebar-avatar-img';
+    img.alt = '';
+    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;';
+    bindImg(img);
+    side.innerHTML = '';
+    side.appendChild(img);
+  }
+};
+
 // ✅ Syncs all avatar <img> elements on the page from localStorage
 HRMS.syncAvatarFromStorage = function () {
   const employee = JSON.parse(localStorage.getItem('employee') || '{}');
   const url = employee.profilePhotoUrl || employee.avatar_url || employee.profile_image || null;
-  if (!url) return;
-
-  document.querySelectorAll(
-    '.profile-chip img, .navbar-avatar, .user-avatar, [data-avatar], #profileAvatar, #navAvatar'
-  ).forEach((img) => {
-    img.src = url + '?t=' + Date.now();
-    img.classList.remove('hidden');
-  });
+  if (!url || String(url).indexOf('blob:') === 0) return;
+  HRMS.applyProfilePhotoToDom(url);
 };
 
-// ✅ Call this after a successful upload anywhere in the app
-HRMS.updateAvatarEverywhere = function (newUrl) {
+// ✅ Call this after a successful upload anywhere in the app (server URL only — not blob previews)
+HRMS.updateAvatarEverywhere = function (newUrl, displayName) {
   const isBlob = String(newUrl).indexOf('blob:') === 0;
-  if (!isBlob) {
+  if (!isBlob && newUrl) {
+    const normalized = HRMS.normalizeProfilePhotoUrl(newUrl);
     const employee = JSON.parse(localStorage.getItem('employee') || '{}');
-    employee.avatar_url = newUrl;
-    employee.profilePhotoUrl = newUrl;
+    employee.avatar_url = normalized;
+    employee.profilePhotoUrl = normalized;
     localStorage.setItem('employee', JSON.stringify(employee));
+    HRMS.applyProfilePhotoToDom(normalized, displayName || employee.name);
+    return;
   }
-
-  document.querySelectorAll(
-    '.profile-chip img, .navbar-avatar, .user-avatar, [data-avatar], #profileAvatar, #navAvatar'
-  ).forEach((img) => {
-    img.src = newUrl + '?t=' + Date.now();
-    img.classList.remove('hidden');
-  });
-
-  const side = document.getElementById('sidebarAvatar');
-  if (side && newUrl) {
-    side.innerHTML =
-      '<img class="sidebar-avatar-img" src="' +
-      newUrl +
-      '?t=' +
-      Date.now() +
-      '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;" />';
+  if (isBlob) {
+    const img = document.getElementById('profilePhotoPreview') || document.getElementById('mgrProfilePhotoPreview');
+    if (img) {
+      img.src = newUrl;
+      img.classList.remove('hidden');
+      ['profilePhotoInitial', 'mgrProfilePhotoInitial'].forEach((id) => {
+        document.getElementById(id)?.classList.add('hidden');
+      });
+    }
   }
 };
 

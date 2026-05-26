@@ -93,7 +93,10 @@ async function requireAdminAccess(req, res, next) {
     return next();
   } catch (err) {
     console.error('requireAdminAccess:', err.message);
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({
+      message: 'Admin authorization failed. Ensure database migrations are applied (npm run db:init).',
+      detail: err.message,
+    });
   }
 }
 

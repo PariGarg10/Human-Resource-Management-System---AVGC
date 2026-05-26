@@ -1,3 +1,5 @@
+const { normalizeProfilePhotoUrl } = require('./profilePhoto');
+
 /**
  * Group HRMS employees into org-chart sections (flat display order).
  */
@@ -35,7 +37,7 @@ function personFromRow(row) {
     department: department || null,
     role,
     employeecode: row.employeecode,
-    profilePhotoUrl: row.profilephotourl || null,
+    profilePhotoUrl: normalizeProfilePhotoUrl(row.profilephotourl),
   };
 }
 
