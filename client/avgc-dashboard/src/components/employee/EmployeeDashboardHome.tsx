@@ -3,9 +3,11 @@ import {
   Clock,
   Headphones,
   LayoutDashboard,
+  LogOut,
   Users,
   type LucideIcon,
 } from 'lucide-react';
+import { logout } from '@/lib/api';
 import type { EmployeeModuleId } from '@/lib/employeeModules';
 
 type CardDef = {
@@ -33,7 +35,7 @@ const CARDS: CardDef[] = [
   },
   {
     id: 'time',
-    title: 'Time & Attendance',
+    title: 'Attendance & Leave',
     description: 'Punch, attendance, leave, and your schedule',
     icon: Clock,
     accent: 'linear-gradient(145deg, #7c2d12 0%, #ea580c 55%, #fbbf24 100%)',
@@ -65,9 +67,19 @@ export function EmployeeDashboardHome({ userName, onSelect }: Props) {
   return (
     <div className="emp-picker min-h-screen bg-[var(--bg-primary)] px-4 py-10 md:px-8 md:py-14">
       <header className="mx-auto mb-10 max-w-6xl">
-        <p className="font-['DM_Sans',sans-serif] text-sm font-medium uppercase tracking-[0.2em] text-[var(--text-muted)]">
-          AVGC HRMS
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="font-['DM_Sans',sans-serif] text-sm font-medium uppercase tracking-[0.2em] text-[var(--text-muted)]">
+            AVGC HRMS
+          </p>
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="inline-flex min-h-[44px] items-center gap-2 rounded-lg border border-[var(--border)] bg-[var(--bg-card)] px-3 py-2 text-sm font-semibold text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
+          >
+            <LogOut className="h-4 w-4" aria-hidden />
+            Logout
+          </button>
+        </div>
         <h1 className="mt-2 font-['Bebas_Neue',sans-serif] text-4xl tracking-wide text-[var(--text-primary)] md:text-5xl">
           Welcome back, {greeting}
         </h1>

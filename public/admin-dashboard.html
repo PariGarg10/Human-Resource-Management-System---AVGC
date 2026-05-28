@@ -5,9 +5,9 @@
     (function () {
       try {
         var t = localStorage.getItem('theme_preference') || localStorage.getItem('hrms-theme');
-        document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
       } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'light');
+        document.documentElement.setAttribute('data-theme', 'dark');
       }
     })();
   </script>
@@ -34,42 +34,79 @@
       </div>
     </div>
     <nav class="sidebar-nav">
-      <div class="sidebar-nav-group-label">My workspace</div>
-      <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon">◉</span><span>Dashboard</span></button>
-      <button type="button" data-nav="calendar"><span class="nav-icon">▦</span><span>Calendar</span></button>
-      <button type="button" data-nav="holiday-calendar"><span class="nav-icon">▦</span><span>Holiday Calendar</span></button>
-      <div class="sidebar-nav-divider"></div>
-      <div class="sidebar-nav-group-label">People</div>
-      <button type="button" data-nav="employees"><span class="nav-icon">👤</span><span>Employees</span></button>
-      <button type="button" data-nav="managers"><span class="nav-icon">👔</span><span>Teams</span></button>
-      <button type="button" data-nav="assignments"><span class="nav-icon">🔗</span><span>Manager assignments</span></button>
-      <a href="/managers" class=""><span class="nav-icon">📋</span><span>Manager directory</span></a>
-      <div class="sidebar-nav-divider"></div>
-      <div class="sidebar-nav-group-label">Time &amp; attendance</div>
-      <button type="button" data-nav="attendance"><span class="nav-icon">▣</span><span>Attendance</span></button>
-      <button type="button" data-nav="leaves"><span class="nav-icon">☰</span><span>Leave Management</span></button>
-      <button type="button" data-nav="leave-entitlements"><span class="nav-icon">◫</span><span>Leave allowances</span></button>
-      <button type="button" data-nav="punch"><span class="nav-icon">⌖</span><span>Punch In/Out</span></button>
-      <div class="sidebar-nav-divider"></div>
-      <div class="sidebar-nav-group-label">Requests</div>
-      <button type="button" data-nav="requests-raise"><span class="nav-icon">✎</span><span>Raise Request</span></button>
-      <button type="button" data-nav="requests-my"><span class="nav-icon">▤</span><span>My Requests</span></button>
-      <button type="button" data-nav="requests-inbox"><span class="nav-icon">▣</span><span>Requests Inbox</span></button>
-      <button type="button" data-nav="requests-all"><span class="nav-icon">☰</span><span>All Requests</span></button>
-      <div class="sidebar-nav-divider"></div>
-      <div class="sidebar-nav-group-label">Administration</div>
-      <button type="button" data-nav="office-location"><span class="nav-icon">⌖</span><span>Office GPS</span></button>
-      <button type="button" data-nav="broadcast"><span class="nav-icon">🔔</span><span>Broadcast</span></button>
-      <button type="button" data-nav="import-employees"><span class="nav-icon">⬆</span><span>Import data</span></button>
-      <button type="button" data-nav="import-attendance"><span class="nav-icon">📊</span><span>Import attendance</span></button>
-      <button type="button" data-nav="reports"><span class="nav-icon">▤</span><span>Analytics</span></button>
-      <button type="button" data-nav="biometric"><span class="nav-icon">◎</span><span>Biometric</span></button>
-      <button type="button" data-nav="system"><span class="nav-icon">⚙</span><span>Settings</span></button>
-      <button type="button" data-nav="roles"><span class="nav-icon">⛭</span><span>Roles</span></button>
-      <button type="button" data-nav="manage-admins" style="display:none;"><span class="nav-icon">🛡</span><span>Manage Admins</span></button>
-      <div class="sidebar-nav-divider"></div>
-      <div class="sidebar-nav-group-label">Account</div>
-      <button type="button" data-nav="profile"><span class="nav-icon">●</span><span>Profile</span></button>
+      <div class="sidebar-nav-section" data-section="workspace">
+        <button type="button" class="sidebar-accordion-head">
+          <span class="nav-icon">◉</span>
+          <span class="nav-label">My workspace</span>
+        </button>
+        <div class="sidebar-accordion-body">
+          <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon">◉</span><span>Dashboard</span></button>
+          <button type="button" data-nav="calendar"><span class="nav-icon">▦</span><span>Calendar</span></button>
+          <button type="button" data-nav="holiday-calendar"><span class="nav-icon">▦</span><span>Holiday Calendar</span></button>
+        </div>
+      </div>
+      <div class="sidebar-nav-section" data-section="people">
+        <button type="button" class="sidebar-accordion-head">
+          <span class="nav-icon">👤</span>
+          <span class="nav-label">People</span>
+        </button>
+        <div class="sidebar-accordion-body">
+          <button type="button" data-nav="employees"><span class="nav-icon">👤</span><span>Employees</span></button>
+          <button type="button" data-nav="managers"><span class="nav-icon">👔</span><span>Teams</span></button>
+          <button type="button" data-nav="assignments"><span class="nav-icon">🔗</span><span>Manager assignments</span></button>
+          <a href="/managers" class=""><span class="nav-icon">📋</span><span>Manager directory</span></a>
+        </div>
+      </div>
+      <div class="sidebar-nav-section" data-section="time-attendance">
+        <button type="button" class="sidebar-accordion-head">
+          <span class="nav-icon">▣</span>
+          <span class="nav-label">Time &amp; attendance</span>
+        </button>
+        <div class="sidebar-accordion-body">
+          <button type="button" data-nav="attendance"><span class="nav-icon">▣</span><span>Attendance</span></button>
+          <button type="button" data-nav="leaves"><span class="nav-icon">☰</span><span>Leave Management</span></button>
+          <button type="button" data-nav="leave-entitlements"><span class="nav-icon">◫</span><span>Leave allowances</span></button>
+          <button type="button" data-nav="punch"><span class="nav-icon">⌖</span><span>Punch In/Out</span></button>
+        </div>
+      </div>
+      <div class="sidebar-nav-section" data-section="requests">
+        <button type="button" class="sidebar-accordion-head">
+          <span class="nav-icon">✎</span>
+          <span class="nav-label">Requests</span>
+        </button>
+        <div class="sidebar-accordion-body">
+          <button type="button" data-nav="requests-raise"><span class="nav-icon">✎</span><span>Raise Request</span></button>
+          <button type="button" data-nav="requests-my"><span class="nav-icon">▤</span><span>My Requests</span></button>
+          <button type="button" data-nav="requests-inbox"><span class="nav-icon">▣</span><span>Requests Inbox</span></button>
+          <button type="button" data-nav="requests-all"><span class="nav-icon">☰</span><span>All Requests</span></button>
+        </div>
+      </div>
+      <div class="sidebar-nav-section" data-section="administration">
+        <button type="button" class="sidebar-accordion-head">
+          <span class="nav-icon">⚙</span>
+          <span class="nav-label">Administration</span>
+        </button>
+        <div class="sidebar-accordion-body">
+          <button type="button" data-nav="office-location"><span class="nav-icon">⌖</span><span>Office GPS</span></button>
+          <button type="button" data-nav="broadcast"><span class="nav-icon">🔔</span><span>Broadcast</span></button>
+          <button type="button" data-nav="import-employees"><span class="nav-icon">⬆</span><span>Import data</span></button>
+          <button type="button" data-nav="import-attendance"><span class="nav-icon">📊</span><span>Import attendance</span></button>
+          <button type="button" data-nav="reports"><span class="nav-icon">▤</span><span>Analytics</span></button>
+          <button type="button" data-nav="biometric"><span class="nav-icon">◎</span><span>Biometric</span></button>
+          <button type="button" data-nav="system"><span class="nav-icon">⚙</span><span>Settings</span></button>
+          <button type="button" data-nav="roles"><span class="nav-icon">⛭</span><span>Roles</span></button>
+          <button type="button" data-nav="manage-admins" style="display:none;"><span class="nav-icon">🛡</span><span>Manage Admins</span></button>
+        </div>
+      </div>
+      <div class="sidebar-nav-section" data-section="account">
+        <button type="button" class="sidebar-accordion-head">
+          <span class="nav-icon">●</span>
+          <span class="nav-label">Account</span>
+        </button>
+        <div class="sidebar-accordion-body">
+          <button type="button" data-nav="profile"><span class="nav-icon">●</span><span>Profile</span></button>
+        </div>
+      </div>
     </nav>
     <div class="sidebar-footer">
       <button type="button" class="sidebar-toggle" id="sidebarCollapseBtn">Collapse</button>

@@ -5,9 +5,9 @@
     (function () {
       try {
         var t = localStorage.getItem('theme_preference') || localStorage.getItem('hrms-theme');
-        document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
       } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'light');
+        document.documentElement.setAttribute('data-theme', 'dark');
       }
     })();
   </script>
@@ -34,28 +34,59 @@
       </div>
     </div>
     <nav class="sidebar-nav">
-      <div class="sidebar-nav-group-label">My workspace</div>
-      <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon">◉</span><span>Dashboard</span></button>
-      <button type="button" data-nav="team-calendar"><span class="nav-icon">▦</span><span>Calendar</span></button>
-      <button type="button" data-nav="holiday-calendar"><span class="nav-icon">▦</span><span>Holiday Calendar</span></button>
-      <div class="sidebar-nav-divider"></div>
-      <div class="sidebar-nav-group-label">People</div>
-      <button type="button" data-nav="teams"><span class="nav-icon">◎</span><span>Teams</span></button>
-      <div class="sidebar-nav-divider"></div>
-      <div class="sidebar-nav-group-label">Time &amp; attendance</div>
-      <button type="button" data-nav="team-attendance"><span class="nav-icon">▣</span><span>Attendance</span></button>
-      <button type="button" data-nav="leaves"><span class="nav-icon">☰</span><span>Leave Management</span></button>
-      <button type="button" data-nav="punch"><span class="nav-icon">⌖</span><span>Punch In/Out</span></button>
-      <div class="sidebar-nav-divider"></div>
-      <div class="sidebar-nav-group-label">Requests</div>
-      <button type="button" data-nav="requests-raise"><span class="nav-icon">✎</span><span>Raise Request</span></button>
-      <button type="button" data-nav="requests-my"><span class="nav-icon">▤</span><span>My Requests</span></button>
-      <button type="button" data-nav="requests-inbox"><span class="nav-icon">▣</span><span>Requests Inbox</span></button>
-      <div class="sidebar-nav-divider"></div>
-      <div class="sidebar-nav-group-label">Account</div>
-      <button type="button" data-nav="reports"><span class="nav-icon">▤</span><span>Reports</span></button>
-      <button type="button" data-nav="profile"><span class="nav-icon">●</span><span>Profile</span></button>
-      <button type="button" data-nav="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
+      <div class="sidebar-nav-section" data-section="workspace">
+        <button type="button" class="sidebar-accordion-head">
+          <span class="nav-icon">◉</span>
+          <span class="nav-label">My workspace</span>
+        </button>
+        <div class="sidebar-accordion-body">
+          <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon">◉</span><span>Dashboard</span></button>
+          <button type="button" data-nav="team-calendar"><span class="nav-icon">▦</span><span>Calendar</span></button>
+          <button type="button" data-nav="holiday-calendar"><span class="nav-icon">▦</span><span>Holiday Calendar</span></button>
+        </div>
+      </div>
+      <div class="sidebar-nav-section" data-section="people">
+        <button type="button" class="sidebar-accordion-head">
+          <span class="nav-icon">◎</span>
+          <span class="nav-label">People</span>
+        </button>
+        <div class="sidebar-accordion-body">
+          <button type="button" data-nav="teams"><span class="nav-icon">◎</span><span>Teams</span></button>
+        </div>
+      </div>
+      <div class="sidebar-nav-section" data-section="time-attendance">
+        <button type="button" class="sidebar-accordion-head">
+          <span class="nav-icon">▣</span>
+          <span class="nav-label">Time &amp; attendance</span>
+        </button>
+        <div class="sidebar-accordion-body">
+          <button type="button" data-nav="team-attendance"><span class="nav-icon">▣</span><span>Attendance</span></button>
+          <button type="button" data-nav="leaves"><span class="nav-icon">☰</span><span>Leave Management</span></button>
+          <button type="button" data-nav="punch"><span class="nav-icon">⌖</span><span>Punch In/Out</span></button>
+        </div>
+      </div>
+      <div class="sidebar-nav-section" data-section="requests">
+        <button type="button" class="sidebar-accordion-head">
+          <span class="nav-icon">✎</span>
+          <span class="nav-label">Requests</span>
+        </button>
+        <div class="sidebar-accordion-body">
+          <button type="button" data-nav="requests-raise"><span class="nav-icon">✎</span><span>Raise Request</span></button>
+          <button type="button" data-nav="requests-my"><span class="nav-icon">▤</span><span>My Requests</span></button>
+          <button type="button" data-nav="requests-inbox"><span class="nav-icon">▣</span><span>Requests Inbox</span></button>
+        </div>
+      </div>
+      <div class="sidebar-nav-section" data-section="account">
+        <button type="button" class="sidebar-accordion-head">
+          <span class="nav-icon">●</span>
+          <span class="nav-label">Account</span>
+        </button>
+        <div class="sidebar-accordion-body">
+          <button type="button" data-nav="reports"><span class="nav-icon">▤</span><span>Reports</span></button>
+          <button type="button" data-nav="profile"><span class="nav-icon">●</span><span>Profile</span></button>
+          <button type="button" data-nav="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
+        </div>
+      </div>
     </nav>
     <div class="sidebar-footer">
       <button type="button" class="sidebar-toggle" id="sidebarCollapseBtn">Collapse</button>

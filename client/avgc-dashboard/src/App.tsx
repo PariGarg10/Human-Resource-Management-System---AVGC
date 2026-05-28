@@ -1,17 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CHAT_ENABLED } from '@/features/chat/constants';
-import { AVGCBuzz } from '@/features/chat/AVGCBuzz';
 import { DashboardHome } from '@/components/dashboard/DashboardHome';
 import { EmployeeDashboardHome } from '@/components/employee/EmployeeDashboardHome';
 import { EmployeeLayout } from '@/components/employee/EmployeeLayout';
+import { EmployeeModuleOptions } from '@/components/employee/EmployeeModuleOptions';
 import { PasswordGate } from '@/components/PasswordGate';
-import { Sidebar, type NavId } from '@/components/layout/Sidebar';
-import { TopHeader } from '@/components/layout/TopHeader';
+import { type NavId } from '@/components/layout/Sidebar';
 import { ThemeFab } from '@/components/ThemeFab';
 import { UserProvider } from '@/context/UserContext';
-import { api, logout, readEmployee } from '@/lib/api';
+import { api, readEmployee } from '@/lib/api';
 import {
   MODULE_DEFAULT_NAV,
+  MODULE_NAV_IDS,
   MODULE_TITLES,
   moduleForNav,
   navAllowedInModule,
@@ -101,14 +100,9 @@ export default function App() {
   const [nav, setNav] = useState<NavId>('dashboard');
   const [user, setUser] = useState<EmployeeUser | null>(null);
   const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
-  const [collapsed, setCollapsed] = useState(false);
-  const [buzzOpen, setBuzzOpen] = useState(() =>
-    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1280px)').matches : false
-  );
   const [passwordRequired, setPasswordRequired] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<string | undefined>();
-  const [mobileNav, setMobileNav] = useState(false);
-  const [viewPhase, setViewPhase] = useState<'picker' | 'module'>('picker');
+  const [viewPhase, setViewPhase] = useState<'picker' | 'module-picker' | 'module'>('picker');
 
   useEffect(() => {
     const path = window.location.pathname.replace(/\/$/, '') || '/';
@@ -170,11 +164,6 @@ export default function App() {
       .catch(() => {});
   }, []);
 
-  const initial = useMemo(
-    () => (user?.name || user?.email || 'E').charAt(0).toUpperCase(),
-    [user]
-  );
-
   const onPasswordRequired = useCallback((msg?: string) => {
     setPasswordRequired(true);
     setPasswordMessage(msg);
@@ -186,17 +175,27 @@ export default function App() {
   );
 
   const openModule = useCallback((module: EmployeeModuleId) => {
+    const navIds = MODULE_NAV_IDS[module];
     setSelectedModule(module);
-    setNav(MODULE_DEFAULT_NAV[module]);
-    setViewPhase('module');
-    setMobileNav(false);
+    if (navIds.length <= 1) {
+      setNav(MODULE_DEFAULT_NAV[module]);
+      setViewPhase('module');
+      return;
+    }
+    setViewPhase('module-picker');
   }, []);
 
   const backToModules = useCallback(() => {
     setSelectedModule(null);
     setViewPhase('picker');
-    setMobileNav(false);
   }, []);
+
+  const openModuleNav = useCallback((id: NavId) => {
+    if (!selectedModule) return;
+    if (!navAllowedInModule(selectedModule, id)) return;
+    setNav(id);
+    setViewPhase('module');
+  }, [selectedModule]);
 
   const onNavigate = useCallback(
     (id: NavId) => {
@@ -206,14 +205,10 @@ export default function App() {
         setSelectedModule(targetModule);
       }
       setNav(id);
-      setMobileNav(false);
+      setViewPhase('module');
     },
     [selectedModule]
   );
-
-  const headerTitle = selectedModule
-    ? `${MODULE_TITLES[selectedModule]} · ${titles[nav]}`
-    : titles[nav];
 
   if (!user) {
     return (
@@ -242,42 +237,22 @@ export default function App() {
           </div>
         ) : (
           <>
-            {mobileNav && (
-              <button
-                type="button"
-                className="fixed inset-0 z-40 bg-black/40 md:hidden"
-                aria-label="Close menu"
-                onClick={() => setMobileNav(false)}
+            {viewPhase === 'module-picker' ? (
+              <EmployeeModuleOptions
+                module={selectedModule}
+                title={MODULE_TITLES[selectedModule]}
+                navLabels={titles}
+                onBack={backToModules}
+                onSelect={openModuleNav}
               />
-            )}
-
-            <Sidebar
-              active={nav}
-              onNavigate={onNavigate}
-              collapsed={collapsed}
-              onToggleCollapse={() => setCollapsed((c) => !c)}
-              userName={user?.name || 'Employee'}
-              userInitial={initial}
-              userRole={user?.role || 'employee'}
-              onLogout={() => logout()}
-              mobileOpen={mobileNav}
-              moduleFilter={selectedModule}
-            />
-
-            <div
-              className={`emp-view-enter flex min-h-screen flex-col transition-[margin] duration-200 ${
-                collapsed ? 'md:ml-[72px]' : 'md:ml-64'
-              }`}
-            >
-              <EmployeeLayout onBack={backToModules}>
-                <TopHeader
-                  title={headerTitle}
-                  onSearchChange={() => {}}
-                  onMenuClick={() => setMobileNav(true)}
-                />
-
-                <div
-                  className={`flex min-h-0 flex-1 flex-col ${CHAT_ENABLED ? 'xl:flex-row' : ''}`}
+            ) : (
+              <div className="emp-view-enter flex min-h-screen flex-col">
+                <EmployeeLayout
+                  onBack={
+                    selectedModule && MODULE_NAV_IDS[selectedModule].length > 1
+                      ? () => setViewPhase('module-picker')
+                      : backToModules
+                  }
                 >
                   <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
                     {passwordRequired && (
@@ -287,25 +262,8 @@ export default function App() {
                     )}
                     {renderNavPanel(nav, user, setUser, onNavigate, onPasswordRequired)}
                   </main>
-
-                  {CHAT_ENABLED && (
-                    <AVGCBuzz
-                      open={buzzOpen}
-                      onToggle={() => setBuzzOpen((o) => !o)}
-                      userDepartment={user?.department}
-                    />
-                  )}
-                </div>
-              </EmployeeLayout>
-            </div>
-
-            {CHAT_ENABLED && buzzOpen && (
-              <button
-                type="button"
-                className="fixed inset-0 z-40 bg-black/20 xl:hidden"
-                aria-label="Close buzz panel backdrop"
-                onClick={() => setBuzzOpen(false)}
-              />
+                </EmployeeLayout>
+              </div>
             )}
           </>
         )}

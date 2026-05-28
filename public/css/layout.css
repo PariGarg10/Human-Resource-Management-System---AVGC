@@ -14,6 +14,10 @@
   transition: margin-left var(--transition);
 }
 
+body.has-floating-sidebar .app-main {
+  margin-left: 96px;
+}
+
 body.sidebar-collapsed .app-main {
   margin-left: var(--sidebar-collapsed);
 }
@@ -54,6 +58,10 @@ body.sidebar-collapsed .app-main {
 }
 
 @media (max-width: 1024px) {
+  body.has-floating-sidebar .app-main {
+    margin-left: 0;
+  }
+
   .app-main {
     margin-left: 0;
   }

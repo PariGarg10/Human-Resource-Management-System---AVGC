@@ -3,10 +3,10 @@
 ========================================================= */
 
 :root {
-  --red: #ed1d24;
+  --red: #E63946;
   --white: #ffffff;
-  --black: #000000;
-  --red-soft: rgba(237, 29, 36, 0.1);
+  --black: #0D0D0D;
+  --red-soft: rgba(230, 57, 70, 0.3);
   --white-soft: rgba(255, 255, 255, 0.08);
   --black-soft: rgba(0, 0, 0, 0.6);
 
@@ -19,7 +19,7 @@
   --primary-hover: var(--red);
   --primary-soft: var(--red-soft);
   --danger: var(--red);
-  --danger-soft: rgba(237, 29, 36, 0.12);
+  --danger-soft: rgba(255, 45, 45, 0.2);
   --success: #22c55e;
   --success-soft: rgba(34, 197, 94, 0.12);
   --warning: #eab308;
@@ -28,15 +28,15 @@
   --info-soft: var(--red-soft);
   --pending: var(--red);
 
-  --radius-sm: 6px;
-  --radius-md: 6px;
-  --radius-lg: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 12px;
 
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08);
 
-  --font-sans: "DM Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-sans: "DM Sans", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
   --font-display: "Bebas Neue", "DM Sans", sans-serif;
 
   --sidebar-width: 268px;
@@ -51,12 +51,12 @@ html {
 
 /* ---------- Light theme ---------- */
 [data-theme="light"] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f5;
-  --bg-card: #ffffff;
-  --text-primary: #000000;
-  --text-muted: rgba(0, 0, 0, 0.5);
-  --border: rgba(0, 0, 0, 0.08);
+  --bg-primary: #000000;
+  --bg-secondary: #141414;
+  --bg-card: #1A1A1A;
+  --text-primary: #FFFFFF;
+  --text-muted: #999999;
+  --border: #2A2A2A;
 
   --bg: var(--bg-primary);
   --bg-elevated: var(--bg-card);
@@ -64,11 +64,11 @@ html {
   --marketing-surface: var(--white);
   --marketing-dark: var(--black);
   --text: var(--text-primary);
-  --sidebar-bg: #111111;
+  --sidebar-bg: rgba(20, 20, 20, 0.55);
   --sidebar-text: #ffffff;
-  --sidebar-muted: rgba(255, 255, 255, 0.7);
-  --sidebar-hover: rgba(255, 255, 255, 0.06);
-  --sidebar-active: rgba(237, 29, 36, 0.08);
+  --sidebar-muted: #999999;
+  --sidebar-hover: rgba(230, 57, 70, 0.3);
+  --sidebar-active: rgba(230, 57, 70, 0.24);
   --sidebar-active-color: var(--red);
   --sidebar-border: var(--white-soft);
   --sidebar-group-color: var(--red);
@@ -77,11 +77,11 @@ html {
 /* ---------- Dark theme ---------- */
 [data-theme="dark"] {
   --bg-primary: #000000;
-  --bg-secondary: #111111;
-  --bg-card: #111111;
-  --text-primary: #ffffff;
-  --text-muted: rgba(255, 255, 255, 0.5);
-  --border: rgba(255, 255, 255, 0.08);
+  --bg-secondary: #141414;
+  --bg-card: #1A1A1A;
+  --text-primary: #FFFFFF;
+  --text-muted: #999999;
+  --border: #2A2A2A;
 
   --bg: var(--bg-primary);
   --bg-elevated: var(--bg-secondary);
@@ -89,11 +89,11 @@ html {
   --marketing-surface: #111111;
   --marketing-dark: #000000;
   --text: var(--text-primary);
-  --sidebar-bg: #111111;
+  --sidebar-bg: rgba(20, 20, 20, 0.55);
   --sidebar-text: #ffffff;
-  --sidebar-muted: rgba(255, 255, 255, 0.7);
-  --sidebar-hover: rgba(255, 255, 255, 0.06);
-  --sidebar-active: rgba(237, 29, 36, 0.08);
+  --sidebar-muted: #999999;
+  --sidebar-hover: rgba(230, 57, 70, 0.3);
+  --sidebar-active: rgba(230, 57, 70, 0.24);
   --sidebar-active-color: var(--red);
   --sidebar-border: var(--white-soft);
   --sidebar-group-color: var(--red);
@@ -231,4 +231,22 @@ body {
 .panel-title {
   font-family: var(--font-display);
   letter-spacing: 0.06em;
+}
+
+* {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, transform 0.2s ease;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #111111;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #E63946;
+  border-radius: 999px;
 }

@@ -5,9 +5,9 @@
     (function () {
       try {
         var t = localStorage.getItem('theme_preference') || localStorage.getItem('hrms-theme');
-        document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
       } catch (e) {
-        document.documentElement.setAttribute('data-theme', 'light');
+        document.documentElement.setAttribute('data-theme', 'dark');
       }
     })();
   </script>

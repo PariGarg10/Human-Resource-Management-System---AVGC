@@ -83,7 +83,7 @@ type NavGroup = { label: string; items: NavItem[] };
 const allGroups: NavGroup[] = [
   { label: 'My workspace', items: group1 },
   { label: 'People', items: group2 },
-  { label: 'Time & attendance', items: group3 },
+  { label: 'Attendance & leave', items: group3 },
   { label: 'Helpdesk', items: group4 },
   { label: 'Account', items: group5 },
 ];

@@ -5,7 +5,7 @@ export type EmployeeModuleId = 'workspace' | 'people' | 'time' | 'helpdesk' | 'a
 export const MODULE_TITLES: Record<EmployeeModuleId, string> = {
   workspace: 'My Workspace',
   people: 'People',
-  time: 'Time & Attendance',
+  time: 'Attendance & Leave',
   helpdesk: 'Helpdesk',
   account: 'Account',
 };

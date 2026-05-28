@@ -33,8 +33,8 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--bg);
-  color: var(--text-muted);
+  background: #141414;
+  color: #999999;
   font-weight: 600;
   font-size: 12px;
   text-transform: uppercase;
@@ -56,7 +56,7 @@
 }
 
 .data-table tbody tr:hover {
-  background: var(--bg);
+  background: rgba(230, 57, 70, 0.08);
 }
 
 .data-table tbody tr:last-child td {
@@ -109,7 +109,7 @@
 
 .badge.absent {
   background: var(--danger-soft);
-  color: var(--danger);
+  color: #FF2D2D;
 }
 
 .badge.leave {

@@ -1,19 +1,19 @@
 :root {
-  --bg: #000000;
-  --card: #111111;
-  --surface: #111111;
+  --bg: #0D0D0D;
+  --card: #1A1A1A;
+  --surface: #1A1A1A;
 
   --text: #ffffff;
-  --muted: #b3b3b3;
+  --muted: #999999;
 
-  --primary: #ed1d24;
-  --primary-hover: #c5141a;
+  --primary: #E63946;
+  --primary-hover: #E63946;
 
-  --border: rgba(255, 255, 255, 0.08);
+  --border: #2A2A2A;
 
   --success: #22c55e;
   --warn: #f59e0b;
-  --danger: #ed1d24;
+  --danger: #FF2D2D;
 }
 
 * {

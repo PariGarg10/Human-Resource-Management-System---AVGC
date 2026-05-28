@@ -5,6 +5,11 @@ HRMS.initSidebar = function initSidebar(options = {}) {
   const toggle = document.getElementById('sidebarCollapseBtn');
   const mobileBtn = document.getElementById('mobileMenuBtn');
   const overlay = document.querySelector('.sidebar-overlay');
+  const isDesktop = () => window.matchMedia('(min-width: 1025px)').matches;
+
+  if (sidebar) {
+    document.body.classList.add('has-floating-sidebar');
+  }
 
   if (toggle) {
     toggle.addEventListener('click', () => {
@@ -53,9 +58,52 @@ HRMS.initSidebar = function initSidebar(options = {}) {
       head.addEventListener('click', (e) => {
         e.preventDefault();
         const next = !section.classList.contains('is-expanded');
+        if (isDesktop()) {
+          document.querySelectorAll('.sidebar-nav-section').forEach((s) => {
+            if (s !== section) {
+              s.classList.remove('is-expanded');
+              s.classList.remove('is-hover-open');
+              const otherId = s.getAttribute('data-section') || 'misc';
+              localStorage.setItem(`hrms-sidebar-section-${otherId}`, 'closed');
+            }
+          });
+          section.classList.remove('is-hover-open');
+        }
         section.classList.toggle('is-expanded', next);
         localStorage.setItem(key, next ? 'open' : 'closed');
+        if (isDesktop() && !next) {
+          // Prevent :focus-within from keeping popup open after manual collapse.
+          head.blur();
+        }
       });
+    }
+
+    section.addEventListener('mouseenter', () => {
+      if (!isDesktop()) return;
+      document.querySelectorAll('.sidebar-nav-section').forEach((s) => s.classList.remove('is-hover-open'));
+      section.classList.add('is-hover-open');
+    });
+
+    section.addEventListener('mouseleave', (e) => {
+      if (!isDesktop()) return;
+      const to = e.relatedTarget;
+      if (to && section.contains(to)) return;
+      section.classList.remove('is-hover-open');
+    });
+
+    const body = section.querySelector('.sidebar-accordion-body');
+    if (body) {
+      const optionCount = body.querySelectorAll('button, a').length;
+      body.classList.toggle('is-dense-grid', optionCount > 6);
+
+      body.addEventListener('wheel', (e) => {
+        if (!isDesktop()) return;
+        const canScroll = body.scrollHeight > body.clientHeight;
+        if (!canScroll) return;
+        e.preventDefault();
+        e.stopPropagation();
+        body.scrollTop += e.deltaY;
+      }, { passive: false });
     }
   });
 
@@ -78,6 +126,11 @@ HRMS.initSidebar = function initSidebar(options = {}) {
         if (bc) bc.textContent = btn.textContent.trim();
       }
       expandSectionFor(btn);
+      const parentSection = btn.closest('.sidebar-nav-section');
+      if (parentSection && isDesktop()) {
+        document.querySelectorAll('.sidebar-nav-section').forEach((s) => s.classList.remove('is-hover-open'));
+        parentSection.classList.remove('is-expanded');
+      }
       closeMobile();
       if (options.onNavigate) options.onNavigate(section);
     });
