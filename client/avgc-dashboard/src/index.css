@@ -49,3 +49,59 @@ body {
 #root {
   min-height: 100vh;
 }
+
+/* Module picker ↔ module view transitions */
+@keyframes emp-view-in {
+  from {
+    opacity: 0;
+    transform: translateX(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.emp-view-enter {
+  animation: emp-view-in 0.35s ease-out both;
+}
+
+.emp-picker {
+  animation: emp-view-in 0.4s ease-out both;
+}
+
+/* Bridge hardcoded Tailwind slate/white to theme tokens (employee dashboard) */
+[data-theme='dark'] #root .text-slate-900,
+[data-theme='dark'] #root .text-slate-800,
+[data-theme='dark'] #root .text-slate-700 {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] #root .text-slate-600,
+[data-theme='dark'] #root .text-slate-500,
+[data-theme='dark'] #root .text-slate-400 {
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] #root .bg-white {
+  background-color: var(--bg-card);
+}
+
+[data-theme='dark'] #root .bg-slate-50,
+[data-theme='dark'] #root .hover\:bg-slate-50:hover {
+  background-color: var(--bg-secondary);
+}
+
+[data-theme='dark'] #root .border-slate-200,
+[data-theme='dark'] #root .border-slate-100,
+[data-theme='dark'] #root .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border);
+}
+
+[data-theme='dark'] #root .bg-slate-200 {
+  background-color: var(--bg-secondary);
+}
+
+[data-theme='light'] #root .hover\:bg-slate-50:hover {
+  background-color: var(--bg-secondary);
+}

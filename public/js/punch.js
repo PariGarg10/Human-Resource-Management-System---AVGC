@@ -42,8 +42,19 @@ HRMS.initPunchScreen = function initPunchScreen(opts) {
   if (!clockEl || !dateEl || !pillEl || !btnEl || !msgEl) return;
 
   let punchedIn = false;
+  let dayComplete = false;
+  let todayRec = null;
   let locState = 'checking';
   let watchId = null;
+
+  function formatPunchTime(value) {
+    if (!value) return '—';
+    if (window.HRMS && typeof window.HRMS.formatDateTime === 'function') {
+      return window.HRMS.formatDateTime(value);
+    }
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? String(value) : d.toLocaleTimeString();
+  }
 
   function tickClock() {
     const now = new Date();
@@ -70,6 +81,20 @@ HRMS.initPunchScreen = function initPunchScreen(opts) {
   }
 
   function setPunchUi() {
+    if (dayComplete) {
+      pillEl.textContent = 'DAY COMPLETE';
+      pillEl.className = 'punch-status-pill in';
+      btnEl.style.display = 'none';
+      btnEl.disabled = true;
+      msgEl.textContent =
+        'Punch in: ' +
+        formatPunchTime(todayRec && todayRec.punchin) +
+        ' · Punch out: ' +
+        formatPunchTime(todayRec && todayRec.punchout);
+      msgEl.style.color = 'var(--text-muted)';
+      return;
+    }
+    btnEl.style.display = '';
     pillEl.textContent = punchedIn ? 'PUNCHED IN' : 'PUNCHED OUT';
     pillEl.className = 'punch-status-pill ' + (punchedIn ? 'in' : 'out');
     btnEl.textContent = punchedIn ? 'PUNCH OUT' : 'PUNCH IN';
@@ -82,10 +107,14 @@ HRMS.initPunchScreen = function initPunchScreen(opts) {
     try {
       const data = await api('/api/attendance/today');
       const rec = data.record;
+      todayRec = rec || null;
+      dayComplete = Boolean(rec && rec.punchin && rec.punchout);
       punchedIn = Boolean(rec && rec.punchin && !rec.punchout);
       setPunchUi();
     } catch (_e) {
       punchedIn = false;
+      dayComplete = false;
+      todayRec = null;
       setPunchUi();
     }
   }

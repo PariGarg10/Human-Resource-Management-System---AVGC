@@ -79,24 +79,24 @@ export function TopHeader({
   }
 
   return (
-    <header className="sticky top-0 z-[100] flex h-16 shrink-0 items-center gap-4 border-b border-slate-200 bg-white/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:px-6">
+    <header className="sticky top-0 z-[100] flex h-16 shrink-0 items-center gap-4 border-b border-[var(--border)] bg-[var(--bg-card)]/95 px-4 backdrop-blur lg:px-6">
       {onMenuClick && (
         <button
           type="button"
           onClick={onMenuClick}
-          className="rounded-xl border border-slate-200 p-2.5 text-slate-700 hover:bg-slate-50 md:hidden min-h-[44px] min-w-[44px]"
+          className="rounded-xl border border-[var(--border)] p-2.5 text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] md:hidden min-h-[44px] min-w-[44px]"
           aria-label="Open navigation menu"
         >
           <Menu className="h-5 w-5" />
         </button>
       )}
       <div className="min-w-0 flex-1">
-        <h1 className="truncate text-lg font-semibold tracking-tight text-slate-900">{title}</h1>
+        <h1 className="truncate text-lg font-semibold tracking-tight text-[var(--text-primary)]">{title}</h1>
       </div>
 
       <div className="relative hidden max-w-md flex-1 md:block">
         <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]"
           aria-hidden
         />
         <input
@@ -108,7 +108,7 @@ export function TopHeader({
             setQ(v);
             onSearchChange?.(v);
           }}
-          className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm text-slate-900 placeholder:text-slate-400 shadow-sm outline-none ring-avgc-brand/20 focus:border-avgc-brand focus:bg-white focus:ring-4"
+          className="w-full rounded-xl border border-[var(--border)] bg-[var(--bg-secondary)] py-2.5 pl-10 pr-4 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] shadow-sm outline-none ring-avgc-brand/20 focus:border-avgc-brand focus:bg-[var(--bg-card)] focus:ring-4"
           aria-label="Find employees"
         />
       </div>
@@ -120,7 +120,7 @@ export function TopHeader({
             setNotifOpen((o) => !o);
             if (!notifOpen) loadNotifications().catch(() => {});
           }}
-          className="relative rounded-xl border border-slate-200 p-2.5 text-slate-600 hover:bg-slate-50 min-h-[44px] min-w-[44px]"
+          className="relative rounded-xl border border-[var(--border)] p-2.5 text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] min-h-[44px] min-w-[44px]"
           aria-label="Notifications"
           aria-expanded={notifOpen}
         >
@@ -132,18 +132,18 @@ export function TopHeader({
           )}
         </button>
         {notifOpen && (
-          <div className="absolute right-0 z-[110] mt-2 max-h-80 w-80 overflow-y-auto rounded-xl border border-slate-200 bg-white py-2 shadow-lg">
+          <div className="absolute right-0 z-[110] mt-2 max-h-80 w-80 overflow-y-auto rounded-xl border border-[var(--border)] bg-[var(--bg-card)] py-2 shadow-lg">
             {notifications.length === 0 ? (
-              <p className="px-4 py-3 text-sm text-slate-500">No notifications</p>
+              <p className="px-4 py-3 text-sm text-[var(--text-muted)]">No notifications</p>
             ) : (
-              <ul className="divide-y divide-slate-100">
+              <ul className="divide-y divide-[var(--border)]">
                 {notifications.map((n) => (
                   <li key={n.id}>
                     <button
                       type="button"
                       className={cn(
-                        'flex w-full gap-2 px-4 py-3 text-left text-sm hover:bg-slate-50',
-                        !n.isRead && 'bg-slate-50/80'
+                        'flex w-full gap-2 px-4 py-3 text-left text-sm hover:bg-[var(--bg-secondary)]',
+                        !n.isRead && 'bg-[var(--bg-secondary)]'
                       )}
                       onClick={() => {
                         if (!n.isRead) void markRead(n.id);
@@ -152,7 +152,7 @@ export function TopHeader({
                       <span className="shrink-0 text-base" aria-hidden>
                         {n.type === 'birthday' ? '🎂' : n.type === 'broadcast' ? '🔔' : '•'}
                       </span>
-                      <span className="text-slate-800">{n.message}</span>
+                      <span className="text-[var(--text-primary)]">{n.message}</span>
                     </button>
                   </li>
                 ))}
@@ -166,7 +166,7 @@ export function TopHeader({
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-2 py-1.5 pr-3 shadow-sm hover:bg-slate-50 min-h-[44px]"
+          className="flex items-center gap-2 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] px-2 py-1.5 pr-3 shadow-sm hover:bg-[var(--bg-secondary)] min-h-[44px]"
           aria-expanded={open}
           aria-haspopup="menu"
           aria-label="User menu"
@@ -184,19 +184,19 @@ export function TopHeader({
               {initial}
             </span>
           )}
-          <span className="hidden max-w-[140px] truncate text-sm font-medium text-slate-900 lg:inline">
+          <span className="hidden max-w-[140px] truncate text-sm font-medium text-[var(--text-primary)] lg:inline">
             {user?.name || user?.email || 'Account'}
           </span>
-          <ChevronDown className={cn('h-4 w-4 text-slate-500 transition', open && 'rotate-180')} />
+          <ChevronDown className={cn('h-4 w-4 text-[var(--text-muted)] transition', open && 'rotate-180')} />
         </button>
         {open && (
           <div
             role="menu"
-            className="absolute right-0 mt-2 w-56 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+            className="absolute right-0 mt-2 w-56 rounded-xl border border-[var(--border)] bg-[var(--bg-card)] py-1 shadow-lg"
           >
-            <div className="border-b border-slate-100 px-4 py-3">
-              <div className="text-sm font-semibold text-slate-900">{user?.name || 'Employee'}</div>
-              <div className="truncate text-xs text-slate-500">{user?.email}</div>
+            <div className="border-b border-[var(--border)] px-4 py-3">
+              <div className="text-sm font-semibold text-[var(--text-primary)]">{user?.name || 'Employee'}</div>
+              <div className="truncate text-xs text-[var(--text-muted)]">{user?.email}</div>
             </div>
             <button
               type="button"

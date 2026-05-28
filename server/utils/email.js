@@ -94,6 +94,10 @@ async function sendPasswordResetEmail({ to, name, rawToken }) {
     from: process.env.SMTP_FROM,
     to,
     subject: 'Reset Your Password',
+    headers: {
+      'X-Priority': '1',
+      'X-Mailer': 'HRMS Mailer',
+    },
     html: buildPasswordResetHtml({ name, resetUrl }),
     text: [
       `Hi ${name || 'there'},`,
@@ -111,4 +115,53 @@ async function sendPasswordResetEmail({ to, name, rawToken }) {
   return { sent: true, resetUrl };
 }
 
-module.exports = { isSmtpConfigured, getFrontendUrl, sendPasswordResetEmail };
+async function sendTemporaryPasswordEmail({ to, firstName, tempPassword }) {
+  const safeFirstName = firstName || 'there';
+  const subject = 'Your Temporary Password — HRMS';
+  const text = [
+    `Hi ${safeFirstName},`,
+    '',
+    'A password reset was requested for your HRMS account.',
+    '',
+    `Your temporary password is: ${tempPassword}`,
+    '',
+    'Use this to log in. You will be asked to set a new password immediately.',
+    'This temporary password is valid for 24 hours only.',
+    '',
+    'If you did not request this, contact your administrator immediately.',
+  ].join('\n');
+  const html = `
+    <p>Hi ${safeFirstName},</p>
+    <p>A password reset was requested for your HRMS account.</p>
+    <p><strong>Your temporary password is: ${tempPassword}</strong></p>
+    <p>Use this to log in. You will be asked to set a new password immediately.<br/>This temporary password is valid for 24 hours only.</p>
+    <p>If you did not request this, contact your administrator immediately.</p>
+  `;
+
+  if (!isSmtpConfigured()) {
+    console.log('[email] SMTP not configured — temporary password email skipped (dev mode).');
+    return { sent: false, devLogged: true };
+  }
+
+  const transport = createTransport();
+  await transport.sendMail({
+    from: process.env.SMTP_FROM,
+    to,
+    subject,
+    headers: {
+      'X-Priority': '1',
+      'X-Mailer': 'HRMS Mailer',
+    },
+    text,
+    html,
+  });
+  return { sent: true };
+}
+
+module.exports = {
+  isSmtpConfigured,
+  getFrontendUrl,
+  createTransport,
+  sendPasswordResetEmail,
+  sendTemporaryPasswordEmail,
+};

@@ -18,6 +18,7 @@ const notificationsRoutes = require('./routes/notifications');
 const saturdayConfigRoutes = require('./routes/saturdayConfig');
 const holidaysRoutes = require('./routes/holidays');
 const leaveBalanceRoutes = require('./routes/leaveBalance');
+const { authMiddleware, enforceForcePasswordChange } = require('./middleware/auth');
 const { startBirthdayReminderJob } = require('./jobs/birthdayReminders');
 const { startEsslAttendanceSync } = require('./jobs/esslAttendanceSync');
 
@@ -100,6 +101,21 @@ app.get('/health', async (_req, res) => {
     return res.status(503).json(payload);
   }
   return res.json(payload);
+});
+
+app.use('/api', (req, res, next) => {
+  const p = req.path;
+  if (
+    p === '/auth/login' ||
+    p === '/auth/forgot-password' ||
+    p === '/auth/change-password'
+  ) {
+    return next();
+  }
+  if (p === '/auth/me' || p === '/auth/logout') {
+    return authMiddleware(req, res, next);
+  }
+  return authMiddleware(req, res, () => enforceForcePasswordChange(req, res, next));
 });
 
 app.use('/api/auth', authRoutes);

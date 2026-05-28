@@ -36,14 +36,12 @@
     <nav class="sidebar-nav">
       <div class="sidebar-nav-group-label">My workspace</div>
       <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon">◉</span><span>Dashboard</span></button>
-      <button type="button" data-nav="my-tasks"><span class="nav-icon">▪</span><span>My Tasks</span></button>
       <button type="button" data-nav="calendar"><span class="nav-icon">▦</span><span>Calendar</span></button>
       <button type="button" data-nav="holiday-calendar"><span class="nav-icon">▦</span><span>Holiday Calendar</span></button>
       <div class="sidebar-nav-divider"></div>
       <div class="sidebar-nav-group-label">People</div>
       <button type="button" data-nav="employees"><span class="nav-icon">👤</span><span>Employees</span></button>
       <button type="button" data-nav="managers"><span class="nav-icon">👔</span><span>Teams</span></button>
-      <button type="button" data-nav="org-chart"><span class="nav-icon">⬡</span><span>Org Chart</span></button>
       <button type="button" data-nav="assignments"><span class="nav-icon">🔗</span><span>Manager assignments</span></button>
       <a href="/managers" class=""><span class="nav-icon">📋</span><span>Manager directory</span></a>
       <div class="sidebar-nav-divider"></div>
@@ -156,20 +154,6 @@
         <div class="panel">
           <h2 class="panel-title">Import activity</h2>
           <div class="chart-wrap"><canvas id="adminReportsChart"></canvas></div>
-        </div>
-      </section>
-
-      <section id="view-my-tasks" class="view-section">
-        <div class="panel team-hub-panel">
-          <h2 class="panel-title">My tasks</h2>
-          <div id="teamHubTasksRoot"></div>
-        </div>
-      </section>
-
-      <section id="view-org-chart" class="view-section">
-        <div class="panel team-hub-panel">
-          <h2 class="panel-title">Org chart</h2>
-          <div id="teamHubOrgRoot"></div>
         </div>
       </section>
 
@@ -604,6 +588,27 @@
         <div class="panel">
           <h2 class="panel-title">System</h2>
           <p class="stat-sub">JWT and biometric keys are configured via server environment. Contact DevOps for production secrets rotation.</p>
+        </div>
+        <div class="panel" style="margin-top:16px;">
+          <h2 class="panel-title">Change password</h2>
+          <form id="adminSettingsPasswordForm" class="form-row" style="align-items:flex-end;max-width:640px;">
+            <div class="form-group" style="flex:1;min-width:160px;">
+              <label for="adminSettingsCurrentPassword">Current Password</label>
+              <input id="adminSettingsCurrentPassword" type="password" required autocomplete="current-password" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" />
+            </div>
+            <div class="form-group" style="flex:1;min-width:160px;">
+              <label for="adminSettingsNewPassword">New Password</label>
+              <input id="adminSettingsNewPassword" type="password" required autocomplete="new-password" minlength="8" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" />
+            </div>
+            <div class="form-group" style="flex:1;min-width:160px;">
+              <label for="adminSettingsConfirmPassword">Confirm New Password</label>
+              <input id="adminSettingsConfirmPassword" type="password" required autocomplete="new-password" minlength="8" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" />
+            </div>
+            <div class="form-group">
+              <button type="submit" class="btn btn-primary">Save</button>
+            </div>
+          </form>
+          <p id="adminSettingsPasswordMessage" class="message"></p>
         </div>
 
         <div class="panel" style="margin-top:16px;">

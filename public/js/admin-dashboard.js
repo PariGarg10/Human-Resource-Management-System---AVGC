@@ -1427,6 +1427,31 @@ document.getElementById('adminProfilePasswordForm')?.addEventListener('submit', 
   }
 });
 
+document.getElementById('adminSettingsPasswordForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('adminSettingsPasswordMessage');
+  if (msg) msg.textContent = '';
+  const newPassword = document.getElementById('adminSettingsNewPassword').value;
+  const confirmPassword = document.getElementById('adminSettingsConfirmPassword').value;
+  if (newPassword !== confirmPassword) {
+    const text = 'New passwords do not match';
+    if (msg) msg.textContent = text;
+    HRMS.toast(text, 'error');
+    return;
+  }
+  try {
+    await submitPasswordChange({
+      currentPassword: document.getElementById('adminSettingsCurrentPassword').value,
+      newPassword,
+      messageEl: msg,
+      formEl: e.target,
+    });
+  } catch (error) {
+    if (msg) msg.textContent = error.message;
+    HRMS.toast(error.message, 'error');
+  }
+});
+
 function setupDropzone(zoneId, inputId) {
   const zone = document.getElementById(zoneId);
   const input = document.getElementById(inputId);
@@ -2238,7 +2263,7 @@ async function loadPublicHolidayCalendar() {
 }
 
 function mountTeamHubWhenReady(section) {
-  if (!['my-tasks', 'org-chart', 'calendar'].includes(section)) return;
+  if (!['calendar'].includes(section)) return;
   const tryMount = (attempt) => {
     if (window.HRMS?.initTeamHubPanels) {
       window.HRMS.initTeamHubPanels();
@@ -2310,9 +2335,6 @@ HRMS.initSidebar({
     }
     if (section === 'leave-entitlements') {
       loadLeaveEntitlements().catch((e) => HRMS.toast(e.message, 'error'));
-    }
-    if (section === 'org-chart') {
-      window.HRMS?.refreshTeamHubPanels?.();
     }
     if (section === 'reports') {
       loadReportEmployeeFilter().catch(() => {});

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { avatarUrl, type OrgDirectoryResponse, type OrgSection } from '@/features/team-hub/orgDirectory';
+import { useUser } from '@/context/UserContext';
 
-export function OrgChartPanel() {
+export function OrgChartPanel({ scope = 'all' }: { scope?: 'all' | 'same-team' }) {
+  const { user } = useUser();
   const [sections, setSections] = useState<OrgSection[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -16,8 +18,24 @@ export function OrgChartPanel() {
       try {
         const data = await api<OrgDirectoryResponse>('/api/users/org-directory');
         if (cancelled) return;
-        setSections(data.sections || []);
-        setTotal(data.total ?? 0);
+        const rawSections = data.sections || [];
+        if (scope === 'same-team' && user?.department) {
+          const teamSections = rawSections
+            .map((section) => ({
+              ...section,
+              people: section.people.filter(
+                (person) =>
+                  String(person.department || '').trim().toLowerCase() ===
+                  String(user.department || '').trim().toLowerCase()
+              ),
+            }))
+            .filter((section) => section.people.length > 0);
+          setSections(teamSections);
+          setTotal(teamSections.reduce((sum, section) => sum + section.people.length, 0));
+        } else {
+          setSections(rawSections);
+          setTotal(data.total ?? 0);
+        }
       } catch (e) {
         if (cancelled) return;
         setError(e instanceof Error ? e.message : 'Could not load team directory');
@@ -30,7 +48,7 @@ export function OrgChartPanel() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [scope, user?.department]);
 
   if (loading) {
     return (
@@ -52,7 +70,9 @@ export function OrgChartPanel() {
     return (
       <div className="font-['DM_Sans',sans-serif]">
         <p className="text-sm text-[var(--text-muted)]">
-          No employees in HRMS yet. Import or add employees in Admin → Employees.
+          {scope === 'same-team'
+            ? 'No team members found for your department yet.'
+            : 'No employees in HRMS yet. Import or add employees in Admin → Employees.'}
         </p>
       </div>
     );
@@ -61,7 +81,9 @@ export function OrgChartPanel() {
   return (
     <div className="w-full font-['DM_Sans',sans-serif]">
       <p className="mb-6 text-sm text-[var(--text-muted)]">
-        {total} people from your HRMS employee list — grouped by role and department.
+        {scope === 'same-team'
+          ? `${total} teammates from your department.`
+          : `${total} people from your HRMS employee list — grouped by role and department.`}
       </p>
       {sections.map((section) => (
         <section key={section.id} className="mb-8">

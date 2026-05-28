@@ -153,6 +153,10 @@ export function ProfilePanel({
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Department</p>
           <p className="mt-1 text-sm font-semibold text-slate-900">{department || '—'}</p>
         </div>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Employee ID</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">{user?.employeecode || '—'}</p>
+        </div>
       </div>
       {saveOk && (
         <div
@@ -222,6 +226,14 @@ export function ProfilePanel({
               <input
                 readOnly
                 value={email}
+                className="mt-1 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600 min-h-[44px]"
+              />
+            </label>
+            <label className="block text-sm font-medium text-slate-700">
+              Employee ID
+              <input
+                readOnly
+                value={user?.employeecode || ''}
                 className="mt-1 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600 min-h-[44px]"
               />
             </label>

@@ -405,24 +405,6 @@ async function loadManagerInboxRequests() {
   bindManagerRequestHandlers(body, 'mgr', reloadManagerRequests);
 }
 
-async function loadEmployees() {
-  const data = await api('/api/manager/employees');
-  const emps = data.employees || [];
-  const tbody = document.getElementById('employeesBody');
-  if (!tbody) return;
-  if (!emps.length) {
-    tbody.innerHTML =
-      '<tr><td colspan="4" class="stat-sub" style="padding:24px;text-align:center;">No assignments found.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = emps
-    .map(
-      (e) => `
-    <tr><td>${e.employeecode}</td><td>${e.name}</td><td>${e.email}</td><td>${e.department || '—'}</td></tr>`
-    )
-    .join('');
-}
-
 async function loadTeamSummary() {
   const month = document.getElementById('tmMonth').value;
   const year = document.getElementById('tmYear').value;
@@ -502,6 +484,35 @@ document.getElementById('mgrChangePasswordForm')?.addEventListener('submit', asy
       })
     });
     HRMS.toast('Password updated. Please sign in again.', 'success');
+    setTimeout(logout, 900);
+  } catch (error) {
+    if (msg) msg.textContent = error.message;
+    HRMS.toast(error.message, 'error');
+  }
+});
+
+document.getElementById('mgrSettingsPasswordForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('mgrSettingsPasswordMessage');
+  if (msg) msg.textContent = '';
+  const currentPassword = document.getElementById('mgrSettingsCurrentPassword').value;
+  const newPassword = document.getElementById('mgrSettingsNewPassword').value;
+  const confirmPassword = document.getElementById('mgrSettingsConfirmPassword').value;
+  if (newPassword !== confirmPassword) {
+    const text = 'New passwords do not match';
+    if (msg) msg.textContent = text;
+    HRMS.toast(text, 'error');
+    return;
+  }
+  try {
+    await api('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+    HRMS.toast('Password updated. Please sign in again.', 'success');
+    if (msg) msg.textContent = '';
+    e.target.reset();
     setTimeout(logout, 900);
   } catch (error) {
     if (msg) msg.textContent = error.message;
@@ -721,7 +732,7 @@ document.getElementById('mgrProfileForm')?.addEventListener('submit', async (e) 
 
 HRMS.initNotificationBell((path, opts) => api(path, opts || {}));
 function mountTeamHubWhenReady(section) {
-  if (!['my-tasks', 'teams', 'org-chart', 'team-calendar'].includes(section)) return;
+  if (!['teams', 'org-chart', 'team-calendar'].includes(section)) return;
   const tryMount = (attempt) => {
     if (section === 'teams' && window.HRMS?.mountTeamHubManagerTeam) {
       window.HRMS.mountTeamHubManagerTeam('#teamHubTeamsRoot');
@@ -739,7 +750,6 @@ function mountTeamHubWhenReady(section) {
 
 function onManagerNavigate(section) {
   mountTeamHubWhenReady(section);
-  if (section === 'employees') loadEmployees().catch((e) => HRMS.toast(e.message, 'error'));
   if (section === 'org-chart') {
     window.HRMS?.refreshTeamHubPanels?.();
   }
@@ -780,7 +790,6 @@ if (passwordChangeRequired) {
     loadSummary(),
     loadDailyAttendance(),
     loadLeaves(),
-    loadEmployees(),
     loadTeamSummary()
   ]).catch((e) => HRMS.toast(e.message || 'Could not load dashboard', 'error'));
 }
@@ -788,5 +797,15 @@ if (passwordChangeRequired) {
 HRMS.initPunchScreen({
   api,
   ids: { clock: 'mgrPunchClock', date: 'mgrPunchDate', pill: 'mgrPunchPill', btn: 'mgrPunchBtn', msg: 'mgrPunchMsg' }
+});
+HRMS.initPunchScreen({
+  api,
+  ids: {
+    clock: 'mgrTopPunchClock',
+    date: 'mgrTopPunchDate',
+    pill: 'mgrTopPunchPill',
+    btn: 'mgrTopPunchBtn',
+    msg: 'mgrTopPunchMsg',
+  }
 });
 mountTeamHubWhenReady('org-chart');

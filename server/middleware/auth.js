@@ -1,21 +1,99 @@
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 
-function authMiddleware(req, res, next) {
+function parseCookies(cookieHeader) {
+  const cookies = {};
+  const raw = String(cookieHeader || '').split(';');
+  for (const part of raw) {
+    const idx = part.indexOf('=');
+    if (idx <= 0) continue;
+    const key = part.slice(0, idx).trim();
+    const value = decodeURIComponent(part.slice(idx + 1).trim());
+    cookies[key] = value;
+  }
+  return cookies;
+}
+
+function extractToken(req) {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    return authHeader.slice(7).trim();
+  }
+  const cookies = parseCookies(req.headers.cookie);
+  return cookies.token || null;
+}
+
+async function hydrateAuthUser(payload) {
+  const employeeId = Number(payload?.id);
+  if (!Number.isFinite(employeeId)) return null;
+
+  const userRes = await pool.query(
+    `
+      SELECT id, name, email, role, mustchangepassword, force_password_change
+      FROM employees
+      WHERE id = $1
+      LIMIT 1
+    `,
+    [employeeId]
+  );
+  const employee = userRes.rows[0];
+  if (!employee) return null;
+
+  let forcePasswordChange = Boolean(employee.force_password_change || employee.mustchangepassword);
+  if (payload?.adminId) {
+    const adminRes = await pool.query(
+      'SELECT mustchangepassword FROM admins WHERE id = $1 AND is_active = TRUE LIMIT 1',
+      [payload.adminId]
+    );
+    if (!adminRes.rows[0]) return null;
+    forcePasswordChange = forcePasswordChange || Boolean(adminRes.rows[0].mustchangepassword);
+  }
+
+  return {
+    ...payload,
+    id: employee.id,
+    name: employee.name,
+    email: employee.email,
+    role: employee.role,
+    force_password_change: forcePasswordChange,
+    mustchangepassword: forcePasswordChange,
+  };
+}
+
+function authMiddleware(req, res, next) {
+  const token = extractToken(req);
+  if (!token) {
     return res.status(401).json({ message: 'Authorization token missing' });
   }
-
-  const token = authHeader.split(' ')[1];
-
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = payload;
-    return next();
+    hydrateAuthUser(payload)
+      .then((user) => {
+        if (!user) return res.status(401).json({ message: 'Invalid token' });
+        req.user = user;
+        return next();
+      })
+      .catch((err) => {
+        console.error('Auth middleware user hydrate failed:', err.message);
+        return res.status(500).json({ message: 'Internal server error' });
+      });
   } catch (error) {
-    return res.status(401).json({ message: 'Invalid or expired token' });
+    if (error && error.name === 'TokenExpiredError') {
+      return res.status(401).json({ message: 'Session expired' });
+    }
+    return res.status(401).json({ message: 'Invalid token' });
   }
+}
+
+function enforceForcePasswordChange(req, res, next) {
+  if (req.user?.force_password_change || req.user?.mustchangepassword) {
+    return res.status(403).json({
+      message: 'Password change required before accessing this resource',
+      code: 'FORCE_PASSWORD_CHANGE',
+      requiresPasswordChange: true,
+    });
+  }
+  return next();
 }
 
 function requireRoles(...roles) {
@@ -55,7 +133,11 @@ async function requireAdminOrFounder(req, res, next) {
 }
 
 function enforcePasswordChange(req, res, next) {
-  if (req.user && req.user.mustchangepassword && req.path !== '/change-password') {
+  if (
+    req.user &&
+    (req.user.mustchangepassword || req.user.force_password_change) &&
+    req.path !== '/change-password'
+  ) {
     return res.status(403).json({
       message: 'Password change required before accessing this resource',
       requiresPasswordChange: true
@@ -64,4 +146,11 @@ function enforcePasswordChange(req, res, next) {
   return next();
 }
 
-module.exports = { authMiddleware, requireRoles, requireAdminOrFounder, isFounderUser, enforcePasswordChange };
+module.exports = {
+  authMiddleware,
+  enforceForcePasswordChange,
+  requireRoles,
+  requireAdminOrFounder,
+  isFounderUser,
+  enforcePasswordChange,
+};

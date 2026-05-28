@@ -19,6 +19,15 @@ async function runSchema() {
   `);
   await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_unique_date ON holidays (date)');
   await pool.query('ALTER TABLE concerns ADD COLUMN IF NOT EXISTS responseattachmenturl TEXT');
+  await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS temp_password_hash TEXT');
+  await pool.query(
+    'ALTER TABLE employees ADD COLUMN IF NOT EXISTS force_password_change BOOLEAN NOT NULL DEFAULT FALSE'
+  );
+  await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS temp_password_expiry TIMESTAMPTZ');
+  await pool.query(
+    'ALTER TABLE employees ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER NOT NULL DEFAULT 0'
+  );
+  await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_locked_until TIMESTAMPTZ');
   await pool.query(`
     CREATE TABLE IF NOT EXISTS password_reset_tokens (
       id SERIAL PRIMARY KEY,
