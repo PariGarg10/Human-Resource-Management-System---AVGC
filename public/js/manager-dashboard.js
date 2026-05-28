@@ -732,7 +732,7 @@ document.getElementById('mgrProfileForm')?.addEventListener('submit', async (e) 
 
 HRMS.initNotificationBell((path, opts) => api(path, opts || {}));
 function mountTeamHubWhenReady(section) {
-  if (!['teams', 'org-chart', 'team-calendar'].includes(section)) return;
+  if (!['teams', 'team-calendar'].includes(section)) return;
   const tryMount = (attempt) => {
     if (section === 'teams' && window.HRMS?.mountTeamHubManagerTeam) {
       window.HRMS.mountTeamHubManagerTeam('#teamHubTeamsRoot');
@@ -750,9 +750,6 @@ function mountTeamHubWhenReady(section) {
 
 function onManagerNavigate(section) {
   mountTeamHubWhenReady(section);
-  if (section === 'org-chart') {
-    window.HRMS?.refreshTeamHubPanels?.();
-  }
   if (section === 'team-attendance' || section === 'dashboard') {
     Promise.all([loadSummary(), loadDailyAttendance()]).catch((e) => HRMS.toast(e.message, 'error'));
   }
@@ -808,4 +805,3 @@ HRMS.initPunchScreen({
     msg: 'mgrTopPunchMsg',
   }
 });
-mountTeamHubWhenReady('org-chart');
