@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 const { pool } = require('./db');
 const { replaceAdminPermissions, ALL_MODULES } = require('./utils/adminPermissions');
 const { generateEmployeeCode } = require('./utils/employeeCode');
+const { ensureEsslSyncTables } = require('./utils/deviceAttendance');
 
 async function runSchema() {
   const schemaPath = path.join(__dirname, 'schema.sql');
@@ -48,6 +49,7 @@ async function runSchema() {
   `);
   await pool.query('CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays (date)');
   await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_unique_date ON holidays (date)');
+  await ensureEsslSyncTables();
   console.log('[db:init] Schema applied from server/schema.sql');
 }
 

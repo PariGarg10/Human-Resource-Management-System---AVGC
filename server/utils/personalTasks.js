@@ -23,14 +23,46 @@ async function ensurePersonalTasksTable() {
   tableReady = true;
 }
 
+/** Normalize DB/API values to YYYY-MM-DD (pg may return Date objects). */
+function formatDueDate(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'string') {
+    const match = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
+  }
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
+function parseDueDateInput(input) {
+  if (input == null || input === '') return null;
+  const raw = String(input).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const d = new Date(raw.includes('T') ? raw : `${raw}T12:00:00`);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString().slice(0, 10);
+}
+
 function rowToTask(row) {
+  const due =
+    formatDueDate(row.duedate) ||
+    formatDueDate(row.dueDate) ||
+    formatDueDate(row.createdat) ||
+    new Date().toISOString().slice(0, 10);
   return {
     id: String(row.id),
     title: row.title,
     priority: row.priority,
-    dueDate: row.duedate,
+    dueDate: due,
     done: Boolean(row.done),
   };
 }
 
-module.exports = { ensurePersonalTasksTable, rowToTask, PRIORITIES };
+module.exports = {
+  ensurePersonalTasksTable,
+  rowToTask,
+  PRIORITIES,
+  formatDueDate,
+  parseDueDateInput,
+};

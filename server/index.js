@@ -128,10 +128,16 @@ app.use((err, req, res, _next) => {
   res.status(500).json({ message: err.message || 'Internal server error' });
 });
 
-function startBackgroundJobs() {
+async function startBackgroundJobs() {
   if (process.env.VERCEL) {
     console.log('[AVGC] Background jobs disabled on Vercel serverless.');
     return;
+  }
+  try {
+    const { ensureEsslSyncTables } = require('./utils/deviceAttendance');
+    await ensureEsslSyncTables();
+  } catch (err) {
+    console.warn('[AVGC] ESSL tables setup:', err.message);
   }
   startBirthdayReminderJob();
   startEsslAttendanceSync();

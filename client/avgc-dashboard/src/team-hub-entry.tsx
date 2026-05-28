@@ -3,6 +3,7 @@
  */
 import { createRoot, type Root } from 'react-dom/client';
 import { OrgChartPanel } from '@/features/team-hub/OrgChartPanel';
+import { ManagerTeamPanel } from '@/features/team-hub/ManagerTeamPanel';
 import { TaskManagerPanel } from '@/features/team-hub/TaskManagerPanel';
 import { CalendarPanel } from '@/views/CalendarPanel';
 import './index.css';
@@ -19,16 +20,28 @@ function readStoredUserName() {
   }
 }
 
-function mount(el: HTMLElement, panel: 'org' | 'tasks' | 'calendar') {
+type TeamHubPanel = 'org' | 'tasks' | 'calendar' | 'manager-team';
+
+function mount(el: HTMLElement, panel: TeamHubPanel) {
   if (!el || el.dataset.teamHubMounted === '1') return;
   const root = createRoot(el);
   roots.set(el, root);
   el.dataset.teamHubMounted = '1';
   const userName = readStoredUserName();
-  root.render(panel === 'org' ? <OrgChartPanel /> : panel === 'calendar' ? <CalendarPanel /> : <TaskManagerPanel userName={userName} />);
+  const content =
+    panel === 'org' ? (
+      <OrgChartPanel />
+    ) : panel === 'calendar' ? (
+      <CalendarPanel />
+    ) : panel === 'manager-team' ? (
+      <ManagerTeamPanel />
+    ) : (
+      <TaskManagerPanel userName={userName} />
+    );
+  root.render(content);
 }
 
-function remount(target: HTMLElement | string, panel: 'org' | 'tasks' | 'calendar') {
+function remount(target: HTMLElement | string, panel: TeamHubPanel) {
   const el = resolveEl(target);
   if (!el) return;
   const existing = roots.get(el);
@@ -42,14 +55,23 @@ function resolveEl(target: HTMLElement | string) {
   return typeof target === 'string' ? document.querySelector<HTMLElement>(target) : target;
 }
 
+type TeamHubHrms = typeof window.HRMS & {
+  mountTeamHubManagerTeam?: (target: HTMLElement | string) => void;
+};
+
 if (!window.HRMS) {
   window.HRMS = { toast: () => {} };
 }
-const hrms = window.HRMS;
+const hrms = window.HRMS as TeamHubHrms;
 
 hrms.mountTeamHubOrg = (target: HTMLElement | string) => {
   const el = resolveEl(target);
   if (el) mount(el, 'org');
+};
+
+hrms.mountTeamHubManagerTeam = (target: HTMLElement | string) => {
+  const el = resolveEl(target);
+  if (el) mount(el, 'manager-team');
 };
 
 hrms.mountTeamHubTasks = (target: HTMLElement | string) => {
@@ -64,12 +86,12 @@ hrms.mountAttendanceCalendar = (target: HTMLElement | string) => {
 
 hrms.refreshTeamHubPanels = () => {
   remount('#teamHubOrgRoot', 'org');
-  remount('#teamHubTeamsRoot', 'org');
+  remount('#teamHubTeamsRoot', 'manager-team');
 };
 
 hrms.initTeamHubPanels = () => {
   hrms.mountTeamHubOrg?.('#teamHubOrgRoot');
-  hrms.mountTeamHubOrg?.('#teamHubTeamsRoot');
+  hrms.mountTeamHubManagerTeam?.('#teamHubTeamsRoot');
   hrms.mountTeamHubTasks?.('#teamHubTasksRoot');
   hrms.mountAttendanceCalendar?.('#adminCalendarRoot');
   hrms.mountAttendanceCalendar?.('#managerCalendarRoot');

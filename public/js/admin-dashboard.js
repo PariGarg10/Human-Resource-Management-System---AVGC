@@ -1224,6 +1224,122 @@ document.getElementById('loadAdminAllRequestsBtn')?.addEventListener('click', ()
   loadAdminAllRequests().catch((e) => HRMS.toast(e.message, 'error'));
 });
 
+function esslDateRangeInputs() {
+  const fromEl = document.getElementById('esslFromDate');
+  const toEl = document.getElementById('esslToDate');
+  const today = new Date();
+  const weekAgo = new Date(today);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  if (fromEl && !fromEl.value) fromEl.value = weekAgo.toISOString().slice(0, 10);
+  if (toEl && !toEl.value) toEl.value = today.toISOString().slice(0, 10);
+  return {
+    from: fromEl?.value,
+    to: toEl?.value,
+    matched: document.getElementById('esslFilterMatched')?.value || '',
+    imported: document.getElementById('esslFilterImported')?.value || '',
+  };
+}
+
+function formatEsslDateTime(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, { dateStyle: 'short', timeStyle: 'short' });
+}
+
+async function loadEsslPunchList() {
+  const { from, to, matched, imported } = esslDateRangeInputs();
+  const body = document.getElementById('esslPunchesBody');
+  const stats = document.getElementById('esslStatsLine');
+  if (!from || !to) {
+    HRMS.toast('Choose from and to dates', 'error');
+    return;
+  }
+  if (body) body.innerHTML = '<tr><td colspan="6">Loading…</td></tr>';
+  const params = new URLSearchParams({ from, to });
+  if (matched) params.set('matched', matched);
+  if (imported) params.set('imported', imported);
+  const data = await api(`/api/admin/attendance/essl-logs?${params}`);
+  const s = data.stats || {};
+  if (stats) {
+    stats.textContent = `${s.total ?? 0} punch(es) · ${s.matched ?? 0} matched to employees · ${s.imported ?? 0} in attendance DB · ${s.pending_import ?? 0} ready to import`;
+  }
+  const logs = data.logs || [];
+  if (!body) return;
+  if (!logs.length) {
+    body.innerHTML = '<tr><td colspan="6" class="stat-sub">No device punches in this range. Run Sync device now (local server + office network).</td></tr>';
+    return;
+  }
+  body.innerHTML = logs
+    .map(
+      (row) => `
+    <tr>
+      <td>${formatEsslDateTime(row.recordTime)}</td>
+      <td>${escapeHtml(row.deviceUserId || '—')}</td>
+      <td>${escapeHtml(row.employeecode || '—')}</td>
+      <td>${escapeHtml(row.employeeName || '—')}</td>
+      <td>${row.matched ? 'Yes' : 'No'}</td>
+      <td>${row.importedAt ? 'Yes' : 'No'}</td>
+    </tr>`
+    )
+    .join('');
+}
+
+document.getElementById('esslRefreshBtn')?.addEventListener('click', () => {
+  loadEsslPunchList().catch((e) => HRMS.toast(e.message, 'error'));
+});
+
+document.getElementById('esslImportBtn')?.addEventListener('click', async () => {
+  const msg = document.getElementById('esslSyncMessage');
+  const btn = document.getElementById('esslImportBtn');
+  const { from, to } = esslDateRangeInputs();
+  if (!from || !to) {
+    HRMS.toast('Choose from and to dates', 'error');
+    return;
+  }
+  if (msg) msg.textContent = 'Importing matched punches into attendance…';
+  if (btn) btn.disabled = true;
+  try {
+    const data = await api('/api/admin/attendance/essl-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from, to, onlyPending: true }),
+    });
+    const text = `Imported ${data.punchesImported ?? 0} punch(es) across ${data.daysUpdated ?? 0} employee day(s). Skipped ${data.skipped ?? 0} (unmatched or outside work hours).`;
+    if (msg) msg.textContent = text;
+    HRMS.toast(text, 'success');
+    await loadEsslPunchList();
+  } catch (error) {
+    if (msg) msg.textContent = error.message;
+    HRMS.toast(error.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+
+document.getElementById('esslSyncBtn')?.addEventListener('click', async () => {
+  const msg = document.getElementById('esslSyncMessage');
+  const btn = document.getElementById('esslSyncBtn');
+  if (msg) msg.textContent = 'Syncing from device…';
+  if (btn) btn.disabled = true;
+  try {
+    const data = await api('/api/admin/attendance/essl-sync', { method: 'POST' });
+    const text = data.skipped && data.reason
+      ? `Skipped: ${data.reason}`
+      : data.error
+        ? `Error: ${data.error}`
+        : `Synced — received ${data.received ?? 0}, matched ${data.matched ?? 0}, ${data.daysUpdated ?? 0} day(s) updated in attendance.`;
+    if (msg) msg.textContent = text;
+    HRMS.toast(text, data.error ? 'error' : 'success');
+    await loadEsslPunchList();
+  } catch (error) {
+    if (msg) msg.textContent = error.message;
+    HRMS.toast(error.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+
 document.getElementById('biometricForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   try {
@@ -2204,6 +2320,10 @@ HRMS.initSidebar({
     }
     if (section === 'calendar') {
       window.HRMS?.mountAttendanceCalendar?.('#adminCalendarRoot');
+    }
+    if (section === 'biometric') {
+      esslDateRangeInputs();
+      loadEsslPunchList().catch(() => {});
     }
   },
 });

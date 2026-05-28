@@ -9,6 +9,10 @@
     "build": "npm run build:dashboard",
     "db:init": "node server/initDb.js",
     "db:reset-super-admin": "node server/scripts/reset-super-admin.js",
+    "essl:bridge": "node server/scripts/essl-bridge.js",
+    "essl:test": "node server/scripts/essl-test.js",
+    "essl:sync": "node server/scripts/essl-sync-once.js",
+    "postinstall": "node server/scripts/patch-zklib.js",
     "build:dashboard": "cd client/avgc-dashboard && npm install --include=dev && npm run build"
   },
   "keywords": [

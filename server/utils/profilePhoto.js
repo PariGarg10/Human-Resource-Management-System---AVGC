@@ -2,8 +2,11 @@ const fs = require('fs');
 const path = require('path');
 const { getPublicDir, getUploadsRoot, safeEnsureDir } = require('./storagePaths');
 
-/** Writable directory for new profile photo uploads (under public locally for static fallback). */
+/** Writable directory for profile photo uploads (never write under read-only public/ on Vercel). */
 function getProfilePhotoUploadDir() {
+  if (process.env.VERCEL) {
+    return getUploadsRoot('profile-photos');
+  }
   const dir = path.join(getPublicDir(), 'uploads', 'profile-photos');
   safeEnsureDir(dir);
   return dir;
@@ -54,6 +57,7 @@ function normalizeProfilePhotoUrl(stored) {
   if (!stored) return null;
   const value = String(stored).trim();
   if (!value) return null;
+  if (value === '/api/users/profile-photo/me') return value;
   const filename = extractProfilePhotoFilename(value);
   if (filename) return profilePhotoPublicUrl(filename);
   return value.startsWith('/') ? value : `/${value}`;
@@ -83,7 +87,9 @@ function migrateProfilePhotosToPublic() {
   }
 }
 
-migrateProfilePhotosToPublic();
+if (!process.env.VERCEL) {
+  migrateProfilePhotosToPublic();
+}
 
 module.exports = {
   getProfilePhotoUploadDir,

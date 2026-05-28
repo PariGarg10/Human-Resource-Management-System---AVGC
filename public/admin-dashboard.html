@@ -535,6 +535,58 @@
 
       <section id="view-biometric" class="view-section">
         <div class="panel">
+          <h2 class="panel-title">ESSL / ZKTeco device sync</h2>
+          <p class="stat-sub" style="margin-bottom:12px;">Sync pulls punches from the device into this list. <strong>Import to attendance</strong> writes matched punches into the main attendance database (same records shown under Attendance → Daily attendance).</p>
+          <div class="form-row" style="align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
+            <div class="form-group" style="margin:0;">
+              <label for="esslFromDate">From</label>
+              <input type="date" id="esslFromDate" style="padding:10px;border-radius:8px;border:1px solid var(--border);" />
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label for="esslToDate">To</label>
+              <input type="date" id="esslToDate" style="padding:10px;border-radius:8px;border:1px solid var(--border);" />
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label for="esslFilterMatched">Employee match</label>
+              <select id="esslFilterMatched" style="padding:10px;border-radius:8px;border:1px solid var(--border);min-width:140px;">
+                <option value="">All</option>
+                <option value="true">Matched only</option>
+                <option value="false">Unmatched only</option>
+              </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label for="esslFilterImported">In attendance DB</label>
+              <select id="esslFilterImported" style="padding:10px;border-radius:8px;border:1px solid var(--border);min-width:140px;">
+                <option value="">All</option>
+                <option value="false">Not imported yet</option>
+                <option value="true">Already imported</option>
+              </select>
+            </div>
+            <button type="button" id="esslRefreshBtn" class="btn btn-outline">Refresh list</button>
+            <button type="button" id="esslSyncBtn" class="btn btn-primary">Sync device now</button>
+            <button type="button" id="esslImportBtn" class="btn btn-primary">Import to attendance DB</button>
+          </div>
+          <p id="esslStatsLine" class="stat-sub" style="margin-bottom:8px;"></p>
+          <p id="esslSyncMessage" class="message"></p>
+          <div class="table-wrap" style="margin-top:12px;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Device user</th>
+                  <th>Emp code</th>
+                  <th>Employee</th>
+                  <th>Matched</th>
+                  <th>In attendance</th>
+                </tr>
+              </thead>
+              <tbody id="esslPunchesBody">
+                <tr><td colspan="6" class="stat-sub">Load punches with Refresh list or Sync device now.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:16px;">
           <h2 class="panel-title">Biometric punch simulator</h2>
           <form id="biometricForm" class="form-row">
             <div class="form-group"><label>Employee code</label><input id="bioEmpCode" required style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>

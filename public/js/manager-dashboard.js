@@ -723,8 +723,13 @@ HRMS.initNotificationBell((path, opts) => api(path, opts || {}));
 function mountTeamHubWhenReady(section) {
   if (!['my-tasks', 'teams', 'org-chart', 'team-calendar'].includes(section)) return;
   const tryMount = (attempt) => {
+    if (section === 'teams' && window.HRMS?.mountTeamHubManagerTeam) {
+      window.HRMS.mountTeamHubManagerTeam('#teamHubTeamsRoot');
+      return;
+    }
     if (window.HRMS?.initTeamHubPanels) {
       window.HRMS.initTeamHubPanels();
+      if (section === 'teams') window.HRMS.mountTeamHubManagerTeam?.('#teamHubTeamsRoot');
       return;
     }
     if (attempt < 50) setTimeout(() => tryMount(attempt + 1), 80);
@@ -735,7 +740,9 @@ function mountTeamHubWhenReady(section) {
 function onManagerNavigate(section) {
   mountTeamHubWhenReady(section);
   if (section === 'employees') loadEmployees().catch((e) => HRMS.toast(e.message, 'error'));
-  if (section === 'teams' || section === 'org-chart') window.HRMS?.refreshTeamHubPanels?.();
+  if (section === 'org-chart') {
+    window.HRMS?.refreshTeamHubPanels?.();
+  }
   if (section === 'team-attendance' || section === 'dashboard') {
     Promise.all([loadSummary(), loadDailyAttendance()]).catch((e) => HRMS.toast(e.message, 'error'));
   }

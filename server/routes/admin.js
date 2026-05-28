@@ -280,6 +280,55 @@ router.post('/attendance/essl-sync', requirePermission(PERMISSION_MODULES.ATTEND
   }
 });
 
+router.get('/attendance/essl-logs', requirePermission(PERMISSION_MODULES.ATTENDANCE), async (req, res) => {
+  try {
+    const range = reportDateRange(req.query);
+    if (!range) return res.status(400).json({ message: 'Invalid from/to date range' });
+
+    const { listEsslDeviceLogs } = require('../utils/deviceAttendance');
+    const payload = await listEsslDeviceLogs({
+      from: range.from,
+      to: range.to,
+      matched: req.query.matched,
+      imported: req.query.imported,
+      limit: req.query.limit,
+    });
+    return res.json({ from: range.from, to: range.to, ...payload });
+  } catch (err) {
+    console.error('GET /admin/attendance/essl-logs:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.post('/attendance/essl-import', requirePermission(PERMISSION_MODULES.ATTENDANCE), async (req, res) => {
+  try {
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const from = String(body.from || req.query?.from || '').slice(0, 10);
+    const to = String(body.to || req.query?.to || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to) || from > to) {
+      return res.status(400).json({ message: 'Valid from and to dates (YYYY-MM-DD) are required' });
+    }
+
+    const { importEsslLogsToAttendance } = require('../utils/deviceAttendance');
+    const summary = await importEsslLogsToAttendance({
+      from,
+      to,
+      onlyPending: body.onlyPending !== false,
+      dayStart: process.env.ESSL_DAY_START,
+      dayEnd: process.env.ESSL_DAY_END,
+    });
+    return res.json({
+      message: 'Device punches imported into attendance',
+      from,
+      to,
+      ...summary,
+    });
+  } catch (err) {
+    console.error('POST /admin/attendance/essl-import:', err.message);
+    return res.status(500).json({ message: err.message || 'Internal server error' });
+  }
+});
+
 function reportDateRange(query) {
   const now = new Date();
   const year = Number(query.year) || now.getFullYear();

@@ -10,7 +10,7 @@ const {
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { buildOrgSections } = require('../utils/orgDirectory');
-const { ensurePersonalTasksTable, rowToTask, PRIORITIES } = require('../utils/personalTasks');
+const { ensurePersonalTasksTable, rowToTask, PRIORITIES, parseDueDateInput } = require('../utils/personalTasks');
 const { logAudit } = require('../utils/audit');
 const { ageFromDateOfBirth } = require('../utils/birthdays');
 
@@ -18,14 +18,16 @@ const router = express.Router();
 
 const profileUploadDir = getProfilePhotoUploadDir();
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, profileUploadDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || '').slice(0, 8) || '.bin';
-    const safe = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
-    cb(null, safe);
-  },
-});
+const storage = process.env.VERCEL
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, profileUploadDir),
+      filename: (_req, file, cb) => {
+        const ext = path.extname(file.originalname || '').slice(0, 8) || '.bin';
+        const safe = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
+        cb(null, safe);
+      },
+    });
 
 const upload = multer({
   storage,
@@ -80,7 +82,16 @@ function parseProfileFields(body) {
   return { name, phone, location, bio, dateOfBirth };
 }
 
-async function applyProfileUpdate(userId, fields, profilePhotoUrl) {
+let profilePhotoColumnsReady = false;
+
+async function ensureProfilePhotoColumns() {
+  if (profilePhotoColumnsReady) return;
+  await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS profile_photo BYTEA');
+  await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS profile_photo_mime TEXT');
+  profilePhotoColumnsReady = true;
+}
+
+async function applyProfileUpdate(userId, fields, profilePhotoUrl, profileFile) {
   const rowResult = await pool.query('SELECT * FROM employees WHERE id = $1', [userId]);
   const row = rowResult.rows[0];
   if (!row) throw new Error('User not found');
@@ -98,14 +109,37 @@ async function applyProfileUpdate(userId, fields, profilePhotoUrl) {
     throw new Error('name cannot be empty');
   }
 
-  await pool.query(
-    `
-    UPDATE employees
-    SET name = $1, phone = $2, location = $3, bio = $4, dateofbirth = $5, profilephotourl = $6
-    WHERE id = $7
-  `,
-    [next.name, next.phone, next.location, next.bio, next.dateofbirth, next.profilephotourl, userId]
-  );
+  if (profileFile?.buffer) {
+    await ensureProfilePhotoColumns();
+    await pool.query(
+      `
+      UPDATE employees
+      SET name = $1, phone = $2, location = $3, bio = $4, dateofbirth = $5, profilephotourl = $6,
+          profile_photo = $7, profile_photo_mime = $8
+      WHERE id = $9
+    `,
+      [
+        next.name,
+        next.phone,
+        next.location,
+        next.bio,
+        next.dateofbirth,
+        next.profilephotourl,
+        profileFile.buffer,
+        profileFile.mimetype || 'image/jpeg',
+        userId,
+      ]
+    );
+  } else {
+    await pool.query(
+      `
+      UPDATE employees
+      SET name = $1, phone = $2, location = $3, bio = $4, dateofbirth = $5, profilephotourl = $6
+      WHERE id = $7
+    `,
+      [next.name, next.phone, next.location, next.bio, next.dateofbirth, next.profilephotourl, userId]
+    );
+  }
 
   const updatedResult = await pool.query(
     `
@@ -127,11 +161,17 @@ async function handlePatch(req, res, userId) {
     }
 
     let photoUrl;
+    let profileFile;
     if (req.file) {
-      photoUrl = profilePhotoPublicUrl(req.file.filename);
+      if (process.env.VERCEL && req.file.buffer) {
+        photoUrl = '/api/users/profile-photo/me';
+        profileFile = req.file;
+      } else {
+        photoUrl = profilePhotoPublicUrl(req.file.filename);
+      }
     }
 
-    const updated = await applyProfileUpdate(userId, fields, photoUrl);
+    const updated = await applyProfileUpdate(userId, fields, photoUrl, profileFile);
     await logAudit(userId, 'PROFILE_UPDATED', 'employees', { id: userId });
     return res.json({ profile: rowToProfile(updated), message: 'Profile updated' });
   } catch (e) {
@@ -181,10 +221,12 @@ router.get('/my-tasks', authMiddleware, enforcePasswordChange, async (req, res) 
     await ensurePersonalTasksTable();
     const { rows } = await pool.query(
       `
-      SELECT id, title, priority, duedate::text AS duedate, done
+      SELECT id, title, priority,
+             COALESCE(duedate::text, to_char(createdat::date, 'YYYY-MM-DD')) AS duedate,
+             done, createdat
       FROM personal_tasks
       WHERE employeeid = $1
-      ORDER BY done ASC, duedate ASC, id ASC
+      ORDER BY done ASC, duedate DESC, id DESC
     `,
       [req.user.id]
     );
@@ -200,11 +242,11 @@ router.post('/my-tasks', authMiddleware, enforcePasswordChange, async (req, res)
     await ensurePersonalTasksTable();
     const title = String(req.body.title || '').trim();
     const priority = String(req.body.priority || 'Medium').trim();
-    const dueDate = String(req.body.dueDate || req.body.duedate || '').trim();
+    const dueDate = parseDueDateInput(req.body.dueDate ?? req.body.duedate);
 
     if (!title) return res.status(400).json({ message: 'Title is required' });
     if (!PRIORITIES.has(priority)) return res.status(400).json({ message: 'Invalid priority' });
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate)) {
+    if (!dueDate) {
       return res.status(400).json({ message: 'dueDate must be YYYY-MM-DD' });
     }
 
@@ -230,37 +272,63 @@ router.patch('/my-tasks/:taskId', authMiddleware, enforcePasswordChange, async (
     if (!Number.isFinite(taskId)) return res.status(400).json({ message: 'Invalid task id' });
 
     const existing = await pool.query(
-      'SELECT * FROM personal_tasks WHERE id = $1 AND employeeid = $2',
+      `
+      SELECT id, title, priority, duedate::text AS duedate, done
+      FROM personal_tasks
+      WHERE id = $1 AND employeeid = $2
+    `,
       [taskId, req.user.id]
     );
     if (!existing.rows[0]) return res.status(404).json({ message: 'Task not found' });
 
     const row = existing.rows[0];
-    const title = req.body.title !== undefined ? String(req.body.title).trim() : row.title;
-    const priority =
-      req.body.priority !== undefined ? String(req.body.priority).trim() : row.priority;
-    const dueDate =
-      req.body.dueDate !== undefined
-        ? String(req.body.dueDate).trim()
-        : req.body.duedate !== undefined
-          ? String(req.body.duedate).trim()
-          : row.duedate;
-    const done = req.body.done !== undefined ? Boolean(req.body.done) : row.done;
+    const sets = [];
+    const params = [];
+    let idx = 1;
 
-    if (!title) return res.status(400).json({ message: 'Title is required' });
-    if (!PRIORITIES.has(priority)) return res.status(400).json({ message: 'Invalid priority' });
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dueDate))) {
-      return res.status(400).json({ message: 'dueDate must be YYYY-MM-DD' });
+    if (req.body.title !== undefined) {
+      const title = String(req.body.title).trim();
+      if (!title) return res.status(400).json({ message: 'Title is required' });
+      sets.push(`title = $${idx++}`);
+      params.push(title);
+    }
+    if (req.body.priority !== undefined) {
+      const priority = String(req.body.priority).trim();
+      if (!PRIORITIES.has(priority)) return res.status(400).json({ message: 'Invalid priority' });
+      sets.push(`priority = $${idx++}`);
+      params.push(priority);
+    }
+    const hasDueDate =
+      Object.prototype.hasOwnProperty.call(req.body, 'dueDate') ||
+      Object.prototype.hasOwnProperty.call(req.body, 'duedate');
+    if (hasDueDate) {
+      const rawDue = req.body.dueDate ?? req.body.duedate;
+      if (rawDue !== null && rawDue !== '') {
+        const dueDate = parseDueDateInput(rawDue);
+        if (!dueDate) return res.status(400).json({ message: 'dueDate must be YYYY-MM-DD' });
+        sets.push(`duedate = $${idx++}::date`);
+        params.push(dueDate);
+      }
+    }
+    if (req.body.done !== undefined) {
+      sets.push(`done = $${idx++}`);
+      const doneVal = req.body.done;
+      params.push(doneVal === true || doneVal === 'true' || doneVal === 1 || doneVal === '1');
     }
 
+    if (!sets.length) {
+      return res.json({ task: rowToTask(row) });
+    }
+
+    params.push(taskId, req.user.id);
     const { rows } = await pool.query(
       `
       UPDATE personal_tasks
-      SET title = $1, priority = $2, duedate = $3::date, done = $4
-      WHERE id = $5 AND employeeid = $6
+      SET ${sets.join(', ')}
+      WHERE id = $${idx++} AND employeeid = $${idx}
       RETURNING id, title, priority, duedate::text AS duedate, done
     `,
-      [title, priority, dueDate, done, taskId, req.user.id]
+      params
     );
     return res.json({ task: rowToTask(rows[0]) });
   } catch (err) {
@@ -287,8 +355,31 @@ router.delete('/my-tasks/:taskId', authMiddleware, enforcePasswordChange, async 
   }
 });
 
+router.get('/profile-photo/me', authMiddleware, async (req, res) => {
+  try {
+    await ensureProfilePhotoColumns();
+    const result = await pool.query(
+      'SELECT profile_photo, profile_photo_mime FROM employees WHERE id = $1',
+      [req.user.id]
+    );
+    const row = result.rows[0];
+    if (!row?.profile_photo) {
+      return res.status(404).json({ message: 'Photo not found' });
+    }
+    res.setHeader('Content-Type', row.profile_photo_mime || 'image/jpeg');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    return res.send(row.profile_photo);
+  } catch (err) {
+    console.error('GET /users/profile-photo/me:', err.message);
+    return res.status(500).json({ message: 'Could not load photo' });
+  }
+});
+
 router.get('/profile-photo/:filename', (req, res) => {
   try {
+    if (req.params.filename === 'me') {
+      return res.status(404).json({ message: 'Photo not found' });
+    }
     const filePath = resolveProfilePhotoPath(req.params.filename);
     if (!filePath) {
       return res.status(404).json({ message: 'Photo not found' });

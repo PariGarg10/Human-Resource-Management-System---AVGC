@@ -35,6 +35,7 @@ HRMS.normalizeProfilePhotoUrl = function normalizeProfilePhotoUrl(url) {
   if (!url) return '';
   const value = String(url).trim();
   if (!value || value.indexOf('blob:') === 0) return value;
+  if (value.startsWith('/api/users/profile-photo/')) return value;
   const match = value.match(/profile-photos\/([^/?#]+)/i);
   if (match && match[1]) {
     return `/uploads/profile-photos/${match[1]}`;

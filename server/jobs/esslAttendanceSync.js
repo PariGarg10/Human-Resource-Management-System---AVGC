@@ -1,8 +1,5 @@
 const { upsertAttendanceFromDeviceRecords } = require('../utils/deviceAttendance');
-
-function loadZKLib() {
-  return require('zklib-js');
-}
+const { fetchDeviceAttendanceLogs } = require('../utils/zkDeviceClient');
 
 let syncRunning = false;
 let timer = null;
@@ -21,24 +18,12 @@ function config() {
     intervalMs: Number(process.env.ESSL_POLL_INTERVAL_MS || 5 * 60 * 1000),
     dayStart: process.env.ESSL_DAY_START || '09:30',
     dayEnd: process.env.ESSL_DAY_END || '23:59',
-    lookbackDays: Number(process.env.ESSL_LOOKBACK_DAYS || 7),
+    lookbackDays: Number(process.env.ESSL_LOOKBACK_DAYS || 14),
   };
 }
 
-async function fetchDeviceLogs(cfg) {
-  const ZKLib = loadZKLib();
-  const zk = new ZKLib(cfg.ip, cfg.port, cfg.timeout, cfg.inport);
-  try {
-    await zk.createSocket();
-    const logs = await zk.getAttendances();
-    return logs?.data || [];
-  } finally {
-    try {
-      await zk.disconnect();
-    } catch (_err) {
-      /* best-effort disconnect */
-    }
-  }
+async function fetchDeviceLogs() {
+  return fetchDeviceAttendanceLogs();
 }
 
 async function runEsslAttendanceSync() {
@@ -49,7 +34,7 @@ async function runEsslAttendanceSync() {
 
   syncRunning = true;
   try {
-    const records = await fetchDeviceLogs(cfg);
+    const records = await fetchDeviceLogs();
     const summary = await upsertAttendanceFromDeviceRecords(records, cfg);
     console.log(
       `[ESSL] Synced ${summary.daysUpdated} employee day(s). Received=${summary.received}, matched=${summary.matched}, skipped=${summary.skipped}`

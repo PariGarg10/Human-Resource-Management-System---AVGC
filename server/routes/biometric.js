@@ -2,15 +2,51 @@ const express = require('express');
 const { format } = require('date-fns');
 const { pool } = require('../db');
 const { calculateTotalHours, getAttendanceStatus } = require('../utils/attendance');
+const { upsertAttendanceFromDeviceRecords } = require('../utils/deviceAttendance');
 
 const router = express.Router();
 
+function verifyBiometricApiKey(req, res) {
+  const providedApiKey = req.headers['x-api-key'] || req.body?.api_key;
+  if (!providedApiKey || providedApiKey !== process.env.BIOMETRIC_API_KEY) {
+    res.status(401).json({ message: 'Invalid biometric API key' });
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Push ESSL/ZKTeco attendance logs from a machine on your office LAN (bridge script).
+ * Required when the API is hosted on Vercel — cloud servers cannot reach 192.168.x.x devices.
+ */
+router.post('/essl-sync', async (req, res) => {
+  try {
+    if (!verifyBiometricApiKey(req, res)) return;
+
+    const records = Array.isArray(req.body?.records) ? req.body.records : [];
+    if (!records.length) {
+      return res.status(400).json({ message: 'records array is required' });
+    }
+
+    const summary = await upsertAttendanceFromDeviceRecords(records, {
+      dayStart: process.env.ESSL_DAY_START || '09:30',
+      dayEnd: process.env.ESSL_DAY_END || '23:59',
+      lookbackDays: Number(process.env.ESSL_LOOKBACK_DAYS || 14),
+    });
+
+    return res.json({
+      message: 'ESSL attendance processed',
+      ...summary,
+    });
+  } catch (err) {
+    console.error('POST /biometric/essl-sync:', err.message);
+    return res.status(500).json({ message: err.message || 'Internal server error' });
+  }
+});
+
 router.post('/punch', async (req, res) => {
   try {
-    const providedApiKey = req.headers['x-api-key'] || req.body.api_key;
-    if (!providedApiKey || providedApiKey !== process.env.BIOMETRIC_API_KEY) {
-      return res.status(401).json({ message: 'Invalid biometric API key' });
-    }
+    if (!verifyBiometricApiKey(req, res)) return;
 
     const { employeecode, timestamp, type } = req.body;
 
