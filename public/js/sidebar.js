@@ -9,6 +9,7 @@ HRMS.initSidebar = function initSidebar(options = {}) {
 
   if (sidebar) {
     document.body.classList.add('has-floating-sidebar');
+    document.body.classList.add('force-desktop-ui');
   }
 
   if (toggle) {

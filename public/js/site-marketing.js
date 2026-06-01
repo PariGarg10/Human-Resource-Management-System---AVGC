@@ -52,6 +52,15 @@
         a.addEventListener('click', closeDrawer);
       });
     }
+
+    // Keep layout stable when Chrome device mode toggles size/orientation.
+    function normalizeForViewport() {
+      if (window.matchMedia('(min-width: 1024px)').matches) {
+        closeDrawer();
+      }
+    }
+    window.addEventListener('resize', normalizeForViewport, { passive: true });
+    window.addEventListener('orientationchange', normalizeForViewport, { passive: true });
   }
 
   function initScrollReveal() {
