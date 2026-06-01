@@ -36,55 +36,55 @@
     <nav class="sidebar-nav">
       <div class="sidebar-nav-section" data-section="workspace">
         <button type="button" class="sidebar-accordion-head">
-          <span class="nav-icon">◉</span>
+          <span class="nav-icon" data-lucide="layout-grid"></span>
           <span class="nav-label">My workspace</span>
         </button>
         <div class="sidebar-accordion-body">
-          <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon">◉</span><span>Dashboard</span></button>
-          <button type="button" data-nav="team-calendar"><span class="nav-icon">▦</span><span>Calendar</span></button>
-          <button type="button" data-nav="holiday-calendar"><span class="nav-icon">▦</span><span>Holiday Calendar</span></button>
+          <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon" data-lucide="layout-dashboard"></span><span>Dashboard</span></button>
+          <button type="button" data-nav="team-calendar"><span class="nav-icon" data-lucide="calendar"></span><span>Calendar</span></button>
+          <button type="button" data-nav="holiday-calendar"><span class="nav-icon" data-lucide="calendar-days"></span><span>Holiday Calendar</span></button>
         </div>
       </div>
       <div class="sidebar-nav-section" data-section="people">
         <button type="button" class="sidebar-accordion-head">
-          <span class="nav-icon">◎</span>
+          <span class="nav-icon" data-lucide="users-round"></span>
           <span class="nav-label">People</span>
         </button>
         <div class="sidebar-accordion-body">
-          <button type="button" data-nav="teams"><span class="nav-icon">◎</span><span>Teams</span></button>
+          <button type="button" data-nav="teams"><span class="nav-icon" data-lucide="users"></span><span>Teams</span></button>
         </div>
       </div>
       <div class="sidebar-nav-section" data-section="time-attendance">
         <button type="button" class="sidebar-accordion-head">
-          <span class="nav-icon">▣</span>
+          <span class="nav-icon" data-lucide="clock"></span>
           <span class="nav-label">Time &amp; attendance</span>
         </button>
         <div class="sidebar-accordion-body">
-          <button type="button" data-nav="team-attendance"><span class="nav-icon">▣</span><span>Attendance</span></button>
-          <button type="button" data-nav="leaves"><span class="nav-icon">☰</span><span>Leave Management</span></button>
-          <button type="button" data-nav="punch"><span class="nav-icon">⌖</span><span>Punch In/Out</span></button>
+          <button type="button" data-nav="team-attendance"><span class="nav-icon" data-lucide="clipboard-check"></span><span>Attendance</span></button>
+          <button type="button" data-nav="leaves"><span class="nav-icon" data-lucide="palmtree"></span><span>Leave Management</span></button>
+          <button type="button" data-nav="punch"><span class="nav-icon" data-lucide="map-pin"></span><span>Punch In/Out</span></button>
         </div>
       </div>
       <div class="sidebar-nav-section" data-section="requests">
         <button type="button" class="sidebar-accordion-head">
-          <span class="nav-icon">✎</span>
+          <span class="nav-icon" data-lucide="file-text"></span>
           <span class="nav-label">Requests</span>
         </button>
         <div class="sidebar-accordion-body">
-          <button type="button" data-nav="requests-raise"><span class="nav-icon">✎</span><span>Raise Request</span></button>
-          <button type="button" data-nav="requests-my"><span class="nav-icon">▤</span><span>My Requests</span></button>
-          <button type="button" data-nav="requests-inbox"><span class="nav-icon">▣</span><span>Requests Inbox</span></button>
+          <button type="button" data-nav="requests-raise"><span class="nav-icon" data-lucide="pen-line"></span><span>Raise Request</span></button>
+          <button type="button" data-nav="requests-my"><span class="nav-icon" data-lucide="inbox"></span><span>My Requests</span></button>
+          <button type="button" data-nav="requests-inbox"><span class="nav-icon" data-lucide="bell"></span><span>Requests Inbox</span></button>
         </div>
       </div>
       <div class="sidebar-nav-section" data-section="account">
         <button type="button" class="sidebar-accordion-head">
-          <span class="nav-icon">●</span>
+          <span class="nav-icon" data-lucide="circle-user"></span>
           <span class="nav-label">Account</span>
         </button>
         <div class="sidebar-accordion-body">
-          <button type="button" data-nav="reports"><span class="nav-icon">▤</span><span>Reports</span></button>
-          <button type="button" data-nav="profile"><span class="nav-icon">●</span><span>Profile</span></button>
-          <button type="button" data-nav="settings"><span class="nav-icon">⚙</span><span>Settings</span></button>
+          <button type="button" data-nav="reports"><span class="nav-icon" data-lucide="bar-chart-3"></span><span>Reports</span></button>
+          <button type="button" data-nav="profile"><span class="nav-icon" data-lucide="user-circle"></span><span>Profile</span></button>
+          <button type="button" data-nav="settings"><span class="nav-icon" data-lucide="settings"></span><span>Settings</span></button>
         </div>
       </div>
     </nav>
@@ -386,6 +386,8 @@
   <script src="/js/utils.js"></script>
   <script src="/js/toast.js"></script>
   <script src="/js/theme.js"></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script src="/js/nav-icons.js"></script>
   <script src="/js/sidebar.js"></script>
   <script src="/js/navbar.js"></script>
   <script src="/js/punch.js"></script>

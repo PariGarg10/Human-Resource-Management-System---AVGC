@@ -224,6 +224,8 @@ HRMS.initSidebar = function initSidebar(options = {}) {
 
   const initial = document.querySelector('.sidebar-nav [data-nav].is-active');
   if (initial) expandSectionFor(initial);
+
+  if (window.HRMS?.refreshNavIcons) HRMS.refreshNavIcons(sidebar || document);
 };
 
 /** Bind [data-nav-go] buttons (e.g. in main content) after dynamic panels load. */

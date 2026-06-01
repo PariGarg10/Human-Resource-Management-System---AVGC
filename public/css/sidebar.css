@@ -273,10 +273,34 @@
 }
 
 .sidebar-nav .nav-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   width: 20px;
   height: 20px;
   opacity: 0.85;
   flex-shrink: 0;
+  color: inherit;
+}
+
+.sidebar-nav .nav-icon svg,
+.sidebar-nav .nav-icon [data-lucide] {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+}
+
+.sidebar-accordion-head .nav-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.sidebar-nav button.is-active .nav-icon,
+.sidebar-nav button:hover .nav-icon,
+.sidebar-nav-section.is-hover-open .sidebar-accordion-head .nav-icon,
+.sidebar-nav-section.is-expanded .sidebar-accordion-head .nav-icon {
+  opacity: 1;
 }
 
 a.sidebar-page-link {
