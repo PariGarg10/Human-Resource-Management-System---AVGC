@@ -27,6 +27,9 @@ HRMS.initProfileDropdown = function initProfileDropdown() {
   chip.addEventListener('click', (e) => {
     e.stopPropagation();
     wrap.classList.toggle('is-open');
+    if (wrap.classList.contains('is-open') && window.HRMS?.refreshNavIcons) {
+      HRMS.refreshNavIcons(wrap);
+    }
   });
   document.addEventListener('click', () => wrap.classList.remove('is-open'));
 };

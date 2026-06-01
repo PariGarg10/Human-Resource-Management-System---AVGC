@@ -267,6 +267,25 @@
   background: var(--bg);
 }
 
+.profile-dropdown-logout {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  color: #e63946 !important;
+  font-weight: 600;
+}
+
+.profile-dropdown-logout .nav-icon {
+  width: 18px;
+  height: 18px;
+  opacity: 1;
+}
+
+.profile-dropdown-logout:hover {
+  background: rgba(230, 57, 70, 0.12) !important;
+  color: #e63946 !important;
+}
+
 @media (max-width: 1024px) {
   .mobile-menu-btn {
     display: flex;

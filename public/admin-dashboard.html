@@ -110,7 +110,10 @@
     </nav>
     <div class="sidebar-footer">
       <button type="button" class="sidebar-toggle" id="sidebarCollapseBtn">Collapse</button>
-      <button type="button" class="sidebar-toggle" id="logoutBtn" style="margin-top:8px;">Logout</button>
+      <button type="button" class="sidebar-logout-btn" id="logoutBtn" aria-label="Sign out">
+        <span class="nav-icon" data-lucide="log-out"></span>
+        <span class="sidebar-logout-label">Sign out</span>
+      </button>
     </div>
   </aside>
 
@@ -140,7 +143,12 @@
             <img id="navAvatar" class="navbar-avatar hidden" width="28" height="28" alt="" style="border-radius:50%;object-fit:cover;" />
             <span id="navProfileEmail">—</span>
           </button>
-          <div class="profile-dropdown"><button type="button" id="dropdownLogout">Sign out</button></div>
+          <div class="profile-dropdown">
+            <button type="button" id="dropdownLogout" class="profile-dropdown-logout">
+              <span class="nav-icon" data-lucide="log-out"></span>
+              <span>Sign out</span>
+            </button>
+          </div>
         </div>
       </div>
     </header>

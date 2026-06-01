@@ -106,9 +106,9 @@ body.force-desktop-ui {
     top: 0;
     min-width: 200px;
     max-width: 220px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    background: rgba(8, 8, 8, 0.96);
-    box-shadow: 0 16px 35px rgba(0, 0, 0, 0.34);
+    border: 1px solid var(--sidebar-flyout-border);
+    background: var(--sidebar-flyout-bg);
+    box-shadow: var(--shadow-lg);
     backdrop-filter: blur(12px);
     padding: 8px;
     opacity: 0;
@@ -116,6 +116,11 @@ body.force-desktop-ui {
     pointer-events: none;
     visibility: hidden;
     display: none;
+  }
+
+  [data-theme="light"] body.force-desktop-ui .sidebar {
+    background: var(--sidebar-bg);
+    box-shadow: var(--sidebar-rail-shadow);
   }
 
   body.force-desktop-ui .sidebar-nav-section.is-expanded .sidebar-accordion-body:not(.sidebar-menu-two-col),
