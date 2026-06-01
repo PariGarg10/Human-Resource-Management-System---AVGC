@@ -1,12 +1,12 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, requireRoles } = require('../middleware/auth');
+const { authMiddleware, enforceForcePasswordChange, requireAdminOrFounder } = require('../middleware/auth');
 const { normalizeProfilePhotoUrl } = require('../utils/profilePhoto');
 
 const router = express.Router();
 
 /** Admin-only managers directory. */
-router.get('/', authMiddleware, requireRoles('admin'), async (_req, res) => {
+router.get('/', authMiddleware, enforceForcePasswordChange, requireAdminOrFounder, async (_req, res) => {
   try {
     const { rows: managers } = await pool.query(
       `

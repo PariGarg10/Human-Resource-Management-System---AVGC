@@ -2493,8 +2493,15 @@ HRMS.initSidebar({
       esslDateRangeInputs();
       loadEsslPunchList().catch(() => {});
     }
+    if (section === 'manager-assignments' && window.HRMS.initManagerAssignments) {
+      HRMS.initManagerAssignments(api).catch((e) => HRMS.toast(e?.message || 'Could not open assignments', 'error'));
+    }
+    if (section === 'manager-directory' && window.HRMS.initManagerDirectory) {
+      HRMS.initManagerDirectory(api).catch((e) => HRMS.toast(e?.message || 'Could not open directory', 'error'));
+    }
   },
 });
+
 HRMS.initNavbarClock('navbarClock');
 HRMS.initProfileDropdown();
 HRMS.initNotificationBell((path, opts) => api(path, opts || {}));

@@ -21,6 +21,8 @@
     'holiday-calendar': MODULE.HOLIDAY_CALENDAR,
     employees: MODULE.EMPLOYEE_MANAGEMENT,
     managers: MODULE.EMPLOYEE_MANAGEMENT,
+    'manager-assignments': MODULE.EMPLOYEE_MANAGEMENT,
+    'manager-directory': MODULE.EMPLOYEE_MANAGEMENT,
     'org-chart': MODULE.EMPLOYEE_MANAGEMENT,
     attendance: MODULE.ATTENDANCE,
     leaves: MODULE.LEAVE_MANAGEMENT,
@@ -79,9 +81,14 @@
       const allowed = canAccessSection(section, user);
       el.style.display = allowed ? '' : 'none';
     });
-    document.querySelectorAll('.sidebar-nav a[href="/managers"]').forEach((el) => {
-      el.style.display = getPermissions(user).includes(MODULE.EMPLOYEE_MANAGEMENT) ? '' : 'none';
-    });
+    const canPeople = getPermissions(user).includes(MODULE.EMPLOYEE_MANAGEMENT);
+    document
+      .querySelectorAll('.sidebar-nav [data-nav="manager-assignments"], .sidebar-nav [data-nav="manager-directory"]')
+      .forEach((el) => {
+        el.style.display = canPeople ? '' : 'none';
+      });
+    const dashPeople = document.getElementById('adminPeopleQuickLinks');
+    if (dashPeople) dashPeople.style.display = canPeople ? '' : 'none';
     const nav = document.querySelector('.sidebar-nav');
     if (!nav) return;
     const children = [...nav.children];
@@ -91,7 +98,13 @@
       for (let j = i + 1; j < children.length; j++) {
         const next = children[j];
         if (next.classList.contains('sidebar-nav-group-label') || next.classList.contains('sidebar-nav-divider')) break;
-        if ((next.matches('[data-nav]') || next.matches('a[href]')) && next.style.display !== 'none') {
+        if (
+          (next.matches('[data-nav]') ||
+            next.matches('[data-nav-go]') ||
+            next.matches('a.sidebar-page-link') ||
+            next.matches('a[href]')) &&
+          next.style.display !== 'none'
+        ) {
           hasVisible = true;
           break;
         }

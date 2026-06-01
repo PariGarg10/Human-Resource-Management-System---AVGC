@@ -325,6 +325,49 @@
   background: var(--bg-card);
 }
 
+.managers-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.managers-grid .manager-card {
+  min-height: 120px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.managers-grid .manager-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: var(--white);
+  flex-shrink: 0;
+}
+
+.managers-grid .manager-card h3 {
+  margin: 0 0 6px;
+  font-size: 17px;
+}
+
+.managers-grid .manager-meta {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.45;
+}
+
 .toast-container {
   position: fixed;
   top: 24px;

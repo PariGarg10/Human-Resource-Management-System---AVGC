@@ -102,7 +102,7 @@ body.force-desktop-ui {
 
   body.force-desktop-ui .sidebar-accordion-body {
     position: absolute;
-    left: calc(100% - 1px);
+    left: 100%;
     top: 0;
     min-width: 200px;
     max-width: 220px;
@@ -114,14 +114,33 @@ body.force-desktop-ui {
     opacity: 0;
     transform: translateX(-8px);
     pointer-events: none;
-    display: block;
+    visibility: hidden;
+    display: none;
   }
 
-  body.force-desktop-ui .sidebar-nav-section.is-expanded .sidebar-accordion-body,
-  body.force-desktop-ui .sidebar-nav-section.is-hover-open .sidebar-accordion-body,
-  body.force-desktop-ui .sidebar-nav-section:focus-within .sidebar-accordion-body {
+  body.force-desktop-ui .sidebar-nav-section.is-expanded .sidebar-accordion-body:not(.sidebar-menu-two-col),
+  body.force-desktop-ui .sidebar-nav-section.is-hover-open .sidebar-accordion-body:not(.sidebar-menu-two-col),
+  body.force-desktop-ui .sidebar-nav-section.is-pinned .sidebar-accordion-body:not(.sidebar-menu-two-col),
+  body.force-desktop-ui .sidebar-nav-section:focus-within .sidebar-accordion-body:not(.sidebar-menu-two-col) {
     opacity: 1;
     transform: translateX(0);
     pointer-events: auto;
+    visibility: visible;
+    display: block;
+  }
+
+  body.force-desktop-ui .sidebar-nav-section.is-expanded .sidebar-accordion-body.sidebar-menu-two-col,
+  body.force-desktop-ui .sidebar-nav-section.is-hover-open .sidebar-accordion-body.sidebar-menu-two-col,
+  body.force-desktop-ui .sidebar-nav-section.is-pinned .sidebar-accordion-body.sidebar-menu-two-col,
+  body.force-desktop-ui .sidebar-nav-section:focus-within .sidebar-accordion-body.sidebar-menu-two-col {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+    visibility: visible;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 8px;
+    min-width: 380px;
+    max-width: 440px;
   }
 }

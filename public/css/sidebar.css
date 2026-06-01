@@ -9,7 +9,7 @@
   background: rgba(20, 20, 20, 0.55);
   backdrop-filter: blur(12px);
   color: var(--sidebar-text);
-  z-index: 1000;
+  z-index: 20000;
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(230, 57, 70, 0.2);
@@ -111,6 +111,19 @@
   margin-bottom: 8px;
 }
 
+/* Invisible bridge so the flyout stays open while moving from icon → menu */
+.sidebar-nav-section.is-expanded::after,
+.sidebar-nav-section.is-hover-open::after,
+.sidebar-nav-section:focus-within::after {
+  content: '';
+  position: absolute;
+  left: 100%;
+  top: 0;
+  width: 16px;
+  height: max(100%, 42px);
+  z-index: 2599;
+}
+
 .sidebar-accordion-head {
   display: flex;
   align-items: center;
@@ -154,11 +167,11 @@
 
 .sidebar-accordion-body {
   position: absolute;
-  left: calc(100% - 1px);
+  left: 100%;
   top: 0;
   min-width: 200px;
   max-width: 220px;
-  display: block;
+  display: none;
   max-height: calc(100vh - 40px);
   overflow-y: auto;
   padding: 8px;
@@ -171,8 +184,9 @@
   opacity: 0;
   transform: translateX(-8px);
   pointer-events: none;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  z-index: 2600;
+  visibility: hidden;
+  transition: opacity 0.2s ease, transform 0.2s ease, visibility 0.2s ease;
+  z-index: 20001;
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -186,12 +200,30 @@
   background: rgba(6, 6, 6, 0.98);
 }
 
-.sidebar-nav-section.is-expanded .sidebar-accordion-body,
-.sidebar-nav-section.is-hover-open .sidebar-accordion-body,
-.sidebar-nav-section:focus-within .sidebar-accordion-body {
+.sidebar-nav-section.is-expanded .sidebar-accordion-body:not(.sidebar-menu-two-col),
+.sidebar-nav-section.is-hover-open .sidebar-accordion-body:not(.sidebar-menu-two-col),
+.sidebar-nav-section.is-pinned .sidebar-accordion-body:not(.sidebar-menu-two-col),
+.sidebar-nav-section:focus-within .sidebar-accordion-body:not(.sidebar-menu-two-col) {
+  display: block;
   opacity: 1;
   transform: translateX(0);
   pointer-events: auto;
+  visibility: visible;
+}
+
+.sidebar-nav-section.is-expanded .sidebar-accordion-body.sidebar-menu-two-col,
+.sidebar-nav-section.is-hover-open .sidebar-accordion-body.sidebar-menu-two-col,
+.sidebar-nav-section.is-pinned .sidebar-accordion-body.sidebar-menu-two-col,
+.sidebar-nav-section:focus-within .sidebar-accordion-body.sidebar-menu-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 8px;
+  min-width: 380px;
+  max-width: 440px;
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+  visibility: visible;
 }
 
 .sidebar-nav button,
@@ -216,17 +248,11 @@
   transition: background var(--transition), color var(--transition), opacity var(--transition);
 }
 
-.sidebar-accordion-body.is-dense-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 6px;
-  min-width: 360px;
-  max-width: 420px;
-}
-
-.sidebar-accordion-body.is-dense-grid button,
-.sidebar-accordion-body.is-dense-grid a {
+.sidebar-accordion-body.sidebar-menu-two-col button,
+.sidebar-accordion-body.sidebar-menu-two-col a {
   margin-bottom: 0;
+  font-size: 13px;
+  padding: 10px 12px;
 }
 
 .sidebar-nav button:hover,
@@ -251,6 +277,10 @@
   height: 20px;
   opacity: 0.85;
   flex-shrink: 0;
+}
+
+a.sidebar-page-link {
+  cursor: pointer;
 }
 
 .sidebar-footer {

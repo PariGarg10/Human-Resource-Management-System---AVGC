@@ -53,8 +53,8 @@
         <div class="sidebar-accordion-body">
           <button type="button" data-nav="employees"><span class="nav-icon">👤</span><span>Employees</span></button>
           <button type="button" data-nav="managers"><span class="nav-icon">👔</span><span>Teams</span></button>
-          <button type="button" data-nav="assignments"><span class="nav-icon">🔗</span><span>Manager assignments</span></button>
-          <a href="/managers" class=""><span class="nav-icon">📋</span><span>Manager directory</span></a>
+          <button type="button" data-nav="manager-assignments"><span class="nav-icon">🔗</span><span>Manager assignments</span></button>
+          <button type="button" data-nav="manager-directory"><span class="nav-icon">📋</span><span>Manager directory</span></button>
         </div>
       </div>
       <div class="sidebar-nav-section" data-section="time-attendance">
@@ -86,7 +86,7 @@
           <span class="nav-icon">⚙</span>
           <span class="nav-label">Administration</span>
         </button>
-        <div class="sidebar-accordion-body">
+        <div class="sidebar-accordion-body sidebar-menu-two-col">
           <button type="button" data-nav="office-location"><span class="nav-icon">⌖</span><span>Office GPS</span></button>
           <button type="button" data-nav="broadcast"><span class="nav-icon">🔔</span><span>Broadcast</span></button>
           <button type="button" data-nav="import-employees"><span class="nav-icon">⬆</span><span>Import data</span></button>
@@ -161,6 +161,14 @@
           <p id="birthdayBannerText" class="panel-title" style="margin:0;"></p>
         </div>
         <div class="stat-grid" id="adminStatCards"></div>
+        <div class="panel" id="adminPeopleQuickLinks" style="margin-bottom:16px;">
+          <h2 class="panel-title">People tools</h2>
+          <p class="stat-sub" style="margin-bottom:12px;">Opens inside the dashboard (same as Employees).</p>
+          <div style="display:flex;flex-wrap:wrap;gap:10px;">
+            <button type="button" class="btn btn-primary" data-nav-jump="manager-assignments">Manager assignments</button>
+            <button type="button" class="btn btn-outline" data-nav-jump="manager-directory">Manager directory</button>
+          </div>
+        </div>
         <div class="panel" id="adminLeaveBalancePanel">
           <h2 class="panel-title">My leave balance</h2>
           <p class="stat-sub" id="adminLeaveBalanceSummary">Loading leave balance…</p>
@@ -329,14 +337,77 @@
             <button type="submit" class="btn btn-primary">Create manager</button>
           </form>
           <p id="mgrMessage" class="message"></p>
+          <div class="stat-grid" style="margin-top:20px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));">
+            <div class="panel" style="margin:0;">
+              <h3 class="panel-title" style="font-size:1rem;">Manager assignments</h3>
+              <p class="stat-sub">Assign employees to managers in bulk.</p>
+              <button type="button" class="btn btn-primary" data-nav-jump="manager-assignments">Open assignments</button>
+            </div>
+            <div class="panel" style="margin:0;">
+              <h3 class="panel-title" style="font-size:1rem;">Manager directory</h3>
+              <p class="stat-sub">Browse all managers in the organisation.</p>
+              <button type="button" class="btn btn-primary" data-nav-jump="manager-directory">Open directory</button>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section id="view-assignments" class="view-section">
+      <section id="view-manager-assignments" class="view-section manager-assignment-page">
+        <div class="stat-grid manager-assignment-summary" style="margin-bottom:16px;">
+          <div class="stat-card"><div class="stat-label">Employees</div><div class="stat-value" id="maAssignmentTotalEmployees">—</div></div>
+          <div class="stat-card stat-success"><div class="stat-label">Assigned</div><div class="stat-value" id="maAssignmentAssignedCount">—</div></div>
+          <div class="stat-card stat-warning"><div class="stat-label">Unassigned</div><div class="stat-value" id="maAssignmentUnassignedCount">—</div></div>
+          <div class="stat-card stat-info"><div class="stat-label">Managers</div><div class="stat-value" id="maAssignmentManagerCount">—</div></div>
+        </div>
+        <div class="panel manager-assignment-panel">
+          <h2 class="panel-title">Filters</h2>
+          <div class="filters-inline manager-assignment-filters">
+            <label>Department <input id="maDepartmentFilter" placeholder="e.g. Development" /></label>
+            <label>Search <input id="maSearchFilter" placeholder="name or email" /></label>
+            <button type="button" class="btn btn-primary btn-sm" id="maLoadAssignmentsBtn">Apply filters</button>
+          </div>
+        </div>
+        <div class="panel manager-assignment-panel">
+          <h2 class="panel-title">Quick assign</h2>
+          <form id="maSingleAssignForm" class="form-row manager-assignment-form">
+            <div class="form-group"><label for="maSingleManagerSelect">Manager</label><select id="maSingleManagerSelect"></select></div>
+            <div class="form-group"><label for="maSingleEmployeeSelect">Employee</label><select id="maSingleEmployeeSelect"></select></div>
+            <button type="submit" class="btn btn-primary">Assign</button>
+          </form>
+          <p id="maSingleAssignMessage" class="message"></p>
+        </div>
+        <div class="panel manager-assignment-panel">
+          <h2 class="panel-title">Bulk assign</h2>
+          <form id="maAssignForm" class="form-row manager-assignment-form">
+            <div class="form-group"><label for="maManagerSelect">Manager</label><select id="maManagerSelect"></select></div>
+            <div class="form-group"><label for="maEmployeeIdsInput">Employee IDs (comma separated)</label><input id="maEmployeeIdsInput" placeholder="12, 14, 22" /></div>
+            <button type="submit" class="btn btn-primary">Bulk assign</button>
+          </form>
+          <p id="maAssignMessage" class="message"></p>
+        </div>
+        <div class="panel manager-assignment-panel">
+          <h2 class="panel-title">Current mapping</h2>
+          <div id="maAssignmentsLoading" class="stat-sub">Loading assignments…</div>
+          <div id="maAssignmentsEmpty" class="hidden stat-sub">No employees found.</div>
+          <div class="table-wrap hidden" id="maAssignmentsTableWrap">
+            <table class="data-table">
+              <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Department</th><th>Manager</th><th></th></tr></thead>
+              <tbody id="maAssignmentBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="view-manager-directory" class="view-section">
         <div class="panel">
-          <h2 class="panel-title">Manager assignments</h2>
-          <p class="stat-sub">Bulk assign employees to managers, search, and filters.</p>
-          <a href="/admin/manager-assignments" class="btn btn-primary">Open assignments workspace</a>
+          <h2 class="panel-title">Manager directory</h2>
+          <p class="stat-sub" style="margin-bottom:16px;">All managers in your organisation.</p>
+          <div class="filters-inline" style="margin-bottom:16px;">
+            <label>Search <input type="search" id="mdManagerSearch" placeholder="Name or department…" style="min-width:260px;" /></label>
+          </div>
+          <div id="mdManagersLoading" class="stat-sub">Loading managers…</div>
+          <div id="mdManagersEmpty" class="hidden stat-sub">No managers found.</div>
+          <div id="mdManagersGrid" class="managers-grid hidden"></div>
         </div>
       </section>
 
@@ -896,6 +967,7 @@
   <script src="/js/navbar.js"></script>
   <script src="/js/punch.js"></script>
   <script src="/js/admin-permissions.js"></script>
+  <script src="/js/admin-people-modules.js"></script>
   <script src="/js/admin-accounts.js"></script>
   <script type="module" src="/assets/avgc-dashboard/team-hub.js"></script>
   <script src="/js/admin-dashboard.js"></script>

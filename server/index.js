@@ -51,6 +51,8 @@ app.use((req, res, next) => {
   if (p === '/manager/dashboard/') return res.redirect(301, '/manager/dashboard');
   if (p === '/managers') return sendPublicHtml(res, 'managers.html');
   if (p === '/managers/') return res.redirect(301, '/managers');
+  if (p === '/admin/manager-assignments') return sendPublicHtml(res, 'admin-manager-assignments.html');
+  if (p === '/admin/manager-assignments/') return res.redirect(301, '/admin/manager-assignments');
   if (p === '/profile') return sendPublicHtml(res, 'employee-dashboard.html');
   if (p === '/profile/') return res.redirect(301, '/profile');
   if (p === '/account/profile') return sendPublicHtml(res, 'employee-dashboard.html');
