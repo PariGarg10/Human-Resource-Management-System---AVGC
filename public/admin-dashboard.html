@@ -440,17 +440,34 @@
           </div>
           <form id="importForm">
             <div class="dropzone" id="attendanceDropzone">
-              <p><strong>Drop attendance file</strong></p>
-              <input type="file" id="attendanceFile" accept=".xlsx,.xls,.csv" required />
+              <div id="attendanceDropzoneEmpty">
+                <p><strong>Drop attendance file</strong></p>
+                <p class="stat-sub" style="margin:8px 0 0;">or click to browse (.xlsx, .xls, .csv)</p>
+              </div>
+              <div id="attendanceFilePreview" class="import-file-preview hidden" aria-live="polite">
+                <span class="import-file-icon" id="attendanceFileIcon" aria-hidden="true">📄</span>
+                <div class="import-file-meta">
+                  <span class="import-file-name" id="attendanceFileName"></span>
+                  <span class="import-file-size" id="attendanceFileSize"></span>
+                  <span class="import-file-status" id="attendanceFileStatus"></span>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" id="attendanceFileClear">Remove</button>
+              </div>
+              <input type="file" id="attendanceFile" accept=".xlsx,.xls,.csv" />
             </div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;">
-              <button type="submit" class="btn btn-primary">Import</button>
+              <button type="submit" class="btn btn-primary" id="attendanceImportBtn">Import</button>
               <button type="button" class="btn btn-outline" id="attendanceSampleBtn">Download Sample Format</button>
             </div>
           </form>
           <p id="importMessage" class="message"></p>
           <div id="importSummary" class="stat-sub"></div>
-          <div class="table-wrap" style="margin-top:16px;"><table class="data-table"><thead><tr><th>ID</th><th>File</th><th>Total</th><th>OK</th><th>Fail</th><th>When</th></tr></thead><tbody id="importHistoryBody"></tbody></table></div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:20px;">
+            <h3 class="panel-title" style="margin:0;flex:1;min-width:200px;">Import history</h3>
+            <button type="button" class="btn btn-outline btn-danger-outline" id="deleteAllImportsBtn">Delete all imported data</button>
+          </div>
+          <p class="stat-sub" style="margin:8px 0 12px;">Removes attendance rows written by file imports and clears the history below. Older imports (before tracking) only remove the history row.</p>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>ID</th><th>File</th><th>Total</th><th>OK</th><th>Fail</th><th>When</th><th></th></tr></thead><tbody id="importHistoryBody"></tbody></table></div>
         </div>
       </section>
 

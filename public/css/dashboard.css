@@ -84,6 +84,81 @@
   display: none;
 }
 
+.dropzone.is-uploading {
+  pointer-events: none;
+  opacity: 0.92;
+}
+
+.import-file-preview {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.import-file-preview.hidden {
+  display: none;
+}
+
+.import-file-icon {
+  font-size: 2.25rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.dropzone.is-uploading .import-file-icon::after {
+  content: '';
+  display: block;
+  width: 22px;
+  height: 22px;
+  margin: 6px auto 0;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: import-file-spin 0.7s linear infinite;
+}
+
+@keyframes import-file-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.import-file-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.import-file-name {
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.import-file-size,
+.import-file-status {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.import-file-status.is-uploading {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.btn-danger-outline {
+  border-color: var(--danger, #dc3545);
+  color: var(--danger, #dc3545);
+}
+
+.btn-danger-outline:hover {
+  background: rgba(220, 53, 69, 0.08);
+}
+
 .team-hub-panel .panel-title {
   margin-bottom: 12px;
 }

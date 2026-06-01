@@ -94,6 +94,18 @@ CREATE TABLE IF NOT EXISTS importerrors (
   createdat TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS import_attendance_records (
+  id SERIAL PRIMARY KEY,
+  importid INTEGER NOT NULL REFERENCES importhistory(id) ON DELETE CASCADE,
+  employeeid INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  date DATE NOT NULL,
+  createdat TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (importid, employeeid, date)
+);
+
+CREATE INDEX IF NOT EXISTS idx_import_attendance_records_import
+  ON import_attendance_records (importid);
+
 CREATE TABLE IF NOT EXISTS auditlogs (
   id SERIAL PRIMARY KEY,
   actorid INTEGER REFERENCES employees(id) ON DELETE SET NULL,

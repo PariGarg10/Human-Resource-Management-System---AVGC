@@ -59,6 +59,19 @@ async function runSchema() {
   await pool.query('CREATE INDEX IF NOT EXISTS idx_holidays_date ON holidays (date)');
   await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_holidays_unique_date ON holidays (date)');
   await ensureEsslSyncTables();
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS import_attendance_records (
+      id SERIAL PRIMARY KEY,
+      importid INTEGER NOT NULL REFERENCES importhistory(id) ON DELETE CASCADE,
+      employeeid INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      date DATE NOT NULL,
+      createdat TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (importid, employeeid, date)
+    )
+  `);
+  await pool.query(
+    'CREATE INDEX IF NOT EXISTS idx_import_attendance_records_import ON import_attendance_records (importid)'
+  );
   console.log('[db:init] Schema applied from server/schema.sql');
 }
 

@@ -980,6 +980,80 @@ router.put('/leaves/:id/reject', requirePermission(PERMISSION_MODULES.LEAVE_MANA
   }
 });
 
+let importAttendanceRecordsReady = false;
+
+async function ensureImportAttendanceRecordsTable() {
+  if (importAttendanceRecordsReady) return;
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS import_attendance_records (
+      id SERIAL PRIMARY KEY,
+      importid INTEGER NOT NULL REFERENCES importhistory(id) ON DELETE CASCADE,
+      employeeid INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      date DATE NOT NULL,
+      createdat TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (importid, employeeid, date)
+    )
+  `);
+  await pool.query(
+    'CREATE INDEX IF NOT EXISTS idx_import_attendance_records_import ON import_attendance_records (importid)'
+  );
+  importAttendanceRecordsReady = true;
+}
+
+async function deleteImportedAttendanceByImportId(importId) {
+  await ensureImportAttendanceRecordsTable();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const removed = await client.query(
+      `
+      DELETE FROM attendancelogs al
+      USING import_attendance_records iar
+      WHERE iar.importid = $1
+        AND al.employeeid = iar.employeeid
+        AND al.date = iar.date
+    `,
+      [importId]
+    );
+    const history = await client.query('DELETE FROM importhistory WHERE id = $1 RETURNING id', [importId]);
+    await client.query('COMMIT');
+    return {
+      deleted: history.rowCount > 0,
+      attendanceRowsRemoved: removed.rowCount,
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function deleteAllImportedAttendance() {
+  await ensureImportAttendanceRecordsTable();
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const removed = await client.query(`
+      DELETE FROM attendancelogs al
+      USING import_attendance_records iar
+      WHERE al.employeeid = iar.employeeid
+        AND al.date = iar.date
+    `);
+    const history = await client.query('DELETE FROM importhistory RETURNING id');
+    await client.query('COMMIT');
+    return {
+      importsRemoved: history.rowCount,
+      attendanceRowsRemoved: removed.rowCount,
+    };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 router.post('/import-attendance', requirePermission(PERMISSION_MODULES.IMPORT_DATA), upload.single('file'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: 'Attendance file is required' });
@@ -1000,6 +1074,7 @@ router.post('/import-attendance', requirePermission(PERMISSION_MODULES.IMPORT_DA
     normalizeImportDate(req.body?.attendanceDate) || format(new Date(), 'yyyy-MM-dd');
 
   try {
+    await ensureImportAttendanceRecordsTable();
     const summary = {
       totalrows: rows.length,
       successfulimports: 0,
@@ -1071,6 +1146,7 @@ router.post('/import-attendance', requirePermission(PERMISSION_MODULES.IMPORT_DA
           status = getAttendanceStatus(computed);
         }
 
+        const employeeId = employeeResult.rows[0].id;
         await pool.query(
           `
           INSERT INTO attendancelogs (employeeid, date, punchin, punchout, totalhours, status)
@@ -1082,13 +1158,21 @@ router.post('/import-attendance', requirePermission(PERMISSION_MODULES.IMPORT_DA
             status = EXCLUDED.status
         `,
           [
-            employeeResult.rows[0].id,
+            employeeId,
             date,
             punchIn && !Number.isNaN(punchIn.getTime()) ? punchIn.toISOString() : null,
             punchOut && !Number.isNaN(punchOut.getTime()) ? punchOut.toISOString() : null,
             Number.isNaN(totalHours) ? null : totalHours,
             status,
           ]
+        );
+        await pool.query(
+          `
+          INSERT INTO import_attendance_records (importid, employeeid, date)
+          VALUES ($1, $2, $3::date)
+          ON CONFLICT (importid, employeeid, date) DO NOTHING
+        `,
+          [importId, employeeId, date]
         );
         summary.successfulimports += 1;
       } catch (error) {
@@ -1256,6 +1340,48 @@ router.get('/import-history', requirePermission(PERMISSION_MODULES.IMPORT_DATA),
   } catch (err) {
     console.error('GET /admin/import-history:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.delete('/import-attendance/:importId', requirePermission(PERMISSION_MODULES.IMPORT_DATA), async (req, res) => {
+  try {
+    const importId = Number(req.params.importId);
+    if (!Number.isInteger(importId) || importId < 1) {
+      return res.status(400).json({ message: 'Valid import id is required' });
+    }
+    const result = await deleteImportedAttendanceByImportId(importId);
+    if (!result.deleted) {
+      return res.status(404).json({ message: 'Import not found' });
+    }
+    await logAudit(req.user.id, 'ATTENDANCE_IMPORT_DELETED', 'importhistory', {
+      importId,
+      attendanceRowsRemoved: result.attendanceRowsRemoved,
+    });
+    return res.json({
+      message: 'Imported attendance removed',
+      attendanceRowsRemoved: result.attendanceRowsRemoved,
+    });
+  } catch (err) {
+    console.error('DELETE /admin/import-attendance/:importId:', err.message);
+    return res.status(500).json({ message: err.message || 'Internal server error' });
+  }
+});
+
+router.delete('/import-attendance', requirePermission(PERMISSION_MODULES.IMPORT_DATA), async (req, res) => {
+  try {
+    const confirm = String(req.body?.confirm || req.query?.confirm || '').toLowerCase();
+    if (!['1', 'true', 'yes'].includes(confirm)) {
+      return res.status(400).json({ message: 'Send confirm=true to delete all imported attendance' });
+    }
+    const result = await deleteAllImportedAttendance();
+    await logAudit(req.user.id, 'ATTENDANCE_IMPORTS_CLEARED', 'importhistory', result);
+    return res.json({
+      message: 'All imported attendance removed',
+      ...result,
+    });
+  } catch (err) {
+    console.error('DELETE /admin/import-attendance:', err.message);
+    return res.status(500).json({ message: err.message || 'Internal server error' });
   }
 });
 

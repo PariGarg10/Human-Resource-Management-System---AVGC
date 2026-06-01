@@ -30,6 +30,12 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
-      # ESSL device sync cannot run on Render (no LAN). Use office PC: npm run essl:bridge
+      # ESSL device sync runs on office PC (essl:bridge), not on Render
       - key: ESSL_ENABLED
         value: "false"
+      - key: ESSL_DAY_START
+        value: "09:30"
+      - key: ESSL_DAY_END
+        value: "23:59"
+      - key: ESSL_LOOKBACK_DAYS
+        value: "14"

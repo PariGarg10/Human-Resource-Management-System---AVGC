@@ -926,13 +926,89 @@ async function loadAdminDailyAttendance() {
 }
 document.getElementById('loadDailyBtn').addEventListener('click', () => loadAdminDailyAttendance().catch((e) => HRMS.toast(e.message, 'error')));
 
+function formatImportFileSize(bytes) {
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function attendanceFileIconForName(name) {
+  const lower = String(name || '').toLowerCase();
+  if (lower.endsWith('.csv')) return '📊';
+  if (lower.endsWith('.xlsx') || lower.endsWith('.xls')) return '📗';
+  return '📄';
+}
+
+function updateAttendanceFilePreview(file) {
+  const empty = document.getElementById('attendanceDropzoneEmpty');
+  const preview = document.getElementById('attendanceFilePreview');
+  const zone = document.getElementById('attendanceDropzone');
+  const nameEl = document.getElementById('attendanceFileName');
+  const sizeEl = document.getElementById('attendanceFileSize');
+  const statusEl = document.getElementById('attendanceFileStatus');
+  const iconEl = document.getElementById('attendanceFileIcon');
+  if (!preview || !empty) return;
+
+  if (!file) {
+    preview.classList.add('hidden');
+    empty.classList.remove('hidden');
+    zone?.classList.remove('has-file', 'is-uploading');
+    if (statusEl) {
+      statusEl.textContent = '';
+      statusEl.classList.remove('is-uploading');
+    }
+    return;
+  }
+
+  empty.classList.add('hidden');
+  preview.classList.remove('hidden');
+  zone?.classList.add('has-file');
+  if (iconEl) iconEl.textContent = attendanceFileIconForName(file.name);
+  if (nameEl) nameEl.textContent = file.name;
+  if (sizeEl) sizeEl.textContent = formatImportFileSize(file.size);
+  if (statusEl && !zone?.classList.contains('is-uploading')) {
+    statusEl.textContent = 'Ready to import';
+    statusEl.classList.remove('is-uploading');
+  }
+}
+
+function setAttendanceImportUploading(isUploading) {
+  const zone = document.getElementById('attendanceDropzone');
+  const statusEl = document.getElementById('attendanceFileStatus');
+  const importBtn = document.getElementById('attendanceImportBtn');
+  const clearBtn = document.getElementById('attendanceFileClear');
+  if (zone) zone.classList.toggle('is-uploading', isUploading);
+  if (statusEl) {
+    statusEl.textContent = isUploading ? 'Uploading…' : 'Ready to import';
+    statusEl.classList.toggle('is-uploading', isUploading);
+  }
+  if (importBtn) importBtn.disabled = isUploading;
+  if (clearBtn) clearBtn.disabled = isUploading;
+}
+
+function clearAttendanceImportFile() {
+  const input = document.getElementById('attendanceFile');
+  if (input) input.value = '';
+  updateAttendanceFilePreview(null);
+}
+
+document.getElementById('attendanceFileClear')?.addEventListener('click', (e) => {
+  e.stopPropagation();
+  clearAttendanceImportFile();
+});
+
 document.getElementById('importForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const msg = document.getElementById('importMessage');
   const summaryEl = document.getElementById('importSummary');
+  const file = document.getElementById('attendanceFile')?.files?.[0];
+  if (!file) {
+    HRMS.toast('Choose a file first', 'error');
+    return;
+  }
+  setAttendanceImportUploading(true);
   try {
-    const file = document.getElementById('attendanceFile').files[0];
-    if (!file) return;
     const formData = new FormData();
     formData.append('file', file);
     const attendanceDate = document.getElementById('attendanceImportDate')?.value;
@@ -954,31 +1030,92 @@ document.getElementById('importForm').addEventListener('submit', async (e) => {
       summary += `\nSkipped:\n${skipLines.join('\n')}${result.skipped > 8 ? '\n…' : ''}`;
     }
     if (result.errors?.length) {
-      const lines = result.errors.slice(0, 8).map((e) => `Row ${e.row}: ${e.error}`);
+      const lines = result.errors.slice(0, 8).map((er) => `Row ${er.row}: ${er.error}`);
       summary += `\nFailed:\n${lines.join('\n')}${result.errors.length > 8 ? '\n…' : ''}`;
     }
     summaryEl.style.whiteSpace = 'pre-wrap';
     summaryEl.textContent = summary;
+    clearAttendanceImportFile();
     await loadImportHistory();
     await loadAdminStats();
   } catch (error) {
     msg.textContent = error.message;
+    HRMS.toast(error.message, 'error');
+  } finally {
+    setAttendanceImportUploading(false);
+  }
+});
+
+async function deleteAttendanceImport(importId) {
+  if (
+    !window.confirm(
+      'Delete this import? Attendance rows written by this file will be removed from the database.'
+    )
+  ) {
+    return;
+  }
+  const result = await api(`/api/admin/import-attendance/${importId}`, { method: 'DELETE' });
+  HRMS.toast(
+    result.message ||
+      `Removed import (${result.attendanceRowsRemoved ?? 0} attendance row(s))`,
+    'success'
+  );
+  await loadImportHistory();
+  await loadAdminStats();
+}
+
+document.getElementById('deleteAllImportsBtn')?.addEventListener('click', async () => {
+  if (
+    !window.confirm(
+      'Delete ALL imported attendance data? This removes every file import from history and deletes matching attendance records. This cannot be undone.'
+    )
+  ) {
+    return;
+  }
+  try {
+    const result = await api('/api/admin/import-attendance?confirm=true', { method: 'DELETE' });
+    HRMS.toast(
+      `${result.importsRemoved ?? 0} import(s) cleared, ${result.attendanceRowsRemoved ?? 0} attendance row(s) removed`,
+      'success'
+    );
+    await loadImportHistory();
+    await loadAdminStats();
+  } catch (error) {
+    HRMS.toast(error.message, 'error');
+  }
+});
+
+document.getElementById('importHistoryBody')?.addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-delete-import]');
+  if (!btn) return;
+  const importId = btn.getAttribute('data-delete-import');
+  if (!importId) return;
+  try {
+    await deleteAttendanceImport(importId);
+  } catch (error) {
     HRMS.toast(error.message, 'error');
   }
 });
 
 async function loadImportHistory() {
   const data = await api('/api/admin/import-history');
-  document.getElementById('importHistoryBody').innerHTML = data.history
+  const body = document.getElementById('importHistoryBody');
+  if (!body) return;
+  if (!data.history?.length) {
+    body.innerHTML = '<tr><td colspan="7" class="stat-sub">No imports yet.</td></tr>';
+    return;
+  }
+  body.innerHTML = data.history
     .map(
       (row) => `
     <tr>
       <td>${row.id}</td>
-      <td>${row.filename}</td>
+      <td>${escapeHtml(row.filename)}</td>
       <td>${row.totalrows}</td>
       <td>${row.successfulrows}</td>
       <td>${row.failedrows}</td>
       <td>${formatDateTime(row.createdat)}</td>
+      <td><button type="button" class="btn btn-outline btn-sm btn-danger-outline" data-delete-import="${row.id}">Delete</button></td>
     </tr>`
     )
     .join('');
@@ -1452,11 +1589,14 @@ document.getElementById('adminSettingsPasswordForm')?.addEventListener('submit',
   }
 });
 
-function setupDropzone(zoneId, inputId) {
+function setupDropzone(zoneId, inputId, onFileSelected) {
   const zone = document.getElementById(zoneId);
   const input = document.getElementById(inputId);
   if (!zone || !input) return;
-  zone.addEventListener('click', () => input.click());
+  zone.addEventListener('click', (e) => {
+    if (e.target.closest('button')) return;
+    input.click();
+  });
   zone.addEventListener('dragover', (e) => {
     e.preventDefault();
     zone.classList.add('is-dragover');
@@ -1465,11 +1605,17 @@ function setupDropzone(zoneId, inputId) {
   zone.addEventListener('drop', (e) => {
     e.preventDefault();
     zone.classList.remove('is-dragover');
-    if (e.dataTransfer.files.length) input.files = e.dataTransfer.files;
+    if (e.dataTransfer.files.length) {
+      input.files = e.dataTransfer.files;
+      if (onFileSelected) onFileSelected(input.files[0] || null);
+    }
+  });
+  input.addEventListener('change', () => {
+    if (onFileSelected) onFileSelected(input.files[0] || null);
   });
 }
 setupDropzone('employeeDropzone', 'employeeImportFile');
-setupDropzone('attendanceDropzone', 'attendanceFile');
+setupDropzone('attendanceDropzone', 'attendanceFile', updateAttendanceFilePreview);
 
 function applyAdminProfileToForm(profile) {
   if (!profile) return;
