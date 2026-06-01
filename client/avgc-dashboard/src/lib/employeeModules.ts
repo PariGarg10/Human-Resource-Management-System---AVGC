@@ -3,7 +3,7 @@ import type { NavId } from '@/components/layout/Sidebar';
 export type EmployeeModuleId = 'workspace' | 'people' | 'time' | 'helpdesk' | 'account';
 
 export const MODULE_TITLES: Record<EmployeeModuleId, string> = {
-  workspace: 'My Workspace',
+  workspace: 'My Dashboard',
   people: 'People',
   time: 'Attendance & Leave',
   helpdesk: 'Helpdesk',
@@ -19,9 +19,9 @@ export const MODULE_DEFAULT_NAV: Record<EmployeeModuleId, NavId> = {
 };
 
 export const MODULE_NAV_IDS: Record<EmployeeModuleId, NavId[]> = {
-  workspace: ['dashboard', 'calendar'],
+  workspace: ['dashboard'],
   people: ['teams'],
-  time: ['attendance', 'calendar', 'leave-apply', 'leave-history', 'punch'],
+  time: ['attendance', 'calendar', 'leave-apply', 'leave-history'],
   helpdesk: ['helpdesk-raise', 'helpdesk-my', 'helpdesk-inbox'],
   account: ['profile', 'settings'],
 };

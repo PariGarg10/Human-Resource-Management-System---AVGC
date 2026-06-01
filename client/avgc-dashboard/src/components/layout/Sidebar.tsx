@@ -4,7 +4,6 @@ import {
   History,
   LayoutDashboard,
   LogOut,
-  MapPin,
   Network,
   PanelLeftClose,
   PanelLeft,
@@ -30,16 +29,12 @@ export type NavId =
   | 'helpdesk-raise'
   | 'helpdesk-my'
   | 'helpdesk-inbox'
-  | 'punch'
   | 'profile'
   | 'settings';
 
 type NavItem = { id: NavId; label: string; icon: typeof LayoutDashboard };
 
-const group1: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'calendar', label: 'Calendar', icon: Calendar },
-];
+const group1: NavItem[] = [{ id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard }];
 
 const group2: NavItem[] = [
   { id: 'teams', label: 'Teams', icon: Network },
@@ -47,9 +42,9 @@ const group2: NavItem[] = [
 
 const group3: NavItem[] = [
   { id: 'attendance', label: 'Attendance', icon: ClipboardList },
+  { id: 'calendar', label: 'Attendance calendar', icon: Calendar },
   { id: 'leave-apply', label: 'Leave Management', icon: FileEdit },
   { id: 'leave-history', label: 'Leave History', icon: History },
-  { id: 'punch', label: 'Punch In/Out', icon: MapPin },
 ];
 
 const group4: NavItem[] = [
@@ -81,7 +76,7 @@ function Divider() {
 type NavGroup = { label: string; items: NavItem[] };
 
 const allGroups: NavGroup[] = [
-  { label: 'My workspace', items: group1 },
+  { label: 'My dashboard', items: group1 },
   { label: 'People', items: group2 },
   { label: 'Attendance & leave', items: group3 },
   { label: 'Helpdesk', items: group4 },

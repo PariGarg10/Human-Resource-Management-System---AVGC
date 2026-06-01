@@ -32,7 +32,6 @@
     reports: MODULE.REPORTS_EXPORT,
     roles: MODULE.ROLE_MANAGEMENT,
     system: MODULE.SETTINGS,
-    'office-location': MODULE.SETTINGS,
     broadcast: MODULE.SETTINGS,
     biometric: MODULE.SETTINGS,
     assignments: MODULE.EMPLOYEE_MANAGEMENT,
@@ -41,7 +40,7 @@
     'manage-admins': null,
   };
 
-  const ALWAYS_VISIBLE = new Set(['my-tasks', 'punch', 'profile', 'requests-raise', 'requests-my', 'not-authorized']);
+  const ALWAYS_VISIBLE = new Set(['my-tasks', 'profile', 'requests-raise', 'requests-my', 'not-authorized']);
 
   function readAdminUser() {
     try {

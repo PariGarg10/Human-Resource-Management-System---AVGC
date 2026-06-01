@@ -1,20 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
+import { FileEdit } from 'lucide-react';
 import { ApiError, api } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import type { EmployeeUser } from '@/types/employee';
 import type { NavId } from '@/components/layout/Sidebar';
-import { EmployeeSpotlight } from '@/components/dashboard/EmployeeSpotlight';
-import { PunchPanel } from '@/views/PunchPanel';
-
-type TodayRes = {
-  record: {
-    punchin?: string | null;
-    punchout?: string | null;
-    status?: string;
-    holidayName?: string;
-    holidayType?: string;
-  } | null;
-};
 
 type LeaveBalanceItem = {
   type: string;
@@ -48,15 +37,12 @@ type Props = {
 };
 
 export function DashboardHome({ user, onNavigate, onPasswordRequired }: Props) {
-  const [today, setToday] = useState<TodayRes | null>(null);
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceRes | null>(null);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const t = await api<TodayRes>('/api/attendance/today');
-      setToday(t);
       if (user?.id) {
         const balance = await api<LeaveBalanceRes>(`/api/leave-balance/${user.id}`).catch(() => null);
         setLeaveBalance(balance);
@@ -80,126 +66,219 @@ export function DashboardHome({ user, onNavigate, onPasswordRequired }: Props) {
     load().catch(() => {});
   }, [load]);
 
-  const record = today?.record;
-  const punchIn = record?.punchin ?? null;
-  const punchOut = record?.punchout ?? null;
+  const designation = user?.designation?.trim() || '—';
+  const department = user?.department?.trim() || '—';
+  const empId = user?.employeecode?.trim() || '—';
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {loading && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-6 text-sm text-[var(--text-muted)] shadow-sm">
           Loading dashboard…
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-6">
-        <EmployeeSpotlight user={user} punchIn={punchIn} punchOut={punchOut} />
+      <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-sm md:p-8">
+        <h1 className="font-['Bebas_Neue',sans-serif] text-3xl font-bold tracking-wide text-[var(--text-primary)] md:text-4xl">
+          {user?.name?.trim() || 'Employee'}
+        </h1>
+        <p className="mt-2 font-['DM_Sans',sans-serif] text-base font-medium text-[var(--text-primary)]">
+          {designation}
+          <span className="mx-2 text-[var(--text-muted)]" aria-hidden>
+            ·
+          </span>
+          {department}
+        </p>
+        <p className="mt-3 font-['DM_Sans',sans-serif] text-sm text-[var(--text-muted)]">
+          <span className="font-semibold uppercase tracking-wide text-[var(--text-muted)]">Employee ID</span>
+          <span className="ml-2 font-mono text-base font-semibold text-[var(--text-primary)]">{empId}</span>
+        </p>
+      </section>
 
-        <div className="rounded-xl border border-slate-200 bg-white p-2 shadow-sm lg:col-span-4">
-          <p className="px-4 pt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">Punch in / out</p>
-          <PunchPanel />
-        </div>
+      <AnnouncementsColumn notifications={notifications} />
 
-        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Apply for leave</p>
-          <p className="mt-2 text-sm text-slate-600">Submit leave requests with one click.</p>
-          <button
-            type="button"
-            onClick={() => onNavigate('leave-apply')}
-            className="mt-4 w-full rounded-xl bg-avgc-brand px-4 py-3 text-sm font-semibold text-white hover:bg-avgc-brand-hover"
-          >
-            Open Leave Form
-          </button>
-        </div>
-
-        <LeaveBalanceWidget balance={leaveBalance} />
-
-        <AnnouncementsWidget notifications={notifications} />
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        <LeaveBalanceSection balance={leaveBalance} loading={loading} />
+        <QuickActionsColumn onApplyLeave={() => onNavigate('leave-apply')} />
       </div>
     </div>
   );
 }
 
-function LeaveBalanceWidget({ balance }: { balance: LeaveBalanceRes | null }) {
+function LeaveBalanceSection({
+  balance,
+  loading,
+}: {
+  balance: LeaveBalanceRes | null;
+  loading: boolean;
+}) {
   const totals = balance?.totals;
-  const remainingPct = totals && totals.total > 0 ? Math.round((totals.remaining / totals.total) * 100) : 0;
+  const remainingPct =
+    totals && totals.total > 0 ? Math.round((totals.remaining / totals.total) * 100) : 0;
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
-      <div className="flex items-start justify-between gap-3">
+    <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Leave balance</p>
-          <h3 className="mt-1 text-3xl font-bold text-slate-900">{totals?.remaining ?? '—'}</h3>
-          <p className="mt-1 text-xs font-medium text-slate-500">
-            days remaining in {balance?.year ?? new Date().getFullYear()}
+          <h2 className="font-['Bebas_Neue',sans-serif] text-xl tracking-wide text-[var(--text-primary)]">
+            Leave balance
+          </h2>
+          <p className="mt-1 font-['DM_Sans',sans-serif] text-sm text-[var(--text-muted)]">
+            {balance?.year ?? new Date().getFullYear()} entitlement summary
           </p>
         </div>
-        <div className="rounded-full bg-blue-50 px-3 py-1 text-xs font-bold text-blue-800">
-          {balance ? `${remainingPct}% left` : 'Loading'}
-        </div>
+        {totals && (
+          <div className="rounded-full bg-[rgba(237,29,36,0.1)] px-3 py-1 text-xs font-bold text-[#ed1d24]">
+            {remainingPct}% remaining
+          </div>
+        )}
       </div>
-      {totals && (
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-slate-50 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Used</p>
-            <p className="mt-1 text-lg font-bold text-red-700">{totals.used}</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Total</p>
-            <p className="mt-1 text-lg font-bold text-slate-900">{totals.total}</p>
-          </div>
-        </div>
-      )}
-      <div className="mt-4 space-y-3">
+
+      <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <BalanceStat label="Days remaining" value={totals?.remaining ?? (loading ? '…' : '—')} highlight />
+        <BalanceStat label="Used" value={totals?.used ?? (loading ? '…' : '—')} />
+        <BalanceStat label="Total allowance" value={totals?.total ?? (loading ? '…' : '—')} />
+      </div>
+
+      <div className="mt-5 space-y-3">
         {(balance?.balances || []).map((item) => {
           const pct = item.total > 0 ? Math.min(100, Math.round((item.used / item.total) * 100)) : 0;
           return (
             <div key={item.type}>
-              <div className="flex justify-between text-xs font-medium text-slate-600">
+              <div className="flex justify-between font-['DM_Sans',sans-serif] text-xs font-medium text-[var(--text-muted)]">
                 <span>{item.type}</span>
                 <span>
-                  {item.used} used · {item.remaining} remaining
+                  {item.remaining} left · {item.used} used of {item.total}
                 </span>
               </div>
-              <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100">
-                <div className="h-full rounded-full bg-avgc-brand" style={{ width: `${pct}%` }} />
+              <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--bg-secondary)]">
+                <div
+                  className="h-full rounded-full bg-[#ed1d24]"
+                  style={{ width: `${pct}%` }}
+                />
               </div>
             </div>
           );
         })}
-        {!balance && <p className="text-sm text-slate-500">Balance will appear after the dashboard finishes loading.</p>}
+        {!loading && !balance && (
+          <p className="font-['DM_Sans',sans-serif] text-sm text-[var(--text-muted)]">
+            Leave balance is not available yet.
+          </p>
+        )}
       </div>
+    </section>
+  );
+}
+
+function BalanceStat({
+  label,
+  value,
+  highlight,
+}: {
+  label: string;
+  value: string | number;
+  highlight?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-lg border border-[var(--border)] p-4 ${
+        highlight ? 'bg-[rgba(237,29,36,0.06)]' : 'bg-[var(--bg-secondary)]'
+      }`}
+    >
+      <p className="font-['DM_Sans',sans-serif] text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+        {label}
+      </p>
+      <p
+        className={`mt-1 font-['Bebas_Neue',sans-serif] text-3xl tracking-wide ${
+          highlight ? 'text-[#ed1d24]' : 'text-[var(--text-primary)]'
+        }`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
 
-function AnnouncementsWidget({ notifications }: { notifications: NotificationRow[] }) {
-  const visible = notifications.slice(0, 4);
+function AnnouncementsColumn({ notifications }: { notifications: NotificationRow[] }) {
+  const visible = notifications.slice(0, 6);
+  const unread = notifications.filter((n) => !n.isRead).length;
+
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
+    <section className="flex h-full min-h-[280px] flex-col rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-sm">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Announcements</p>
-          <h3 className="mt-1 text-lg font-bold text-slate-900">Latest updates</h3>
+          <h2 className="font-['Bebas_Neue',sans-serif] text-xl tracking-wide text-[var(--text-primary)]">
+            Announcements
+          </h2>
+          <p className="mt-1 font-['DM_Sans',sans-serif] text-sm text-[var(--text-muted)]">
+            Latest updates from HR
+          </p>
         </div>
-        <div className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">
-          {notifications.filter((n) => !n.isRead).length} unread
-        </div>
+        {unread > 0 && (
+          <span className="rounded-full bg-[var(--bg-secondary)] px-3 py-1 text-xs font-bold text-[var(--text-primary)]">
+            {unread} unread
+          </span>
+        )}
       </div>
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 flex-1 space-y-3 overflow-y-auto">
         {visible.length === 0 ? (
-          <p className="text-sm text-slate-500">No announcements or notifications yet.</p>
+          <p className="font-['DM_Sans',sans-serif] text-sm text-[var(--text-muted)]">
+            No announcements yet.
+          </p>
         ) : (
           visible.map((item) => (
-            <div key={item.id} className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <article
+              key={item.id}
+              className={`rounded-lg border px-3 py-3 ${
+                item.isRead
+                  ? 'border-[var(--border)] bg-[var(--bg-secondary)]'
+                  : 'border-[rgba(237,29,36,0.25)] bg-[rgba(237,29,36,0.04)]'
+              }`}
+            >
+              <p className="font-['DM_Sans',sans-serif] text-[10px] font-bold uppercase tracking-wide text-[#ed1d24]">
                 {item.type === 'broadcast' ? 'Announcement' : item.type.replace(/_/g, ' ')}
               </p>
-              <p className="mt-1 text-sm text-slate-800">{item.message}</p>
-            </div>
+              <p className="mt-1 font-['DM_Sans',sans-serif] text-sm leading-snug text-[var(--text-primary)]">
+                {item.message}
+              </p>
+            </article>
           ))
         )}
       </div>
-    </div>
+    </section>
+  );
+}
+
+function QuickActionsColumn({ onApplyLeave }: { onApplyLeave: () => void }) {
+  return (
+    <section className="flex h-full min-h-[280px] flex-col rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-sm">
+      <div>
+        <h2 className="font-['Bebas_Neue',sans-serif] text-xl tracking-wide text-[var(--text-primary)]">
+          Quick actions
+        </h2>
+        <p className="mt-1 font-['DM_Sans',sans-serif] text-sm text-[var(--text-muted)]">
+          Common tasks you can start right away
+        </p>
+      </div>
+      <div className="mt-5 flex flex-1 flex-col gap-3">
+        <button
+          type="button"
+          onClick={onApplyLeave}
+          className="flex w-full items-center gap-4 rounded-xl border border-[rgba(237,29,36,0.35)] bg-[rgba(237,29,36,0.08)] px-4 py-4 text-left transition hover:border-[#ed1d24] hover:bg-[rgba(237,29,36,0.14)]"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#ed1d24] text-white">
+            <FileEdit className="h-5 w-5" aria-hidden />
+          </span>
+          <span>
+            <span className="block font-['DM_Sans',sans-serif] text-base font-semibold text-[var(--text-primary)]">
+              Apply for leave
+            </span>
+            <span className="mt-0.5 block font-['DM_Sans',sans-serif] text-sm text-[var(--text-muted)]">
+              Submit a new leave request
+            </span>
+          </span>
+        </button>
+      </div>
+    </section>
   );
 }

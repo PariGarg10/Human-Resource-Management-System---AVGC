@@ -21,8 +21,8 @@ type CardDef = {
 const CARDS: CardDef[] = [
   {
     id: 'workspace',
-    title: 'My Workspace',
-    description: 'Your dashboard, calendar, and daily overview',
+    title: 'My Dashboard',
+    description: 'Your home dashboard and daily overview',
     icon: LayoutDashboard,
     accent: 'linear-gradient(145deg, #1e3a5f 0%, #2563eb 55%, #7c3aed 100%)',
   },

@@ -35,8 +35,8 @@ async function loadToday() {
   const record = data.record || {};
 
   todayCard.innerHTML = `
-    <div class="tile"><strong>Punch In</strong><br>${formatDateTime(record.punchin) || 'Not punched in yet'}</div>
-    <div class="tile"><strong>Punch Out</strong><br>${formatDateTime(record.punchout) || 'Not punched out yet'}</div>
+    <div class="tile"><strong>Check in</strong><br>${formatDateTime(record.punchin) || '—'}</div>
+    <div class="tile"><strong>Check out</strong><br>${formatDateTime(record.punchout) || '—'}</div>
     <div class="tile"><strong>Total Hours</strong><br>${record.totalhours ?? '-'}</div>
     <div class="tile"><strong>Status</strong><br>${statusBadge(record.status)}</div>
   `;

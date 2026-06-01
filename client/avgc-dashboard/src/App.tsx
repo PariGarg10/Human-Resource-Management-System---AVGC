@@ -23,8 +23,6 @@ import { ConcernsInboxPanel, MyConcernsPanel, RaiseConcernPanel } from '@/views/
 import { LeaveApplyPanel, LeaveHistoryPanel } from '@/views/LeavePanels';
 import { OrgChartPanel } from '@/features/team-hub/OrgChartPanel';
 import { ProfilePanel, SettingsPanel } from '@/views/ProfileSettingsPanels';
-import { PunchPanel } from '@/views/PunchPanel';
-
 const titles: Record<NavId, string> = {
   dashboard: 'Dashboard',
   employees: 'Employees',
@@ -36,7 +34,6 @@ const titles: Record<NavId, string> = {
   'helpdesk-raise': 'Raise a concern',
   'helpdesk-my': 'My concerns',
   'helpdesk-inbox': 'Concerns inbox',
-  punch: 'Punch in / out',
   profile: 'Profile',
   settings: 'Settings',
 };
@@ -84,8 +81,6 @@ function renderNavPanel(
       return <MyConcernsPanel />;
     case 'helpdesk-inbox':
       return <ConcernsInboxPanel />;
-    case 'punch':
-      return <PunchPanel />;
     case 'profile':
       return <ProfilePanel user={user} onProfileSaved={(u) => setUser(u)} />;
     case 'settings':

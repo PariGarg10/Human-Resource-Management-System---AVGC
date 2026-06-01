@@ -62,7 +62,6 @@
         <div class="sidebar-accordion-body">
           <button type="button" data-nav="team-attendance"><span class="nav-icon" data-lucide="clipboard-check"></span><span>Attendance</span></button>
           <button type="button" data-nav="leaves"><span class="nav-icon" data-lucide="palmtree"></span><span>Leave Management</span></button>
-          <button type="button" data-nav="punch"><span class="nav-icon" data-lucide="map-pin"></span><span>Punch In/Out</span></button>
         </div>
       </div>
       <div class="sidebar-nav-section" data-section="requests">
@@ -170,14 +169,6 @@
       </section>
 
       <section id="view-team-attendance" class="view-section">
-        <div class="panel punch-screen" style="max-width:100%;margin-bottom:16px;">
-          <h2 class="panel-title" style="margin-bottom:8px;">My punch in / out</h2>
-          <div class="punch-clock" id="mgrTopPunchClock">--:--:--</div>
-          <div class="punch-date" id="mgrTopPunchDate">—</div>
-          <div class="punch-status-pill out" id="mgrTopPunchPill">PUNCHED OUT</div>
-          <button type="button" class="punch-big-btn state-out" id="mgrTopPunchBtn">PUNCH IN</button>
-          <div class="punch-loc-msg" id="mgrTopPunchMsg">📍 Verifying location...</div>
-        </div>
         <div class="panel">
           <div class="panel-header">
             <h2 class="panel-title">Team attendance by date</h2>
@@ -188,7 +179,7 @@
           </div>
           <div class="table-wrap">
             <table class="data-table"><thead><tr>
-              <th>Code</th><th>Name</th><th>Department</th><th>Punch In</th><th>Punch Out</th><th>Hours</th><th>Status</th>
+              <th>Code</th><th>Name</th><th>Department</th><th>Check in</th><th>Check out</th><th>Hours</th><th>Status</th>
             </tr></thead><tbody id="dailyBody"></tbody></table>
           </div>
         </div>
@@ -315,16 +306,6 @@
         </div>
       </section>
 
-      <section id="view-punch" class="view-section">
-        <div class="panel punch-screen">
-          <div class="punch-clock" id="mgrPunchClock">--:--:--</div>
-          <div class="punch-date" id="mgrPunchDate">—</div>
-          <div class="punch-status-pill out" id="mgrPunchPill">PUNCHED OUT</div>
-          <button type="button" class="punch-big-btn state-out" id="mgrPunchBtn">PUNCH IN</button>
-          <div class="punch-loc-msg" id="mgrPunchMsg">📍 Verifying location...</div>
-        </div>
-      </section>
-
       <section id="view-profile" class="view-section">
         <div class="panel">
           <h2 class="panel-title" id="mgrProfileHeading">Profile</h2>
@@ -398,7 +379,6 @@
   <script src="/js/nav-icons.js"></script>
   <script src="/js/sidebar.js"></script>
   <script src="/js/navbar.js"></script>
-  <script src="/js/punch.js"></script>
   <script type="module" src="/assets/avgc-dashboard/team-hub.js"></script>
   <script src="/js/manager-dashboard.js"></script>
 </body>

@@ -393,8 +393,8 @@ const REPORT_DEFS = [
       ['name', 'Employee'],
       ['department', 'Department'],
       ['date', 'Date'],
-      ['punchIn', 'Punch In'],
-      ['punchOut', 'Punch Out'],
+      ['punchIn', 'Check in'],
+      ['punchOut', 'Check out'],
       ['totalHours', 'Hours'],
       ['status', 'Status'],
     ],
@@ -523,8 +523,8 @@ const EXTRA_REPORT_DEFS = [
       ['name', 'Employee'],
       ['department', 'Department'],
       ['date', 'Date'],
-      ['punchIn', 'Punch In'],
-      ['punchOut', 'Punch Out'],
+      ['punchIn', 'Check in'],
+      ['punchOut', 'Check out'],
       ['totalHours', 'Hours'],
       ['status', 'Attendance Status'],
       ['leaveType', 'Leave Type'],
@@ -2583,43 +2583,6 @@ initAdminRbac()
     scheduleDataLoads();
   });
 
-function loadOfficeForm() {
-  const o = HRMS.getOfficeLocation();
-  const lat = document.getElementById('officeLat');
-  const lng = document.getElementById('officeLng');
-  const r = document.getElementById('officeRadius');
-  if (lat) lat.value = String(o.lat);
-  if (lng) lng.value = String(o.lng);
-  if (r) r.value = String(o.radiusMeters);
-}
-
-document.getElementById('officeSaveBtn')?.addEventListener('click', () => {
-  const lat = Number(document.getElementById('officeLat')?.value);
-  const lng = Number(document.getElementById('officeLng')?.value);
-  const radiusMeters = Number(document.getElementById('officeRadius')?.value);
-  if (Number.isNaN(lat) || Number.isNaN(lng) || Number.isNaN(radiusMeters)) {
-    HRMS.toast('Enter valid numbers', 'error');
-    return;
-  }
-  try {
-    localStorage.setItem('office_location', JSON.stringify({ lat, lng, radiusMeters }));
-    HRMS.toast('Office location saved', 'success');
-  } catch (e) {
-    HRMS.toast(e.message || 'Save failed', 'error');
-  }
-});
-
-loadOfficeForm();
 document.getElementById('holPublicLoadBtn')?.addEventListener('click', () => {
   loadPublicHolidayCalendar().catch(() => {});
-});
-HRMS.initPunchScreen({
-  api,
-  ids: {
-    clock: 'adminPunchClock',
-    date: 'adminPunchDate',
-    pill: 'adminPunchPill',
-    btn: 'adminPunchBtn',
-    msg: 'adminPunchMsg'
-  }
 });

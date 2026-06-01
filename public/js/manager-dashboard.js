@@ -791,17 +791,3 @@ if (passwordChangeRequired) {
   ]).catch((e) => HRMS.toast(e.message || 'Could not load dashboard', 'error'));
 }
 
-HRMS.initPunchScreen({
-  api,
-  ids: { clock: 'mgrPunchClock', date: 'mgrPunchDate', pill: 'mgrPunchPill', btn: 'mgrPunchBtn', msg: 'mgrPunchMsg' }
-});
-HRMS.initPunchScreen({
-  api,
-  ids: {
-    clock: 'mgrTopPunchClock',
-    date: 'mgrTopPunchDate',
-    pill: 'mgrTopPunchPill',
-    btn: 'mgrTopPunchBtn',
-    msg: 'mgrTopPunchMsg',
-  }
-});

@@ -59,8 +59,8 @@ export function AttendancePanel() {
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatMini label="Punch in" value={todayCard?.punchin ? formatDateTime(todayCard.punchin) : '—'} />
-        <StatMini label="Punch out" value={todayCard?.punchout ? formatDateTime(todayCard.punchout) : '—'} />
+        <StatMini label="Check in" value={todayCard?.punchin ? formatDateTime(todayCard.punchin) : '—'} />
+        <StatMini label="Check out" value={todayCard?.punchout ? formatDateTime(todayCard.punchout) : '—'} />
         <StatMini label="Total hours" value={todayCard?.totalhours != null ? String(todayCard.totalhours) : '—'} />
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
           <p className="text-xs font-medium uppercase text-slate-500">Status today</p>
@@ -118,8 +118,8 @@ export function AttendancePanel() {
             <thead>
               <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
                 <th className="pb-3 pr-4 font-semibold">Date</th>
-                <th className="pb-3 pr-4 font-semibold">Punch in</th>
-                <th className="pb-3 pr-4 font-semibold">Punch out</th>
+                <th className="pb-3 pr-4 font-semibold">Check in</th>
+                <th className="pb-3 pr-4 font-semibold">Check out</th>
                 <th className="pb-3 pr-4 font-semibold">Hours</th>
                 <th className="pb-3 font-semibold">Status</th>
               </tr>

@@ -66,7 +66,6 @@
           <button type="button" data-nav="attendance"><span class="nav-icon" data-lucide="clipboard-check"></span><span>Attendance</span></button>
           <button type="button" data-nav="leaves"><span class="nav-icon" data-lucide="palmtree"></span><span>Leave Management</span></button>
           <button type="button" data-nav="leave-entitlements"><span class="nav-icon" data-lucide="ticket"></span><span>Leave allowances</span></button>
-          <button type="button" data-nav="punch"><span class="nav-icon" data-lucide="map-pin"></span><span>Punch In/Out</span></button>
         </div>
       </div>
       <div class="sidebar-nav-section" data-section="requests">
@@ -87,7 +86,6 @@
           <span class="nav-label">Administration</span>
         </button>
         <div class="sidebar-accordion-body sidebar-menu-two-col">
-          <button type="button" data-nav="office-location"><span class="nav-icon" data-lucide="map-pin"></span><span>Office GPS</span></button>
           <button type="button" data-nav="broadcast"><span class="nav-icon" data-lucide="megaphone"></span><span>Broadcast</span></button>
           <button type="button" data-nav="import-employees"><span class="nav-icon" data-lucide="upload"></span><span>Import data</span></button>
           <button type="button" data-nav="import-attendance"><span class="nav-icon" data-lucide="file-spreadsheet"></span><span>Import attendance</span></button>
@@ -207,33 +205,6 @@
         <div class="panel">
           <h2 class="panel-title">Import activity</h2>
           <div class="chart-wrap"><canvas id="adminReportsChart"></canvas></div>
-        </div>
-      </section>
-
-      <section id="view-punch" class="view-section">
-        <div class="panel punch-screen">
-          <div class="punch-clock" id="adminPunchClock">--:--:--</div>
-          <div class="punch-date" id="adminPunchDate">—</div>
-          <div class="punch-status-pill out" id="adminPunchPill">PUNCHED OUT</div>
-          <button type="button" class="punch-big-btn state-out" id="adminPunchBtn">PUNCH IN</button>
-          <div class="punch-loc-msg" id="adminPunchMsg">📍 Verifying location...</div>
-        </div>
-      </section>
-
-      <section id="view-office-location" class="view-section">
-        <div class="panel">
-          <h2 class="panel-title">Office location (GPS)</h2>
-          <p class="stat-sub">
-            Match punch distance to this office:
-            <strong>AVGC Studios, 3rd Floor, Plot no. 8, Pinnacle Tower, Sector 142, Noida</strong>.
-            Defaults are set to coordinates near this building (adjust if your device shows a consistent offset).
-          </p>
-          <form id="officeLocationForm" class="form-row" style="margin-top:16px;">
-            <div class="form-group"><label>Office latitude</label><input id="officeLat" type="number" step="any" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-            <div class="form-group"><label>Office longitude</label><input id="officeLng" type="number" step="any" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-            <div class="form-group"><label>Radius (meters)</label><input id="officeRadius" type="number" min="10" step="1" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-          </form>
-          <button type="button" class="btn btn-primary" id="officeSaveBtn" style="margin-top:12px;">Save office location</button>
         </div>
       </section>
 
@@ -975,7 +946,6 @@
   <script src="/js/nav-icons.js"></script>
   <script src="/js/sidebar.js"></script>
   <script src="/js/navbar.js"></script>
-  <script src="/js/punch.js"></script>
   <script src="/js/admin-permissions.js"></script>
   <script src="/js/admin-people-modules.js"></script>
   <script src="/js/admin-accounts.js"></script>

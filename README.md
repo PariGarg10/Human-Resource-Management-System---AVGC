@@ -60,7 +60,7 @@ Human resources and attendance platform for **AVGC** — multi-role dashboards, 
 
 | Role | Login / dashboard | Description |
 |------|-----------------|-------------|
-| **Employee** | `/login` → `/employee/dashboard` | React app — attendance, leave, punch, tasks, helpdesk |
+| **Employee** | `/login` → `/employee/dashboard` | React app — attendance, leave, tasks, helpdesk |
 | **Manager** | `/manager/login` → `/manager/dashboard` | Team attendance, leaves, requests, reports |
 | **Admin** | `/admin/login` → `/admin/dashboard` | Full HRMS — employees, imports, biometric, RBAC |
 | **Super Admin** | Same as admin | All modules + manage other admins |
@@ -102,7 +102,6 @@ Marketing / landing: `/` (static `index.html`).
 
 ### Time & attendance
 
-- **Punch in / out** (web) with optional **GPS geofence** (office lat/lng/radius in localStorage)
 - Daily attendance view (admin/manager)
 - **Attendance calendar** (monthly, holidays + Saturdays)
 - **Import attendance** from Excel/CSV
@@ -172,7 +171,6 @@ Marketing / landing: `/` (static `index.html`).
 
 ### System & settings (admin)
 
-- **Office GPS** — latitude, longitude, radius for punch geofence
 - **Broadcast** notifications to users
 - **Biometric** — device sync + punch list + import
 - **Settings** — Saturday + holiday management entry points
@@ -185,7 +183,6 @@ Marketing / landing: `/` (static `index.html`).
 - Dashboard home (quick actions, charts, spotlight)
 - My attendance & calendar
 - Leave apply / history
-- Punch in/out panel
 - Raise concern / my concerns / inbox (role-dependent)
 - **Task manager**
 - **Org chart** (embedded where mounted)
