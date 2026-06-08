@@ -239,7 +239,7 @@ body.has-floating-sidebar.sidebar-collapsed .app-main {
   position: absolute;
   top: 0;
   left: 24px;
-  font-family: Georgia, serif;
+  font-family: var(--font-body);
   font-size: 120px;
   line-height: 1;
   color: var(--red);

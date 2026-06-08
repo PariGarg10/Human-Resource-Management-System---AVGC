@@ -34,7 +34,7 @@ function buildPasswordResetHtml({ name, resetUrl }) {
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Reset Your Password</title>
 </head>
-<body style="margin:0;padding:0;background:#f4f4f5;font-family:'Segoe UI',Helvetica,Arial,sans-serif;">
+<body style="margin:0;padding:0;background:#f4f4f5;font-family:Verdana,Geneva,sans-serif;">
   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f4f4f5;padding:32px 16px;">
     <tr>
       <td align="center">

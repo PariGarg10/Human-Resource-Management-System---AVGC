@@ -206,4 +206,103 @@ function buildOrgTree(employeeRows, assignmentRows) {
   return root;
 }
 
-module.exports = { buildOrgTree };
+function isCoparentNode(node) {
+  return node && node.type === 'coparent';
+}
+
+function isOrgPersonNode(node) {
+  return node && !isCoparentNode(node);
+}
+
+function sortTreeAlphabetically(node) {
+  if (!node || !Array.isArray(node.children)) return node;
+  node.children = node.children
+    .filter(isOrgPersonNode)
+    .sort(sortByName)
+    .map((child) => sortTreeAlphabetically(child));
+  return node;
+}
+
+function clonePersonSubtree(person) {
+  return {
+    ...person,
+    children: (person.children || [])
+      .filter(isOrgPersonNode)
+      .map((child) => clonePersonSubtree(child)),
+  };
+}
+
+function findPersonWithParent(node, targetId, parent = null) {
+  if (String(node.id) === String(targetId)) {
+    return { person: node, parent };
+  }
+  for (const child of node.children || []) {
+    if (!isOrgPersonNode(child)) continue;
+    const found = findPersonWithParent(child, targetId, node);
+    if (found) return found;
+  }
+  return null;
+}
+
+function buildScopedFromReporting(rows, viewerId, rootId) {
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const viewer = byId.get(Number(viewerId));
+  if (!viewer) return null;
+
+  const selfNode = toOrgPerson(viewer, rootId);
+
+  function attachDescendants(parentId, node) {
+    const children = rows
+      .filter((row) => row.reporting_to_id === parentId)
+      .sort(sortByName);
+    for (const row of children) {
+      const child = toOrgPerson(row, rootId);
+      attachDescendants(row.id, child);
+      node.children.push(child);
+    }
+  }
+
+  attachDescendants(viewer.id, selfNode);
+
+  const managerRow = viewer.reporting_to_id ? byId.get(viewer.reporting_to_id) : null;
+  if (!managerRow) return selfNode;
+
+  const managerNode = toOrgPerson(managerRow, rootId);
+  managerNode.children = [selfNode];
+  return managerNode;
+}
+
+/**
+ * Show only: direct manager (one up), self, and full subtree below self.
+ * Hides peers and unrelated branches.
+ */
+function scopeOrgTreeForViewer(fullTree, employeeRows, viewerEmployeeId) {
+  const viewerId = Number(viewerEmployeeId);
+  if (!Number.isFinite(viewerId) || !fullTree) return fullTree;
+
+  const rootId = Number(fullTree.employeeId || fullTree.id) || viewerId;
+  const located = findPersonWithParent(fullTree, viewerId);
+  let scoped = null;
+
+  if (located) {
+    const selfSubtree = clonePersonSubtree(located.person);
+    if (located.parent) {
+      scoped = {
+        ...located.parent,
+        children: [selfSubtree],
+      };
+    } else {
+      scoped = selfSubtree;
+    }
+  } else {
+    scoped = buildScopedFromReporting(employeeRows, viewerId, rootId);
+  }
+
+  return scoped ? sortTreeAlphabetically(scoped) : fullTree;
+}
+
+module.exports = {
+  buildOrgTree,
+  scopeOrgTreeForViewer,
+  sortTreeAlphabetically,
+};

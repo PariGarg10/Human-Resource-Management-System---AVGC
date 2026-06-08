@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
+const { isAdminRole } = require('../constants/roles');
 
 function parseCookies(cookieHeader) {
   const cookies = {};
@@ -116,6 +117,17 @@ function requireRoles(...roles) {
   };
 }
 
+/** Admin portal routes — honors admin table sessions and founder-profile admins. */
+function requirePortalAdmin(req, res, next) {
+  if (!req.user) {
+    return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
+  }
+  if (req.user.adminId) return next();
+  const role = String(req.user.role || '').toLowerCase().trim();
+  if (isAdminRole(role) || isFounderUser(req.user)) return next();
+  return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
+}
+
 function isFounderUser(user) {
   const role = String(user?.role || '').toLowerCase().trim();
   const name = String(user?.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -159,6 +171,7 @@ module.exports = {
   authMiddleware,
   enforceForcePasswordChange,
   requireRoles,
+  requirePortalAdmin,
   requireAdminOrFounder,
   isFounderUser,
   enforcePasswordChange,

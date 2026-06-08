@@ -19,12 +19,12 @@ import { HolidayCalendarPanel } from '@/views/HolidayCalendarPanel';
 import { LeaveApplyPanel, LeaveHistoryPanel } from '@/views/LeavePanels';
 import { LiveActivitiesPanel } from '@/views/LiveActivitiesPanel';
 import { OrgTreePanel } from '@/features/team-hub/OrgTreePanel';
-import { EmployeeProfilesPanel } from '@/views/EmployeeProfilesPanel';
 import { LeaveApprovalPanel } from '@/views/LeaveApprovalPanel';
 import { ManagerTeamAttendancePanel } from '@/views/ManagerTeamAttendancePanel';
 import { PlaceholderPanel } from '@/views/PlaceholderPanel';
 import { PoliciesPanel } from '@/views/PoliciesPanel';
 import { ProfilePanel, SettingsPanel } from '@/views/ProfileSettingsPanels';
+import SocialPortal from '@/SocialPortal.jsx';
 
 function renderPanel(
   nav: PortalNavId,
@@ -79,20 +79,8 @@ function renderPanel(
           <OrgTreePanel />
         </div>
       );
-    case 'employee-profiles':
-      return (
-        <div className="panel">
-          <h2 className="panel-title">Employee profiles</h2>
-          <p className="stat-sub" style={{ marginBottom: 16 }}>
-            Browse colleague profiles and contact details. For reporting lines and hierarchy, open People → Organization chart.
-          </p>
-          <EmployeeProfilesPanel scope="all" />
-        </div>
-      );
     case 'live-activities':
       return <LiveActivitiesPanel portalRole={portalRole} mode="links" />;
-    case 'nominations':
-      return <LiveActivitiesPanel portalRole={portalRole} mode="nominations" />;
     case 'team-attendance':
       return <ManagerTeamAttendancePanel />;
     case 'leave-approval':
@@ -106,6 +94,12 @@ function renderPanel(
           <p className="stat-sub" style={{ color: '#697279' }}>
             Coming soon — this module is not available yet.
           </p>
+        </div>
+      );
+    case 'social-portal':
+      return (
+        <div className="social-portal-viewport" style={{ margin: '-14px -18px', minHeight: 'calc(100vh - 120px)' }}>
+          <SocialPortal currentUserName={user?.name || 'You'} isAdminUser={false} />
         </div>
       );
     default:
@@ -230,7 +224,12 @@ export default function App() {
         rolePill={portalLabel}
         sidebarRoleClass={portalRole === 'manager' ? 'manager' : 'employee'}
         navSections={navSections}
-        onNavigate={setNav}
+        onNavigate={(id) => {
+          if (id === 'social-portal') {
+            (window as { HRMS?: { fireConfettiBurst?: (o?: { x: number; y: number }) => void } }).HRMS?.fireConfettiBurst?.();
+          }
+          setNav(id);
+        }}
       >
         {passwordRequired && (
           <div style={{ marginBottom: 16 }}>

@@ -37,6 +37,10 @@
   --oc-text: var(--text-primary, #000000);
   --oc-muted: var(--text-muted, rgba(0, 0, 0, 0.5));
   --oc-accent: var(--color-primary, #ed1d24);
+  --oc-grey1: #697279;
+  --oc-grey2: #ebebec;
+  --oc-connector: var(--oc-grey1);
+  --oc-photo-bg: var(--oc-grey2);
   --oc-accent-soft: var(--red-soft, rgba(237, 29, 36, 0.12));
   --oc-border: var(--border, rgba(0, 0, 0, 0.1));
   --oc-card: var(--bg-card, #ffffff);
@@ -365,9 +369,9 @@
   width: 112px;
   height: 112px;
   border-radius: 50%;
-  background: var(--oc-glass);
-  backdrop-filter: blur(12px);
-  border: 2px solid var(--oc-border);
+  background: var(--oc-photo-bg);
+  backdrop-filter: none;
+  border: 2px solid var(--oc-grey1);
   box-shadow: var(--oc-shadow);
   display: flex;
   align-items: center;
@@ -394,14 +398,14 @@
 .org-node.is-expanded-card .org-node__circle,
 .org-node.is-root-card .org-node__circle {
   border-width: 3px;
-  box-shadow: 0 12px 32px color-mix(in srgb, var(--oc-accent) 22%, transparent);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--oc-grey1) 22%, transparent);
 }
 
 .org-node:hover .org-node__circle,
 .org-node.can-toggle .org-node__circle:hover {
   transform: scale(1.05);
-  border-color: color-mix(in srgb, var(--oc-accent) 45%, var(--oc-border));
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--oc-accent) 18%, transparent);
+  border-color: var(--oc-grey1);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--oc-grey1) 18%, transparent);
 }
 
 .org-node__expand-hint {
@@ -428,11 +432,11 @@
   height: 100px;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--oc-pill);
+  background: var(--oc-photo-bg);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--oc-muted);
+  color: var(--oc-grey1);
 }
 
 .org-node__avatar img,
@@ -834,7 +838,7 @@
   bottom: 20px;
   left: 13px;
   width: 2px;
-  background: color-mix(in srgb, var(--oc-accent) 45%, var(--oc-border));
+  background: var(--oc-connector);
 }
 
 .org-hierarchy-chart__node {
@@ -1037,7 +1041,7 @@
 }
 
 .org-connectors path {
-  stroke: var(--oc-accent);
+  stroke: var(--oc-connector);
   stroke-width: 1.75;
   fill: none;
   stroke-linecap: round;

@@ -10,6 +10,15 @@ export default defineConfig(({ mode }) => ({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Vite-only dev (npm run dev:vite). Full site + API: npm run dev from repo root → :3000
+  server: {
+    port: 5173,
+    strictPort: true,
+    proxy: {
+      '/api': 'http://localhost:3000',
+      '/uploads': 'http://localhost:3000',
+    },
+  },
   base: mode === 'production' ? '/assets/avgc-dashboard/' : '/',
   build: {
     outDir: path.resolve(__dirname, '../../public/assets/avgc-dashboard'),

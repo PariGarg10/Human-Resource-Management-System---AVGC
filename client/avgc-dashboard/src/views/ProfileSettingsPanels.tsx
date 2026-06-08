@@ -3,6 +3,7 @@ import { useUser } from '@/context/UserContext';
 import { api, apiPatchProfile, persistEmployeePatch } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import type { EmployeeUser, UserProfile } from '@/types/employee';
+import { EmployeeDocumentsSection } from '@/views/EmployeeDocumentsSection';
 
 export function ProfilePanel({
   user,
@@ -250,6 +251,8 @@ export function ProfilePanel({
                 placeholder="A short intro — hobbies, fun facts, what you work on…"
               />
             </label>
+
+            <EmployeeDocumentsSection />
           </div>
 
           <div className="profile-form-actions">

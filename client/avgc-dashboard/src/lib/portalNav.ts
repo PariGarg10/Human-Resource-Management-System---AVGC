@@ -12,13 +12,12 @@ export type PortalNavId =
   | 'leave-apply'
   | 'leave-history'
   | 'teams'
-  | 'employee-profiles'
   | 'live-activities'
-  | 'nominations'
   | 'team-attendance'
   | 'leave-approval'
   | 'reports'
-  | 'helpdesk';
+  | 'helpdesk'
+  | 'social-portal';
 
 export type PortalRole = 'employee' | 'manager';
 
@@ -78,10 +77,14 @@ const SHARED_LIVE_ACTIVITIES: NavSection = {
   key: 'live-activities',
   label: 'Live activities',
   icon: 'radio',
-  items: [
-    { id: 'live-activities', label: 'Receive links', icon: 'link' },
-    { id: 'nominations', label: 'Nominations', icon: 'award' },
-  ],
+  items: [{ id: 'live-activities', label: 'Receive links', icon: 'link' }],
+};
+
+const SHARED_SOCIAL: NavSection = {
+  key: 'social',
+  label: 'Social',
+  icon: 'message-circle',
+  items: [{ id: 'social-portal', label: 'Company social', icon: 'sparkles' }],
 };
 
 export const MANAGER_NAV_SECTIONS: NavSection[] = [
@@ -95,10 +98,7 @@ export const MANAGER_NAV_SECTIONS: NavSection[] = [
     key: 'people',
     label: 'People',
     icon: 'users-round',
-    items: [
-      { id: 'teams', label: 'Organization chart', icon: 'network' },
-      { id: 'employee-profiles', label: 'Employee profiles', icon: 'id-card' },
-    ],
+    items: [{ id: 'teams', label: 'Organization chart', icon: 'network' }],
   },
   {
     key: 'time-attendance',
@@ -115,6 +115,7 @@ export const MANAGER_NAV_SECTIONS: NavSection[] = [
   SHARED_ASSETS,
   SHARED_POLICIES,
   SHARED_LIVE_ACTIVITIES,
+  SHARED_SOCIAL,
   {
     key: 'account',
     label: 'Account',
@@ -134,10 +135,7 @@ export const EMPLOYEE_NAV_SECTIONS: NavSection[] = [
     key: 'people',
     label: 'People',
     icon: 'users-round',
-    items: [
-      { id: 'teams', label: 'Organization chart', icon: 'network' },
-      { id: 'employee-profiles', label: 'Employee profiles', icon: 'id-card' },
-    ],
+    items: [{ id: 'teams', label: 'Organization chart', icon: 'network' }],
   },
   {
     key: 'time-attendance',
@@ -148,6 +146,7 @@ export const EMPLOYEE_NAV_SECTIONS: NavSection[] = [
   SHARED_ASSETS,
   SHARED_POLICIES,
   SHARED_LIVE_ACTIVITIES,
+  SHARED_SOCIAL,
   {
     key: 'account',
     label: 'Account',
@@ -168,13 +167,12 @@ export const PORTAL_PAGE_TITLES: Record<PortalNavId, string> = {
   'leave-apply': 'Leave Management',
   'leave-history': 'Leave history',
   teams: 'Organization chart',
-  'employee-profiles': 'Employee profiles',
   'live-activities': 'Live activities',
-  nominations: 'Nominations',
   'team-attendance': 'Team attendance',
   'leave-approval': 'Leave approval',
   reports: 'Reports',
   helpdesk: 'Helpdesk',
+  'social-portal': 'Company social',
 };
 
 export function detectPortalRole(pathname?: string): PortalRole {

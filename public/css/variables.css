@@ -9,11 +9,12 @@
   --color-grey2: #ebebec;
   --color-bg: #ffffff;
   --color-text: #000000;
-  --font-body: Verdana, Geneva, Tahoma, sans-serif;
-  --font-heading-primary: Verdana, Geneva, Tahoma, sans-serif;
-  --font-heading-secondary: "Roboto Slab", Georgia, "Times New Roman", serif;
-  --font-accent: "Roboto", "Segoe UI", system-ui, sans-serif;
-  --font-base: var(--font-body);
+  --font-verdana: Verdana, Geneva, sans-serif;
+  --font-body: var(--font-verdana);
+  --font-heading-primary: var(--font-verdana);
+  --font-heading-secondary: var(--font-verdana);
+  --font-accent: var(--font-verdana);
+  --font-base: var(--font-verdana);
   --white: #ffffff;
   --black: #0D0D0D;
   --red-soft: rgba(230, 57, 70, 0.3);

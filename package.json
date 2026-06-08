@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server/index.js",
     "dev": "node server/index.js",
+    "dev:vite": "cd client/avgc-dashboard && npm run dev:vite",
     "build": "npm run build:dashboard",
     "db:init": "node server/initDb.js",
     "db:reset-super-admin": "node server/scripts/reset-super-admin.js",

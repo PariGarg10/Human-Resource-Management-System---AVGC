@@ -1,16 +1,13 @@
-/* AVGC typography — Verdana (H1/H2 + body), Roboto Slab (H3–H6), Roboto (accents) */
-@import url("https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400&family=Roboto:wght@500&display=swap");
-
+/* AVGC typography — Verdana only */
 :root {
-  --font-body: Verdana, Geneva, Tahoma, sans-serif;
-  --font-heading-primary: Verdana, Geneva, Tahoma, sans-serif;
-  --font-heading-secondary: "Roboto Slab", Georgia, "Times New Roman", serif;
-  --font-accent: "Roboto", "Segoe UI", system-ui, sans-serif;
-
-  /* Legacy aliases used across portal CSS */
-  --font-base: var(--font-body);
-  --font-sans: var(--font-accent);
-  --font-display: var(--font-heading-primary);
+  --font-verdana: Verdana, Geneva, sans-serif;
+  --font-body: var(--font-verdana);
+  --font-heading-primary: var(--font-verdana);
+  --font-heading-secondary: var(--font-verdana);
+  --font-accent: var(--font-verdana);
+  --font-base: var(--font-verdana);
+  --font-sans: var(--font-verdana);
+  --font-display: var(--font-verdana);
 }
 
 html {
@@ -78,11 +75,10 @@ h6,
 .sidebar-title,
 .tile strong {
   font-family: var(--font-heading-secondary);
-  font-weight: 400;
+  font-weight: 700;
   letter-spacing: normal;
 }
 
-/* Accent — badges, CTAs, stats, emphasis */
 .btn,
 button,
 .badge,
@@ -103,14 +99,13 @@ em,
 a.btn,
 a.btn-primary {
   font-family: var(--font-accent);
-  font-weight: 500;
+  font-weight: 700;
 }
 
 .stat-value {
-  font-weight: 500;
+  font-weight: 700;
 }
 
-/* Nav items are body text, not accent */
 .sidebar-nav button,
 .sidebar-accordion-head,
 .breadcrumb {

@@ -19,7 +19,7 @@ a:hover,
 .sidebar-nav button:not(:disabled):hover,
 .sidebar-nav a:hover,
 .top-navbar a:hover,
-.btn:hover:not(:disabled),
+.btn-outline:hover:not(:disabled),
 .navbar-right button:hover,
 .profile-dropdown button:hover {
   color: #ed1d24;

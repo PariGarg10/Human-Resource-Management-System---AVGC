@@ -12,6 +12,7 @@
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
+    "allowJs": true,
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
@@ -24,5 +25,5 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "src/**/*.ts", "src/**/*.tsx"]
+  "include": ["src", "src/**/*.ts", "src/**/*.tsx", "src/**/*.jsx"]
 }

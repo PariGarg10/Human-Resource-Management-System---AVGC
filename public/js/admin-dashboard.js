@@ -468,7 +468,7 @@ function exportReportToPdf(def, rows, suffix) {
       <head>
         <title>${escapeHtml(def.title)} ${escapeHtml(suffix)}</title>
         <style>
-          body{font-family:Arial,sans-serif;padding:24px;color:#111827;}
+          body{font-family:Verdana,Geneva,sans-serif;padding:24px;color:#111827;}
           h1{font-size:20px;margin:0 0 6px;}
           p{margin:0 0 16px;color:#6b7280;}
           table{width:100%;border-collapse:collapse;font-size:11px;}
@@ -792,9 +792,6 @@ document.getElementById('loadRolesBtn')?.addEventListener('click', () => loadRol
 document.getElementById('loadReportsBtn')?.addEventListener('click', () => loadAdminReports().catch((e) => HRMS.toast(e.message, 'error')));
 document.getElementById('exportAllReportsBtn')?.addEventListener('click', exportAllReportsToExcel);
 document.getElementById('liveLinksRefreshBtn')?.addEventListener('click', () => loadLiveActivityLinks().catch((e) => HRMS.toast(e.message, 'error')));
-document.getElementById('nominationStatsRefreshBtn')?.addEventListener('click', () => {
-  Promise.all([loadNominationStats(), loadLiveWinnersAdmin()]).catch((e) => HRMS.toast(e.message, 'error'));
-});
 document.getElementById('liveLinkForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const msg = document.getElementById('liveLinkMessage');
@@ -2436,6 +2433,7 @@ function mountTeamHubWhenReady(section) {
     teams: () => window.HRMS?.mountTeamHubOrgTree?.('#teamHubOrgTreeRoot'),
     'holiday-calendar': () => window.HRMS?.mountHolidayCalendar?.('#adminPublicHolidayRoot'),
     calendar: () => window.HRMS?.mountAttendanceCalendar?.('#adminCalendarRoot'),
+    'company-social': () => window.HRMS?.mountSocialPortal?.('#adminSocialPortalRoot'),
   };
   const mountFn = mounts[section];
   if (!mountFn) return;
@@ -2444,7 +2442,8 @@ function mountTeamHubWhenReady(section) {
       (section === 'dashboard' && window.HRMS?.mountPortalDashboard) ||
       (section === 'teams' && window.HRMS?.mountTeamHubOrgTree) ||
       (section === 'holiday-calendar' && window.HRMS?.mountHolidayCalendar) ||
-      (section === 'calendar' && window.HRMS?.mountAttendanceCalendar);
+      (section === 'calendar' && window.HRMS?.mountAttendanceCalendar) ||
+      (section === 'company-social' && window.HRMS?.mountSocialPortal);
     if (ready) {
       mountFn();
       return;
@@ -2518,11 +2517,6 @@ HRMS.initSidebar({
     if (section === 'live-activity-links') {
       loadLiveActivityLinks().catch((e) => HRMS.toast(e.message, 'error'));
     }
-    if (section === 'live-nomination-stats') {
-      Promise.all([loadNominationStats(), loadLiveWinnersAdmin()]).catch((e) =>
-        HRMS.toast(e.message, 'error')
-      );
-    }
     if (section === 'biometric') {
       esslDateRangeInputs();
       loadEsslPunchList().catch(() => {});
@@ -2543,6 +2537,16 @@ HRMS.initSidebar({
       const adminRole = isFounderProfile(user) ? 'founder' : user.role || 'admin';
       HRMS.initPoliciesPortal({ api, role: adminRole }).catch((e) =>
         HRMS.toast(e?.message || 'Could not load policies', 'error')
+      );
+    }
+    if (section === 'employee-documents' && HRMS.initEmployeeDocumentsAdmin) {
+      HRMS.initEmployeeDocumentsAdmin(api).catch((e) =>
+        HRMS.toast(e?.message || 'Could not load employee documents', 'error')
+      );
+    }
+    if (section === 'homepage-recognition' && HRMS.initHomeRecognitionAdmin) {
+      HRMS.initHomeRecognitionAdmin(api).catch((e) =>
+        HRMS.toast(e?.message || 'Could not load Homepage Recognition', 'error')
       );
     }
   },

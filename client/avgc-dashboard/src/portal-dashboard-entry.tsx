@@ -25,7 +25,6 @@ const ADMIN_NAV_MAP: Partial<Record<PortalNavId, string>> = {
   'asset-management': 'asset-management',
   'policies-and-links': 'policies-and-links',
   teams: 'teams',
-  'employee-profiles': 'employees',
   profile: 'profile',
 };
 

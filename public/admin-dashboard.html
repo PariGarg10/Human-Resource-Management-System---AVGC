@@ -14,9 +14,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Admin · AVGC</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400&family=Roboto:wght@500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/app-bundle.css" />
 </head>
 <body>
@@ -52,6 +49,7 @@
         </button>
         <div class="sidebar-accordion-body">
           <button type="button" data-nav="employees"><span class="nav-icon" data-lucide="user"></span><span>Employees</span></button>
+          <button type="button" data-nav="employee-documents"><span class="nav-icon" data-lucide="folder-open"></span><span>Employee documents</span></button>
           <button type="button" data-nav="teams" title="Interactive organization chart"><span class="nav-icon" data-lucide="network"></span><span>Organization chart</span></button>
         </div>
       </div>
@@ -89,6 +87,18 @@
           <span class="nav-label">Policies &amp; important links</span>
         </button>
       </div>
+      <div class="sidebar-nav-section sidebar-nav-section--direct" data-section="homepage">
+        <button type="button" class="sidebar-accordion-head" data-nav="homepage-recognition" title="Homepage Recognition">
+          <span class="nav-icon" data-lucide="award"></span>
+          <span class="nav-label">Homepage Recognition</span>
+        </button>
+      </div>
+      <div class="sidebar-nav-section sidebar-nav-section--direct" data-section="company-social">
+        <button type="button" class="sidebar-accordion-head" data-nav="company-social" title="Company social">
+          <span class="nav-icon" data-lucide="message-circle"></span>
+          <span class="nav-label">Company social</span>
+        </button>
+      </div>
       <div class="sidebar-nav-section" data-section="live-activities">
         <button type="button" class="sidebar-accordion-head">
           <span class="nav-icon" data-lucide="radio"></span>
@@ -96,7 +106,6 @@
         </button>
         <div class="sidebar-accordion-body">
           <button type="button" data-nav="live-activity-links"><span class="nav-icon" data-lucide="send"></span><span>Send links</span></button>
-          <button type="button" data-nav="live-nomination-stats"><span class="nav-icon" data-lucide="award"></span><span>Nomination stats</span></button>
         </div>
       </div>
       <div class="sidebar-nav-section" data-section="administration">
@@ -184,7 +193,7 @@
 
       <section id="view-asset-management" class="view-section">
         <div class="panel" data-asset-admin-only>
-          <h2 class="panel-title">Asset management</h2>
+          <h2 class="panel-title">Asset Management</h2>
           <p class="stat-sub">Add inventory items, allocate to employees, edit totals, or remove items when nothing is assigned.</p>
           <form id="assetAddForm" class="form-row" style="margin-top:16px;">
             <div class="form-group"><label>Item name</label><input id="assetItemName" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
@@ -223,9 +232,50 @@
         </div>
       </section>
 
+      <section id="view-company-social" class="view-section" style="padding:0;">
+        <div id="adminSocialPortalRoot" style="min-height:calc(100vh - 120px);"></div>
+      </section>
+
+      <section id="view-homepage-recognition" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Homepage Recognition</h2>
+          <p class="stat-sub">Manage who appears on the public homepage. Upload a photo or leave blank to use initials.</p>
+
+          <h3 class="panel-title" style="margin-top:24px;font-size:1.05rem;">Most Valuable Team Leads</h3>
+          <form id="homeRecLeadForm" class="form-row" style="margin-top:12px;">
+            <div class="form-group"><label>Full name</label><input data-field="name" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group"><label>Designation</label><input data-field="designation" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group"><label>Photo (optional)</label><input data-field="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group"><label>Order</label><input data-field="sortOrder" type="number" min="0" value="0" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group" style="align-self:flex-end;"><button type="submit" class="btn btn-primary">Add team lead</button></div>
+          </form>
+          <div class="table-wrap table-wrap--scroll" style="margin-top:16px;">
+            <table class="data-table data-table--recognition">
+              <thead><tr><th>Photo</th><th>Name</th><th>Designation</th><th>Order</th><th>Visibility</th><th>Actions</th></tr></thead>
+              <tbody id="homeRecLeadsBody"><tr><td colspan="6" class="stat-sub">Loading…</td></tr></tbody>
+            </table>
+          </div>
+
+          <h3 class="panel-title" style="margin-top:32px;font-size:1.05rem;">Most Valuable Employees</h3>
+          <form id="homeRecEmployeeForm" class="form-row" style="margin-top:12px;">
+            <div class="form-group"><label>Full name</label><input data-field="name" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group"><label>Designation</label><input data-field="designation" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group"><label>Photo (optional)</label><input data-field="image" type="file" accept="image/jpeg,image/png,image/webp,image/gif" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group"><label>Order</label><input data-field="sortOrder" type="number" min="0" value="0" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+            <div class="form-group" style="align-self:flex-end;"><button type="submit" class="btn btn-primary">Add employee</button></div>
+          </form>
+          <div class="table-wrap table-wrap--scroll" style="margin-top:16px;">
+            <table class="data-table data-table--recognition">
+              <thead><tr><th>Photo</th><th>Name</th><th>Designation</th><th>Order</th><th>Visibility</th><th>Actions</th></tr></thead>
+              <tbody id="homeRecEmployeesBody"><tr><td colspan="6" class="stat-sub">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section id="view-policies-and-links" class="view-section">
         <div class="panel" data-policies-admin-only>
-          <h2 class="panel-title">Policies &amp; important links</h2>
+          <h2 class="panel-title">Policies &amp; Important Links</h2>
           <p class="stat-sub">Upload policy documents or add external links. Edit, show/hide, or remove entries anytime.</p>
           <form id="policyUploadForm" class="form-row" style="margin-top:16px;">
             <div class="form-group"><label>Policy title</label><input id="policyDocTitle" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
@@ -266,26 +316,6 @@
           </form>
           <p id="liveLinkMessage" class="message"></p>
           <div id="liveLinksList" class="live-admin-grid"></div>
-        </div>
-      </section>
-
-      <section id="view-live-nomination-stats" class="view-section">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <h2 class="panel-title">Nomination stats</h2>
-              <p class="stat-sub">Review MVP and Most Valuable Team Lead nominations, then announce winners.</p>
-            </div>
-            <button type="button" class="btn btn-outline btn-sm" id="nominationStatsRefreshBtn">Refresh</button>
-          </div>
-          <div id="liveWinnersAdmin" class="live-admin-grid" style="margin-bottom:16px;"></div>
-          <div class="table-wrap table-wrap--scroll">
-            <table class="data-table">
-              <thead><tr><th>Category</th><th>Nominee</th><th>Designation</th><th>Department</th><th>Votes</th><th>Announce</th></tr></thead>
-              <tbody id="nominationStatsBody"><tr><td colspan="6" class="stat-sub">Loading...</td></tr></tbody>
-            </table>
-          </div>
-          <p id="nominationStatsMessage" class="message"></p>
         </div>
       </section>
 
@@ -436,7 +466,7 @@
             <h2 class="panel-title">Daily attendance</h2>
             <div class="filters-inline">
               <label>Date <input type="date" id="dailyDate" /></label>
-              <button type="button" class="btn btn-primary btn-sm" id="loadDailyBtn">Load</button>
+              <button type="button" class="btn btn-primary btn-sm" id="loadDailyBtn">Submit</button>
             </div>
           </div>
           <div class="table-wrap table-wrap--scroll"><table class="data-table"><thead><tr><th>Code</th><th>Name</th><th>Dept</th><th>In</th><th>Out</th><th>Hrs</th><th>Status</th></tr></thead><tbody id="dailyBody"></tbody></table></div>
@@ -605,7 +635,7 @@
             <h2 class="panel-title">Leave requests</h2>
             <div class="filters-inline">
               <select id="leaveStatusFilter"><option value="">all</option><option value="pending">pending</option><option value="approved">approved</option><option value="rejected">rejected</option></select>
-              <button type="button" class="btn btn-primary btn-sm" id="loadAdminLeavesBtn">Load</button>
+              <button type="button" class="btn btn-primary btn-sm" id="loadAdminLeavesBtn">Submit</button>
             </div>
           </div>
           <div class="table-wrap table-wrap--scroll"><table class="data-table"><thead><tr><th>ID</th><th>Employee</th><th>Type</th><th>From</th><th>To</th><th>Status</th><th></th></tr></thead><tbody id="adminLeavesBody"></tbody></table></div>
@@ -758,7 +788,7 @@
               <label>Year</label>
               <input type="number" id="satYear" min="2026" max="2100" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100px;" />
             </div>
-            <button type="button" class="btn btn-primary" id="satLoadBtn">Load</button>
+            <button type="button" class="btn btn-primary" id="satLoadBtn">Submit</button>
           </div>
 
           <p id="satMessage" class="message"></p>
@@ -901,6 +931,67 @@
         </div>
       </section>
 
+      <section id="view-employee-documents" class="view-section">
+        <div class="panel">
+          <h2 class="panel-title">Employee documents</h2>
+          <p class="stat-sub">View documents uploaded by employees and upload pay slips, Form 16, or appraisal letters.</p>
+          <div class="table-wrap table-wrap--scroll" style="margin-top:16px;">
+            <table class="data-table data-table--people">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Name</th>
+                  <th>Department</th>
+                  <th>Designation</th>
+                  <th>Documents</th>
+                </tr>
+              </thead>
+              <tbody id="empDocEmployeeListBody">
+                <tr><td colspan="5" class="stat-sub">Open this section to load employees…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:16px;">
+          <h3 class="panel-title" style="font-size:1.05rem;" id="empDocDetailTitle">Employee documents</h3>
+          <form id="empDocAdminUploadForm" class="form-row" style="margin-top:12px;align-items:flex-end;">
+            <div class="form-group">
+              <label>Employee</label>
+              <select id="empDocEmployeeSelect" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;min-width:220px;">
+                <option value="">Select employee…</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Document type</label>
+              <select id="empDocAdminCategory" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;min-width:180px;"></select>
+            </div>
+            <div class="form-group">
+              <label>File (PDF, JPG, PNG, DOC)</label>
+              <input type="file" id="empDocAdminFile" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required />
+            </div>
+            <div class="form-group" style="align-self:flex-end;">
+              <button type="submit" class="btn btn-primary">Upload for employee</button>
+            </div>
+          </form>
+          <div class="table-wrap table-wrap--scroll" style="margin-top:16px;">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Category</th>
+                  <th>Source</th>
+                  <th>Uploaded</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="empDocDetailBody">
+                <tr><td colspan="5" class="stat-sub">Select an employee to view documents.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <section id="view-profile" class="view-section">
         <div class="panel">
           <h2 class="panel-title" id="adminProfileHeading">Profile</h2>
@@ -964,9 +1055,11 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="/js/utils.js"></script>
   <script src="/js/toast.js"></script>
+  <script src="/js/idle-timeout.js"></script>
   <script src="/js/theme.js"></script>
   <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
   <script src="/js/nav-icons.js"></script>
+  <script src="/js/confetti.js"></script>
   <script src="/js/sidebar.js"></script>
   <script src="/js/navbar.js"></script>
   <script src="/js/admin-permissions.js"></script>
@@ -975,6 +1068,8 @@
   <script type="module" src="/assets/avgc-dashboard/team-hub.js"></script>
   <script src="/js/portal-assets.js"></script>
   <script src="/js/portal-policies.js"></script>
+  <script src="/js/portal-employee-documents.js"></script>
+  <script src="/js/portal-home-recognition.js"></script>
   <script src="/js/admin-dashboard.js"></script>
 </body>
 </html>

@@ -5,31 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="description" content="AVGC Studios — Human Resource Management System" />
   <title>AVGC Studios · HRMS</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400&family=Roboto:wght@500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/variables.css" />
   <link rel="stylesheet" href="/css/typography.css" />
   <link rel="stylesheet" href="/css/home-landing.css" />
 </head>
 <body class="home-landing">
-  <!-- Backdrop: save your image as /public/assets/home-backdrop.jpg (or change the src below) -->
-  <div class="home-landing__backdrop" id="homeBackdrop">
-    <img
-      class="home-landing__backdrop-img"
-      id="homeBackdropImg"
-      src="/assets/home-backdrop.jpg"
-      alt=""
-      onerror="this.classList.add('is-missing'); document.getElementById('homeBackdrop').classList.add('is-empty');"
-    />
-    <div class="home-landing__backdrop-slot" aria-hidden="true">
-      <span>Backdrop image</span>
-      <small>Add your file at <code>public/assets/home-backdrop.jpg</code><br />or edit <code>src</code> in index.html</small>
-    </div>
-    <div class="home-landing__backdrop-overlay"></div>
-  </div>
-
-  <div class="home-landing__content">
+  <div class="home-landing__page">
     <header class="home-landing__header">
       <a class="home-landing__brand" href="/" aria-label="AVGC Studios home">
         <img src="/assets/avgc-logo.png" alt="" class="home-landing__logo" aria-hidden="true" />
@@ -37,10 +18,24 @@
       <a class="home-landing__signin" href="/login">Sign in</a>
     </header>
 
-    <main class="home-landing__main">
-      <h1 class="home-landing__title">AVGC Studios</h1>
-      <p class="home-landing__subtitle">Human Resource Management System</p>
+    <main class="home-landing__container">
+      <section class="home-landing__hero" aria-label="Brand">
+        <h1 class="home-landing__title">AVGC Studios</h1>
+        <p class="home-landing__subtitle">Human Resource Management System</p>
+      </section>
+
+      <section class="home-landing__section" aria-labelledby="leads-heading">
+        <h2 class="home-landing__section-title" id="leads-heading">Most Valuable Team Leads</h2>
+        <div class="home-landing__card-row" id="homeTeamLeads"></div>
+      </section>
+
+      <section class="home-landing__section home-landing__section--last" aria-labelledby="employees-heading">
+        <h2 class="home-landing__section-title" id="employees-heading">Most Valuable Employees</h2>
+        <div class="home-landing__card-row home-landing__card-row--employees" id="homeTopEmployees"></div>
+      </section>
     </main>
   </div>
+
+  <script src="/js/home-landing.js"></script>
 </body>
 </html>

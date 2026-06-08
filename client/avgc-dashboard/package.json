@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm --prefix ../.. run dev",
+    "start": "npm --prefix ../.. run dev",
+    "dev:vite": "vite",
     "build": "tsc -b && vite build && node scripts/rm-index.mjs",
     "lint": "eslint .",
     "preview": "vite preview"

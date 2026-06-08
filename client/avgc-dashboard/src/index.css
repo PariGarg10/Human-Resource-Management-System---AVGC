@@ -1,10 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400&family=Roboto:wght@500&display=swap');
 @import 'tailwindcss';
 
 @theme {
   --color-avgc-brand: #ed1d24;
   --color-avgc-brand-hover: #ed1d24;
-  --font-sans: 'Roboto', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: Verdana, Geneva, sans-serif;
 }
 
 :root {
@@ -13,11 +12,12 @@
   --color-grey2: #ebebec;
   --color-bg: #ffffff;
   --color-text: #000000;
-  --font-body: Verdana, Geneva, Tahoma, sans-serif;
-  --font-heading-primary: Verdana, Geneva, Tahoma, sans-serif;
-  --font-heading-secondary: 'Roboto Slab', Georgia, 'Times New Roman', serif;
-  --font-accent: 'Roboto', 'Segoe UI', system-ui, sans-serif;
-  --font-base: var(--font-body);
+  --font-verdana: Verdana, Geneva, sans-serif;
+  --font-body: var(--font-verdana);
+  --font-heading-primary: var(--font-verdana);
+  --font-heading-secondary: var(--font-verdana);
+  --font-accent: var(--font-verdana);
+  --font-base: var(--font-verdana);
   --red: #ed1d24;
   --white: #ffffff;
   --black: #000000;
@@ -74,7 +74,7 @@ body {
 #root h5,
 #root h6 {
   font-family: var(--font-heading-secondary);
-  font-weight: 400;
+  font-weight: 700;
 }
 
 #root .btn,
@@ -84,12 +84,12 @@ body {
 #root .stat-value,
 #root strong {
   font-family: var(--font-accent);
-  font-weight: 500;
+  font-weight: 700;
 }
 
 a:hover,
 .sidebar-nav button:not(:disabled):hover,
-.btn:hover:not(:disabled) {
+.btn-outline:hover:not(:disabled) {
   color: #ed1d24;
   transition: color 0.2s ease;
 }
@@ -1202,6 +1202,37 @@ body.has-floating-sidebar.sidebar-collapsed #root .app-main {
 
 .profile-form-actions {
   margin-top: 16px;
+}
+
+.profile-field select {
+  font-weight: 400;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  padding: 10px 12px;
+  min-height: 44px;
+  background: var(--bg-card, #fff);
+}
+
+.profile-doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.profile-doc-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card, #fff);
+  font-weight: 400;
+  font-size: 0.8125rem;
 }
 
 .profile-save-msg {

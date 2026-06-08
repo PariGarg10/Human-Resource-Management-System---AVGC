@@ -38,6 +38,11 @@ HRMS.initSidebar = function initSidebar(options = {}) {
     document.body.classList.remove('has-bottom-nav');
     if (!desktop) {
       document.body.classList.remove('sidebar-collapsed');
+    } else {
+      document.querySelectorAll('.sidebar-nav-section').forEach((s) => {
+        s.classList.remove('is-expanded');
+        if (!s.classList.contains('is-pinned')) s.classList.remove('is-hover-open');
+      });
     }
   }
 
@@ -70,11 +75,14 @@ HRMS.initSidebar = function initSidebar(options = {}) {
 
   function expandSectionFor(el) {
     const section = el && el.closest ? el.closest('.sidebar-nav-section') : null;
-    if (section) {
-      section.classList.add('is-expanded');
-      const id = section.getAttribute('data-section');
-      if (id) localStorage.setItem(`hrms-sidebar-section-${id}`, 'open');
+    if (!section) return;
+    const id = section.getAttribute('data-section');
+    if (isDesktop()) {
+      document.querySelectorAll('.sidebar-nav-section').forEach((s) => s.classList.remove('is-expanded'));
+      return;
     }
+    section.classList.add('is-expanded');
+    if (id) localStorage.setItem(`hrms-sidebar-section-${id}`, 'open');
   }
 
   let hoverCloseTimer = null;
@@ -142,7 +150,10 @@ HRMS.initSidebar = function initSidebar(options = {}) {
         if (head.hasAttribute('data-nav')) return;
         e.preventDefault();
         e.stopPropagation();
-        if (isDesktop()) return;
+        if (isDesktop()) {
+          head.blur();
+          return;
+        }
         const next = !section.classList.contains('is-expanded');
         section.classList.toggle('is-expanded', next);
         section.classList.toggle('is-pinned', next);
@@ -215,12 +226,22 @@ HRMS.initSidebar = function initSidebar(options = {}) {
       }
       expandSectionFor(btn);
       const parentSection = btn.closest('.sidebar-nav-section');
-      if (parentSection && isDesktop()) {
+      if (isDesktop()) {
         clearHoverCloseTimer();
-        document.querySelectorAll('.sidebar-nav-section').forEach((s) => s.classList.remove('is-hover-open'));
-        parentSection.classList.remove('is-expanded');
+        document.querySelectorAll('.sidebar-nav-section').forEach((s) => {
+          s.classList.remove('is-hover-open');
+          s.classList.remove('is-expanded');
+        });
+        btn.blur();
       }
       closeMobile();
+      if (section === 'social-portal' || section === 'company-social') {
+        const rect = btn.getBoundingClientRect();
+        HRMS.fireConfettiBurst?.({
+          x: rect.left + rect.width / 2,
+          y: rect.top + rect.height / 2,
+        });
+      }
       const navCb = HRMS._sidebarOnNavigate || options.onNavigate;
       if (navCb) navCb(section);
   }

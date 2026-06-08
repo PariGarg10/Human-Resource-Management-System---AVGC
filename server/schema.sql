@@ -308,3 +308,91 @@ CREATE TABLE IF NOT EXISTS live_activity_winners (
 
 CREATE INDEX IF NOT EXISTS idx_live_activity_winners_active
   ON live_activity_winners (category, is_active, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS employee_documents (
+  id SERIAL PRIMARY KEY,
+  employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  category TEXT NOT NULL,
+  original_name TEXT NOT NULL,
+  stored_name TEXT NOT NULL,
+  mime_type TEXT,
+  file_size INTEGER,
+  source TEXT NOT NULL CHECK (source IN ('employee', 'admin')),
+  uploaded_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_employee_documents_employee
+  ON employee_documents (employee_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS homepage_recognition (
+  id SERIAL PRIMARY KEY,
+  category TEXT NOT NULL CHECK (category IN ('top_performer', 'team_lead', 'employee')),
+  name TEXT NOT NULL,
+  designation TEXT NOT NULL,
+  image_url TEXT,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_visible BOOLEAN NOT NULL DEFAULT TRUE,
+  uploaded_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_homepage_recognition_category
+  ON homepage_recognition (category, is_visible, sort_order, created_at);
+
+CREATE TABLE IF NOT EXISTS social_posts (
+  id SERIAL PRIMARY KEY,
+  channel TEXT NOT NULL CHECK (channel IN ('artwork', 'board', 'gaming')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+  author_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  author_name TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  caption TEXT NOT NULL DEFAULT '',
+  category TEXT NOT NULL DEFAULT '',
+  media_url TEXT NOT NULL DEFAULT '',
+  media_type TEXT NOT NULL DEFAULT 'text',
+  reject_reason TEXT,
+  reactions JSONB NOT NULL DEFAULT '{}',
+  comments JSONB NOT NULL DEFAULT '[]',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS social_post_user_reactions (
+  post_id INTEGER NOT NULL REFERENCES social_posts(id) ON DELETE CASCADE,
+  employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  emoji TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (post_id, employee_id, emoji)
+);
+
+CREATE INDEX IF NOT EXISTS idx_social_posts_status ON social_posts (status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_social_posts_author ON social_posts (author_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS social_tournaments (
+  id SERIAL PRIMARY KEY,
+  game_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'ended')),
+  created_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  winner_employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  winner_name TEXT,
+  winner_score DOUBLE PRECISION,
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ends_at TIMESTAMPTZ,
+  ended_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS social_tournament_scores (
+  id SERIAL PRIMARY KEY,
+  tournament_id INTEGER NOT NULL REFERENCES social_tournaments(id) ON DELETE CASCADE,
+  employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  employee_name TEXT NOT NULL,
+  score DOUBLE PRECISION NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (tournament_id, employee_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_social_tournaments_status ON social_tournaments (status, game_id);

@@ -187,7 +187,10 @@ a.btn-primary:visited,
   text-decoration: none;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
+  color: #fff;
+  background: var(--primary-hover, var(--primary));
+  border-color: var(--primary-hover, var(--primary));
   box-shadow: 0 0 12px rgba(230, 57, 70, 0.8), 0 0 24px rgba(230, 57, 70, 0.4);
 }
 

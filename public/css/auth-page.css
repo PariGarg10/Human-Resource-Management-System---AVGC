@@ -23,7 +23,7 @@ html:has(.auth-page) body {
   padding: clamp(1.5rem, 4vw, 3rem);
   background:
     linear-gradient(160deg, rgba(0, 0, 0, 0.72) 0%, rgba(26, 0, 2, 0.58) 45%, rgba(0, 0, 0, 0.72) 100%),
-    url("/assets/auth-bg.png"),
+    url("/assets/login.png"),
     linear-gradient(160deg, #000000 0%, #1a0002 45%, #000000 100%);
   background-size: cover;
   background-position: center;

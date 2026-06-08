@@ -20,6 +20,7 @@
     calendar: MODULE.ATTENDANCE,
     'holiday-calendar': MODULE.HOLIDAY_CALENDAR,
     employees: MODULE.EMPLOYEE_MANAGEMENT,
+    'employee-documents': MODULE.EMPLOYEE_MANAGEMENT,
     teams: MODULE.EMPLOYEE_MANAGEMENT,
     'manager-controls': MODULE.EMPLOYEE_MANAGEMENT,
     'manager-assignments': MODULE.EMPLOYEE_MANAGEMENT,
@@ -38,11 +39,20 @@
     'manage-admins': null,
     'asset-management': null,
     'policies-and-links': null,
+    'homepage-recognition': null,
+    'company-social': null,
     'live-activity-links': MODULE.SETTINGS,
-    'live-nomination-stats': MODULE.SETTINGS,
   };
 
-  const ALWAYS_VISIBLE = new Set(['my-tasks', 'profile', 'asset-management', 'policies-and-links', 'not-authorized']);
+  const ALWAYS_VISIBLE = new Set([
+    'my-tasks',
+    'profile',
+    'asset-management',
+    'policies-and-links',
+    'homepage-recognition',
+    'company-social',
+    'not-authorized',
+  ]);
 
   function readAdminUser() {
     try {

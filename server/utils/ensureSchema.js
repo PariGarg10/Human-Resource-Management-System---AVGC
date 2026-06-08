@@ -1,4 +1,7 @@
 const { pool } = require('../db');
+const { ensureHomeRecognitionTable } = require('./homeRecognition');
+const { ensureSocialPostsTables } = require('./socialPosts');
+const { ensureSocialTournamentTables } = require('./socialTournaments');
 
 let employeeColumnsReady = false;
 
@@ -12,6 +15,9 @@ async function ensureEmployeeSchemaColumns() {
   await pool.query(
     'ALTER TABLE leaves ADD COLUMN IF NOT EXISTS reporting_to_id INTEGER REFERENCES employees(id) ON DELETE SET NULL'
   );
+  await ensureHomeRecognitionTable();
+  await ensureSocialPostsTables();
+  await ensureSocialTournamentTables();
   employeeColumnsReady = true;
 }
 

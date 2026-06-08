@@ -4,6 +4,7 @@
  */
 import { createRoot, type Root } from 'react-dom/client';
 import { OrgTreePanel } from '@/features/team-hub/OrgTreePanel';
+import SocialPortal from '@/SocialPortal.jsx';
 import { CalendarPanel } from '@/views/CalendarPanel';
 import { HolidayCalendarPanel } from '@/views/HolidayCalendarPanel';
 import './index.css';
@@ -51,6 +52,7 @@ function isTeamsViewActive() {
 
 type TeamHubHrms = typeof window.HRMS & {
   mountTeamHubOrgTree?: (target: HTMLElement | string) => void;
+  mountSocialPortal?: (target: HTMLElement | string) => void;
 };
 
 if (!window.HRMS) {
@@ -71,6 +73,22 @@ hrms.mountAttendanceCalendar = (target: HTMLElement | string) => {
 hrms.mountHolidayCalendar = (target: HTMLElement | string) => {
   const el = resolveEl(target);
   if (el) mount(el, 'holiday');
+};
+
+hrms.mountSocialPortal = (target: HTMLElement | string) => {
+  const el = resolveEl(target);
+  if (!el || el.dataset.socialMounted === '1') return;
+  let userName = 'Admin';
+  try {
+    const stored = JSON.parse(localStorage.getItem('employee') || '{}') as { name?: string };
+    userName = stored.name || 'Admin';
+  } catch {
+    /* use default */
+  }
+  const root = createRoot(el);
+  roots.set(el, root);
+  el.dataset.socialMounted = '1';
+  root.render(<SocialPortal currentUserName={userName} isAdminUser />);
 };
 
 /** Refresh org chart only when the Teams section is visible. */

@@ -113,17 +113,18 @@
   margin-bottom: 5px;
 }
 
-/* Invisible bridge so the flyout stays open while moving from icon → menu */
-.sidebar-nav-section.is-expanded::after,
-.sidebar-nav-section.is-hover-open::after,
-.sidebar-nav-section:focus-within::after {
-  content: '';
-  position: absolute;
-  left: 100%;
-  top: 0;
-  width: 22px;
-  height: max(100%, 42px);
-  z-index: 2599;
+/* Invisible bridge so the flyout stays open while moving from icon → menu (desktop hover only) */
+@media (min-width: 1025px) {
+  .sidebar-nav-section.is-hover-open::after,
+  .sidebar-nav-section.is-pinned::after {
+    content: '';
+    position: absolute;
+    left: 100%;
+    top: 0;
+    width: 22px;
+    height: max(100%, 42px);
+    z-index: 2599;
+  }
 }
 
 .sidebar-accordion-head {
@@ -151,26 +152,24 @@
 }
 
 .sidebar-accordion-head:hover .nav-icon,
-.sidebar-nav-section.is-expanded .sidebar-accordion-head .nav-icon,
 .sidebar-nav-section.is-hover-open .sidebar-accordion-head .nav-icon,
-.sidebar-nav-section:focus-within .sidebar-accordion-head .nav-icon,
+.sidebar-nav-section.is-pinned .sidebar-accordion-head .nav-icon,
 .sidebar-nav-section--direct .sidebar-accordion-head.is-active .nav-icon {
   color: #ffffff;
   opacity: 1;
 }
 
 .sidebar-accordion-head:hover .nav-icon svg,
-.sidebar-nav-section.is-expanded .sidebar-accordion-head .nav-icon svg,
 .sidebar-nav-section.is-hover-open .sidebar-accordion-head .nav-icon svg,
-.sidebar-nav-section:focus-within .sidebar-accordion-head .nav-icon svg,
+.sidebar-nav-section.is-pinned .sidebar-accordion-head .nav-icon svg,
 .sidebar-nav-section--direct .sidebar-accordion-head.is-active .nav-icon svg {
   stroke: #ffffff;
   color: #ffffff;
 }
 
-.sidebar-nav-section.is-expanded .sidebar-accordion-head,
+.sidebar-accordion-head:hover,
 .sidebar-nav-section.is-hover-open .sidebar-accordion-head,
-.sidebar-nav-section:focus-within .sidebar-accordion-head {
+.sidebar-nav-section.is-pinned .sidebar-accordion-head {
   background: #E63946;
   color: #ffffff;
   border-color: #E63946;
@@ -190,7 +189,7 @@
 
 [data-theme="light"] .sidebar-accordion-head:hover .nav-icon svg,
 [data-theme="light"] .sidebar-nav-section.is-hover-open .sidebar-accordion-head .nav-icon svg,
-[data-theme="light"] .sidebar-nav-section.is-expanded .sidebar-accordion-head .nav-icon svg,
+[data-theme="light"] .sidebar-nav-section.is-pinned .sidebar-accordion-head .nav-icon svg,
 [data-theme="light"] .sidebar-nav-section--direct .sidebar-accordion-head.is-active .nav-icon svg {
   stroke: #ffffff;
 }
@@ -260,30 +259,36 @@
   color: var(--sidebar-text);
 }
 
-.sidebar-nav-section.is-expanded .sidebar-accordion-body:not(.sidebar-menu-two-col),
-.sidebar-nav-section.is-hover-open .sidebar-accordion-body:not(.sidebar-menu-two-col),
-.sidebar-nav-section.is-pinned .sidebar-accordion-body:not(.sidebar-menu-two-col),
-.sidebar-nav-section:focus-within .sidebar-accordion-body:not(.sidebar-menu-two-col) {
-  display: block;
-  opacity: 1;
-  transform: translateX(0);
-  pointer-events: auto;
-  visibility: visible;
-}
+@media (min-width: 1025px) {
+  .sidebar-nav-section.is-hover-open .sidebar-accordion-body:not(.sidebar-menu-two-col),
+  .sidebar-nav-section.is-pinned .sidebar-accordion-body:not(.sidebar-menu-two-col) {
+    display: block;
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+    visibility: visible;
+  }
 
-.sidebar-nav-section.is-expanded .sidebar-accordion-body.sidebar-menu-two-col,
-.sidebar-nav-section.is-hover-open .sidebar-accordion-body.sidebar-menu-two-col,
-.sidebar-nav-section.is-pinned .sidebar-accordion-body.sidebar-menu-two-col,
-.sidebar-nav-section:focus-within .sidebar-accordion-body.sidebar-menu-two-col {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 8px;
-  min-width: 380px;
-  max-width: 440px;
-  opacity: 1;
-  transform: translateX(0);
-  pointer-events: auto;
-  visibility: visible;
+  .sidebar-nav-section.is-hover-open .sidebar-accordion-body.sidebar-menu-two-col,
+  .sidebar-nav-section.is-pinned .sidebar-accordion-body.sidebar-menu-two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 8px;
+    min-width: 380px;
+    max-width: 440px;
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  /* Anchor lower sections so flyouts do not spill past the sidebar footer */
+  .sidebar-nav-section[data-section="administration"] .sidebar-accordion-body,
+  .sidebar-nav-section[data-section="account"] .sidebar-accordion-body,
+  .sidebar-nav-section[data-section="live-activities"] .sidebar-accordion-body {
+    top: auto;
+    bottom: 0;
+  }
 }
 
 .sidebar-nav button,
@@ -360,7 +365,7 @@
 .sidebar-nav button.is-active .nav-icon,
 .sidebar-nav button:hover .nav-icon,
 .sidebar-nav-section.is-hover-open .sidebar-accordion-head .nav-icon,
-.sidebar-nav-section.is-expanded .sidebar-accordion-head .nav-icon {
+.sidebar-nav-section.is-pinned .sidebar-accordion-head .nav-icon {
   opacity: 1;
 }
 
@@ -369,6 +374,10 @@ a.sidebar-page-link {
 }
 
 .sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
   padding: 6px;
   border-top: 1px solid var(--sidebar-border);
 }
@@ -398,12 +407,12 @@ a.sidebar-page-link {
   gap: 8px;
   width: 46px;
   height: 46px;
-  margin: 4px auto 0;
-  padding: 0 10px;
+  margin: 0;
+  padding: 0;
   border-radius: 10px;
-  border: 1px solid rgba(230, 57, 70, 0.4);
-  background: rgba(230, 57, 70, 0.12);
-  color: #e63946;
+  border: 1px solid var(--sidebar-head-border, #2a2a2a);
+  background: transparent;
+  color: var(--sidebar-muted);
   cursor: pointer;
   font-family: inherit;
   font-size: 13px;
@@ -549,6 +558,20 @@ body.mobile-sidebar-open .sidebar-overlay {
 
   .sidebar-nav-section.is-hover-open .sidebar-accordion-body {
     display: block;
+  }
+
+  .sidebar-nav-section.is-expanded .sidebar-accordion-head {
+    background: #E63946;
+    color: #ffffff;
+    border-color: #E63946;
+    box-shadow: 0 0 10px rgba(230, 57, 70, 0.55), 0 0 18px rgba(230, 57, 70, 0.28);
+  }
+
+  .sidebar-nav-section.is-expanded .sidebar-accordion-head .nav-icon,
+  .sidebar-nav-section.is-expanded .sidebar-accordion-head .nav-icon svg {
+    color: #ffffff;
+    stroke: #ffffff;
+    opacity: 1;
   }
 
   .nav-caret {

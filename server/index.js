@@ -12,6 +12,10 @@ const adminAccountsRoutes = require('./routes/adminAccounts');
 const assetsRoutes = require('./routes/assets');
 const policiesRoutes = require('./routes/policies');
 const liveActivitiesRoutes = require('./routes/liveActivities');
+const employeeDocumentsRoutes = require('./routes/employeeDocuments');
+const homeRecognitionRoutes = require('./routes/homeRecognition');
+const socialPostsRoutes = require('./routes/socialPosts');
+const socialTournamentsRoutes = require('./routes/socialTournaments');
 const leaveRoutes = require('./routes/leaves');
 const managerRoutes = require('./routes/manager');
 const usersRoutes = require('./routes/users');
@@ -117,6 +121,9 @@ app.use('/api', (req, res, next) => {
   ) {
     return next();
   }
+  if (p === '/home-recognition' && req.method === 'GET') {
+    return next();
+  }
   if (p === '/auth/me' || p === '/auth/logout') {
     return authMiddleware(req, res, next);
   }
@@ -141,6 +148,10 @@ app.use('/api/leave-balance', leaveBalanceRoutes);
 app.use('/api/assets', assetsRoutes);
 app.use('/api/policies', policiesRoutes);
 app.use('/api/live-activities', liveActivitiesRoutes);
+app.use('/api/employee-documents', employeeDocumentsRoutes);
+app.use('/api/home-recognition', homeRecognitionRoutes);
+app.use('/api/social-posts', socialPostsRoutes);
+app.use('/api/social-tournaments', socialTournamentsRoutes);
 
 app.use((err, req, res, _next) => {
   console.error('[AVGC] Unhandled error:', req.method, req.path, err.stack || err.message);

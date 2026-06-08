@@ -38,7 +38,7 @@ function showDomToast(message: string, type: 'success' | 'error' | 'info') {
     `background:${bg}`,
     `border:${border}`,
     'color:#ffffff',
-    'font-family:DM Sans,system-ui,sans-serif',
+    'font-family:Verdana,Geneva,sans-serif',
     'font-size:14px',
     'font-weight:600',
     'line-height:1.45',
