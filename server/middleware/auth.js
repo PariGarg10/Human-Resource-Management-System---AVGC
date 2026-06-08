@@ -40,6 +40,7 @@ async function hydrateAuthUser(payload) {
   if (!employee) return null;
 
   let forcePasswordChange = Boolean(employee.force_password_change || employee.mustchangepassword);
+  let role = String(employee.role || '').toLowerCase().trim();
   if (payload?.adminId) {
     const adminRes = await pool.query(
       'SELECT mustchangepassword FROM admins WHERE id = $1 AND is_active = TRUE LIMIT 1',
@@ -47,6 +48,8 @@ async function hydrateAuthUser(payload) {
     );
     if (!adminRes.rows[0]) return null;
     forcePasswordChange = forcePasswordChange || Boolean(adminRes.rows[0].mustchangepassword);
+    // Admin sessions must not inherit a stale portal role from the linked employee row.
+    role = 'admin';
   }
 
   return {
@@ -54,7 +57,7 @@ async function hydrateAuthUser(payload) {
     id: employee.id,
     name: employee.name,
     email: employee.email,
-    role: employee.role,
+    role,
     force_password_change: forcePasswordChange,
     mustchangepassword: forcePasswordChange,
   };
@@ -99,8 +102,14 @@ function enforceForcePasswordChange(req, res, next) {
 function requireRoles(...roles) {
   const allowed = roles.map((r) => String(r).toLowerCase().trim());
   return (req, res, next) => {
-    const userRole = String(req.user?.role || '').toLowerCase().trim();
-    if (!req.user || !allowed.includes(userRole)) {
+    if (!req.user) {
+      return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
+    }
+    if (req.user.adminId && allowed.includes('admin')) {
+      return next();
+    }
+    const userRole = String(req.user.role || '').toLowerCase().trim();
+    if (!allowed.includes(userRole)) {
       return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
     }
     return next();

@@ -36,8 +36,8 @@
     biometric: MODULE.SETTINGS,
     assignments: MODULE.EMPLOYEE_MANAGEMENT,
     'manage-admins': null,
-    'asset-management': MODULE.SETTINGS,
-    'policies-and-links': MODULE.SETTINGS,
+    'asset-management': null,
+    'policies-and-links': null,
     'live-activity-links': MODULE.SETTINGS,
     'live-nomination-stats': MODULE.SETTINGS,
   };

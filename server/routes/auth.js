@@ -283,6 +283,7 @@ async function issueAdminLogin(res, email, password) {
   if (!matched) return res.status(401).json({ message: 'Invalid credentials' });
 
   const employeeId = await ensureAdminEmployee(admin);
+  await pool.query(`UPDATE employees SET role = 'admin' WHERE id = $1`, [employeeId]);
   const permissions = admin.is_super_admin ? ALL_MODULES : await loadAdminPermissions(pool, admin.id);
   const empRow = await pool.query(
     `

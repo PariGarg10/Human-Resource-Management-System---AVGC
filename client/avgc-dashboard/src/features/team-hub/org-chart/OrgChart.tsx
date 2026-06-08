@@ -25,7 +25,7 @@ type Phase = 'intro' | 'chart';
 
 export function OrgChart() {
   const { isAdmin } = useOrgRole();
-  const { data, directory, highlightId, loading, reset } = useOrgData();
+  const { data, directory, highlightId, loading, loadError, reset } = useOrgData();
   const [phase, setPhase] = useState<Phase>('chart');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [panel, setPanel] = useState<PanelState>(null);
@@ -36,7 +36,10 @@ export function OrgChart() {
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
 
-  const layout = useMemo(() => computeLayout(data, collapsed), [data, collapsed]);
+  const layout = useMemo(
+    () => (data ? computeLayout(data, collapsed) : { width: 0, height: 0, nodes: [], edges: [] }),
+    [data, collapsed]
+  );
 
   const fitToScreen = useCallback(() => {
     const vp = viewportRef.current;
@@ -73,6 +76,7 @@ export function OrgChart() {
 
   const toggleBranch = useCallback(
     (personId: string) => {
+      if (!data) return;
       const branchId = getToggleBranchId(data, personId);
       if (!branchId) return;
       setCollapsed((prev) => {
@@ -135,6 +139,16 @@ export function OrgChart() {
     void reset();
   };
 
+  if (loading || !data) {
+    return (
+      <div className="org-chart-shell org-chart-shell--loading">
+        <p className="org-chart-loading" role="status" aria-live="polite">
+          Loading organization chart…
+        </p>
+      </div>
+    );
+  }
+
   const panelPerson = panel ? getPersonById(data, panel.personId) : null;
   const panelReports = panelPerson ? getDirectReports(data, panelPerson.id) : [];
   const personNodes = layout.nodes.filter((n) => n.kind === 'person' && n.person);
@@ -165,6 +179,8 @@ export function OrgChart() {
         <div className="org-chart org-chart--tree">
           <div className="org-chart__dots" />
           <div className="org-chart__stars" />
+
+          {loadError ? <p className="org-chart-load-error">{loadError}</p> : null}
 
           {isAdmin ? (
             <button type="button" className="org-chart__reset" onClick={handleRefresh} disabled={loading}>

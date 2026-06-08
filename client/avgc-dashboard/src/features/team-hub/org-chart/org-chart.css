@@ -1350,9 +1350,35 @@
   margin: 8px 0 4px 14px;
 }
 
-.org-chart-shell--intro {
+.org-chart-shell--intro,
+.org-chart-shell--loading {
   align-items: center;
   justify-content: center;
+}
+
+.org-chart-loading {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--oc-muted);
+}
+
+.org-chart-load-error {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 25;
+  margin: 0;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--oc-text);
+  background: var(--oc-glass);
+  border: 1px solid var(--oc-border);
+  box-shadow: var(--oc-shadow);
+  pointer-events: none;
 }
 
 .org-intro {

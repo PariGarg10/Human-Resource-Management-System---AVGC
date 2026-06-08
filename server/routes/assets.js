@@ -1,7 +1,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { authMiddleware, enforceForcePasswordChange, requireRoles } = require('../middleware/auth');
-const { ROLES, isAdminRole } = require('../constants/roles');
+const { ROLES, isAdminRole, isManagerRole, normalizeRole } = require('../constants/roles');
 const { formatDisplayDate } = require('../utils/formatDate');
 
 const router = express.Router();
@@ -56,11 +56,17 @@ async function listAllocations() {
   }));
 }
 
+function canViewAssetInventory(user) {
+  if (!user) return false;
+  if (user.adminId) return true;
+  const role = normalizeRole(user.role);
+  return isAdminRole(role) || isManagerRole(role);
+}
+
 /** GET inventory — admin & manager read; employee forbidden */
 router.get('/inventory', async (req, res) => {
   try {
-    const role = String(req.user?.role || '').toLowerCase();
-    if (role === ROLES.EMPLOYEE) {
+    if (!canViewAssetInventory(req.user)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     const items = await inventoryWithCounts();
@@ -74,8 +80,7 @@ router.get('/inventory', async (req, res) => {
 /** GET all allocations — admin & manager */
 router.get('/allocations', async (req, res) => {
   try {
-    const role = String(req.user?.role || '').toLowerCase();
-    if (role === ROLES.EMPLOYEE) {
+    if (!canViewAssetInventory(req.user)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     const allocations = await listAllocations();

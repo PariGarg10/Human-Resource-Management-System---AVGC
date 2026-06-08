@@ -13,10 +13,11 @@ function clone<T>(value: T): T {
 }
 
 export function useOrgData() {
-  const [data, setData] = useState<OrgTreeRoot>(() => clone(DEFAULT_ORG_DATA));
+  const [data, setData] = useState<OrgTreeRoot | null>(null);
   const [directory, setDirectory] = useState<DirectoryPerson[]>([]);
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const refreshOrg = useCallback(async (bustPhotoCache = false) => {
     if (bustPhotoCache) clearProfilePhotoCache();
@@ -26,6 +27,7 @@ export function useOrgData() {
     ]);
     setData(treeRes.tree);
     setDirectory(flattenDirectory(directoryRes));
+    setLoadError(null);
   }, []);
 
   useEffect(() => {
@@ -35,7 +37,10 @@ export function useOrgData() {
       try {
         await refreshOrg(false);
       } catch {
-        if (!cancelled) setData(clone(DEFAULT_ORG_DATA));
+        if (!cancelled) {
+          setData(clone(DEFAULT_ORG_DATA));
+          setLoadError('Could not load live org data. Showing saved preview.');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -63,6 +68,7 @@ export function useOrgData() {
     directory,
     highlightId,
     loading,
+    loadError,
     reset,
     refreshOrg,
   };
