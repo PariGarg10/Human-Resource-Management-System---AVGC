@@ -1,4 +1,5 @@
 import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
+import { resolveApiUrl } from '@/lib/apiBase';
 import { getCachedProfilePhoto, setCachedProfilePhoto } from '@/lib/profilePhotoCache';
 
 function needsAuthenticatedFetch(src: string | null | undefined): boolean {
@@ -39,7 +40,8 @@ export function ProfilePhotoImg({ src, alt = '', className, style, fallback }: P
         return;
       }
 
-      const direct = isDirectPhotoUrl(src) && !needsAuthenticatedFetch(src) ? src : null;
+      const direct =
+        isDirectPhotoUrl(src) && !needsAuthenticatedFetch(src) ? resolveApiUrl(src) : null;
       if (direct) {
         setResolvedSrc(direct);
         return;
@@ -50,7 +52,7 @@ export function ProfilePhotoImg({ src, alt = '', className, style, fallback }: P
         return;
       }
 
-      const path = src;
+      const path = resolveApiUrl(src);
       const cached = getCachedProfilePhoto(path);
       if (cached) {
         setResolvedSrc(cached);
@@ -60,7 +62,7 @@ export function ProfilePhotoImg({ src, alt = '', className, style, fallback }: P
       try {
         const token = localStorage.getItem('token');
         const res = await fetch(path, {
-          credentials: 'same-origin',
+          credentials: 'omit',
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
         if (!res.ok) {

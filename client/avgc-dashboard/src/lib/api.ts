@@ -1,4 +1,5 @@
 import type { EmployeeUser, UserProfile } from '@/types/employee';
+import { resolveApiUrl } from '@/lib/apiBase';
 import { writeUserProfileSnapshot } from '@/lib/userProfileStorage';
 
 export class ApiError extends Error {
@@ -24,11 +25,10 @@ export async function api<T>(path: string, options: RequestInit = {}, withAuth =
   }
   let response: Response;
   try {
-    response = await fetch(path, { ...options, headers });
+    response = await fetch(resolveApiUrl(path), { ...options, headers });
   } catch {
-    throw new Error(
-      'Cannot reach the server. Ensure the app URL matches where you signed in (e.g. http://localhost:5050).'
-    );
+    const hint = resolveApiUrl('/api/health');
+    throw new Error(`Cannot reach the server. Check that the API is running (${hint}).`);
   }
   const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
 
@@ -59,7 +59,7 @@ export function readEmployee(): EmployeeUser | null {
 
 export async function apiPatchProfile(formData: FormData) {
   const token = localStorage.getItem('token');
-  const response = await fetch('/api/users/me', {
+  const response = await fetch(resolveApiUrl('/api/users/me'), {
     method: 'PATCH',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
