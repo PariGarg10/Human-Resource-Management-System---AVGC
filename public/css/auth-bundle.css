@@ -1,4 +1,6 @@
 @import url("variables.css");
+@import url("typography.css");
+@import url("brand-globals.css");
 @import url("forms.css");
 @import url("auth-page.css");
 
@@ -9,7 +11,7 @@
 }
 
 html {
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
 }
 
 body {

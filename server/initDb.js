@@ -72,6 +72,49 @@ async function runSchema() {
   await pool.query(
     'CREATE INDEX IF NOT EXISTS idx_import_attendance_records_import ON import_attendance_records (importid)'
   );
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS inventory_items (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      category TEXT NOT NULL,
+      total_count INTEGER NOT NULL DEFAULT 0 CHECK (total_count >= 0),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS asset_allocations (
+      id SERIAL PRIMARY KEY,
+      inventory_item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      allocated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      notes TEXT,
+      status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'returned')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS policy_documents (
+      id SERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      type TEXT NOT NULL CHECK (type IN ('policy', 'link')),
+      file_url TEXT,
+      external_url TEXT,
+      uploaded_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+      is_visible BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS designation TEXT');
+  await pool.query(
+    'ALTER TABLE employees ADD COLUMN IF NOT EXISTS reporting_to_id INTEGER REFERENCES employees(id) ON DELETE SET NULL'
+  );
+  await pool.query(
+    'ALTER TABLE leaves ADD COLUMN IF NOT EXISTS reporting_to_id INTEGER REFERENCES employees(id) ON DELETE SET NULL'
+  );
   console.log('[db:init] Schema applied from server/schema.sql');
 }
 

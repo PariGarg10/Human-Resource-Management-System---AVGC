@@ -1,9 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { clampPortalYear, currentPortalYear, MIN_PORTAL_YEAR } from '@/lib/yearMin';
 import { api } from '@/lib/api';
+import { calendarDayAbbrev } from '@/lib/attendanceLabels';
 import { toast } from '@/lib/toast';
-import { cn } from '@/lib/cn';
-
-type HistoryRecord = { date: string; status?: string };
+import { formatTime } from '@/lib/datetime';
+type HistoryRecord = {
+  date: string;
+  status?: string;
+  punchin?: string | null;
+  punchout?: string | null;
+  totalhours?: number | null;
+};
 
 type SaturdayEntry = { date: string; status: 'working' | 'off'; createdBy?: number | null };
 
@@ -28,6 +35,9 @@ type Cell = {
   kind: CellKind;
   status: string;
   holidayLabel?: string;
+  punchin?: string | null;
+  punchout?: string | null;
+  totalhours?: number | null;
 };
 
 function mondayIndex(jsDay: number) {
@@ -49,7 +59,7 @@ function holidayTypeLabel(type: HolidayRow['type']) {
 
 export function CalendarPanel() {
   const [month, setMonth] = useState(() => new Date().getMonth() + 1);
-  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [year, setYear] = useState(() => currentPortalYear());
   const [cells, setCells] = useState<Cell[]>([]);
 
   const build = useCallback(async (m: number, y: number) => {
@@ -59,7 +69,7 @@ export function CalendarPanel() {
         saturdayConfig?: SaturdayEntry[];
         holidays?: HolidayRow[];
       }>(`/api/attendance/history?month=${m}&year=${y}`);
-      const statusByDate = new Map((historyData.records || []).map((r) => [r.date, (r.status || 'absent').toLowerCase()]));
+      const recordByDate = new Map((historyData.records || []).map((r) => [r.date, r]));
       const saturdayStatus = new Map((historyData.saturdayConfig || []).map((e) => [e.date, e.status]));
       const holidayByDate = new Map<string, HolidayRow[]>();
       for (const h of historyData.holidays || []) {
@@ -76,6 +86,7 @@ export function CalendarPanel() {
       for (let day = 1; day <= daysInMonth; day += 1) {
         const dateStr = `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         const dow = new Date(y, m - 1, day).getDay();
+        const rec = recordByDate.get(dateStr);
         const holRows = holidayByDate.get(dateStr);
         if (holRows?.length) {
           const holidayLabel = holRows.map((r) => `${r.holidayName} (${holidayTypeLabel(r.type)})`).join(' · ');
@@ -83,8 +94,11 @@ export function CalendarPanel() {
             day,
             dateStr,
             kind: holidayCellKind(holRows),
-            status: statusByDate.get(dateStr) || 'absent',
+            status: rec?.status || 'absent',
             holidayLabel,
+            punchin: rec?.punchin,
+            punchout: rec?.punchout,
+            totalhours: rec?.totalhours,
           });
           continue;
         }
@@ -93,14 +107,26 @@ export function CalendarPanel() {
         const isSaturday = dow === 6;
         const satCfg = isSaturday ? saturdayStatus.get(dateStr) ?? 'off' : null;
         const weekend = isSunday || (isSaturday && satCfg === 'off');
-        const raw = statusByDate.get(dateStr) || 'absent';
+        const raw = (rec?.status || 'absent').toLowerCase();
         let kind: CellKind;
         if (weekend) kind = 'weekend';
         else if (raw === 'present') kind = 'present';
         else if (raw === 'leave') kind = 'leave';
         else if (raw === 'halfday') kind = 'halfday';
         else kind = 'absent';
-        list.push({ day, dateStr, kind, status: raw });
+        list.push({
+          day,
+          dateStr,
+          kind,
+          status: raw,
+          punchin: rec?.punchin,
+          punchout: rec?.punchout,
+          totalhours: rec?.totalhours,
+        });
+      }
+      const totalSlots = Math.ceil(list.length / 7) * 7;
+      while (list.length < totalSlots) {
+        list.push({ day: 0, dateStr: '', kind: 'empty', status: '' });
       }
       setCells(list);
     } catch (e) {
@@ -112,78 +138,29 @@ export function CalendarPanel() {
     build(month, year).catch(() => {});
   }, [build, month, year]);
 
-  const summary = useMemo(() => {
-    let present = 0;
-    let absent = 0;
-    let leave = 0;
-    let holiday = 0;
-    for (const c of cells) {
-      if (c.kind === 'holiday_national' || c.kind === 'holiday_festival' || c.kind === 'holiday_optional') {
-        holiday += 1;
-      } else if (c.kind === 'present' || c.kind === 'halfday') present += 1;
-      else if (c.kind === 'leave') leave += 1;
-      else if (c.kind === 'absent') absent += 1;
-    }
-    return { present, absent, leave, holiday };
-  }, [cells]);
-
-  const todayStr = new Date().toISOString().slice(0, 10);
+  const monthLabel = new Date(year, month - 1, 1).toLocaleString(undefined, { month: 'long' });
 
   function cellClasses(c: Cell) {
-    const isToday = c.dateStr === todayStr;
-    if (c.kind === 'empty') return 'aspect-square bg-transparent';
+    if (c.kind === 'empty') return 'attendance-calendar-day bg-transparent pointer-events-none';
     if (c.kind === 'weekend') {
-      return cn(
-        'relative flex aspect-square flex-col justify-between rounded-md border border-transparent p-1.5 text-left opacity-30',
-        isToday && 'outline outline-2 outline-offset-[-2px] outline-[#ed1d24]'
-      );
+      return 'attendance-calendar-day opacity-30 border border-transparent';
     }
     if (c.kind === 'holiday_national') {
-      return cn(
-        'relative flex aspect-square flex-col justify-between rounded-md border-l-[3px] border-l-[#2563eb] bg-[rgba(37,99,235,0.14)] p-1.5 text-left font-["DM_Sans",sans-serif] text-[11px]',
-        isToday && 'outline outline-2 outline-offset-[-2px] outline-[#ed1d24]'
-      );
+      return 'attendance-calendar-day border-l-[3px] border-l-[#2563eb] bg-[rgba(37,99,235,0.14)]';
     }
     if (c.kind === 'holiday_festival') {
-      return cn(
-        'relative flex aspect-square flex-col justify-between rounded-md border-l-[3px] border-l-[#9333ea] bg-[rgba(147,51,234,0.14)] p-1.5 text-left font-["DM_Sans",sans-serif] text-[11px]',
-        isToday && 'outline outline-2 outline-offset-[-2px] outline-[#ed1d24]'
-      );
+      return 'attendance-calendar-day border-l-[3px] border-l-[#9333ea] bg-[rgba(147,51,234,0.14)]';
     }
     if (c.kind === 'holiday_optional') {
-      return cn(
-        'relative flex aspect-square flex-col justify-between rounded-md border-l-[3px] border-l-[#64748b] bg-[rgba(100,116,139,0.16)] p-1.5 text-left font-["DM_Sans",sans-serif] text-[11px]',
-        isToday && 'outline outline-2 outline-offset-[-2px] outline-[#ed1d24]'
-      );
+      return 'attendance-calendar-day border-l-[3px] border-l-[#64748b] bg-[rgba(100,116,139,0.16)]';
     }
-    const base =
-      'relative flex aspect-square flex-col justify-between rounded-md border-l-[3px] p-1.5 text-left font-["DM_Sans",sans-serif] text-[11px]';
     if (c.kind === 'present') {
-      return cn(
-        base,
-        'border-l-[#22c55e] bg-[rgba(34,197,94,0.12)] text-[var(--text-primary,#000)]',
-        isToday && 'outline outline-2 outline-offset-[-2px] outline-[#ed1d24]'
-      );
+      return 'attendance-calendar-day border-l-[3px] border-l-[#22c55e] bg-[rgba(34,197,94,0.12)]';
     }
-    if (c.kind === 'halfday') {
-      return cn(
-        base,
-        'border-l-[#eab308] bg-[rgba(234,179,8,0.12)] text-[var(--text-primary,#000)]',
-        isToday && 'outline outline-2 outline-offset-[-2px] outline-[#ed1d24]'
-      );
+    if (c.kind === 'halfday' || c.kind === 'leave') {
+      return 'attendance-calendar-day border-l-[3px] border-l-[#eab308] bg-[rgba(234,179,8,0.12)]';
     }
-    if (c.kind === 'leave') {
-      return cn(
-        base,
-        'border-l-[#eab308] bg-[rgba(234,179,8,0.12)] text-[var(--text-primary,#000)]',
-        isToday && 'outline outline-2 outline-offset-[-2px] outline-[#ed1d24]'
-      );
-    }
-    return cn(
-      base,
-      'border-l-[#ed1d24] bg-[rgba(237,29,36,0.12)] text-[var(--text-primary,#000)]',
-      isToday && 'outline outline-2 outline-offset-[-2px] outline-[#ed1d24]'
-    );
+    return 'attendance-calendar-day border-l-[3px] border-l-[#ed1d24] bg-[rgba(237,29,36,0.12)]';
   }
 
   function dotColor(c: Cell) {
@@ -197,176 +174,117 @@ export function CalendarPanel() {
   }
 
   function label(c: Cell) {
-    if (c.kind === 'empty') return '';
-    if (c.kind === 'weekend') return '';
+    if (c.kind === 'empty' || c.kind === 'weekend') return '';
     if (c.kind === 'holiday_national') return 'National';
     if (c.kind === 'holiday_festival') return 'Festival';
     if (c.kind === 'holiday_optional') return 'Optional';
-    if (c.kind === 'present') return 'P';
-    if (c.kind === 'absent') return 'A';
-    if (c.kind === 'leave') return 'L';
-    if (c.kind === 'halfday') return '½';
+    if (c.kind === 'present' || c.kind === 'halfday' || c.kind === 'absent' || c.kind === 'leave') {
+      return calendarDayAbbrev(c.kind);
+    }
     return '';
   }
 
   function cellTitle(c: Cell) {
     if (c.kind === 'empty') return '';
-    if (c.holidayLabel) return `${c.dateStr}: ${c.holidayLabel}`;
-    return `${c.dateStr}: ${c.status}`;
+    const parts = [c.dateStr];
+    if (c.holidayLabel) parts.push(c.holidayLabel);
+    if (c.punchin) parts.push(`In: ${formatTime(c.punchin)}`);
+    if (c.punchout) parts.push(`Out: ${formatTime(c.punchout)}`);
+    if (c.totalhours != null) parts.push(`${c.totalhours}h`);
+    return parts.join(' · ');
+  }
+
+  const atMinMonth =
+    year < MIN_PORTAL_YEAR || (year === MIN_PORTAL_YEAR && month <= 1);
+
+  function prevMonth() {
+    if (atMinMonth) return;
+    if (month <= 1) {
+      setMonth(12);
+      setYear((y) => clampPortalYear(y - 1));
+    } else setMonth((m) => m - 1);
+  }
+
+  function nextMonth() {
+    if (month >= 12) {
+      setMonth(1);
+      setYear((y) => clampPortalYear(y + 1));
+    } else setMonth((m) => m + 1);
   }
 
   return (
-    <div className="rounded-xl border border-[var(--border)] bg-[var(--bg-card)] p-6 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+    <div className="attendance-calendar-viewport">
+      <div className="attendance-calendar-toolbar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
           <button
             type="button"
-            className="rounded-md px-2 py-1 text-lg text-[#ed1d24]"
+            className="calendar-nav-btn"
             aria-label="Previous month"
-            onClick={() => {
-              if (month <= 1) {
-                setMonth(12);
-                setYear((y) => y - 1);
-              } else setMonth((m) => m - 1);
-            }}
+            onClick={prevMonth}
+            disabled={atMinMonth}
           >
             ‹
           </button>
-          <h2 className="font-['Bebas_Neue',sans-serif] text-[28px] tracking-wide text-[var(--text-primary)]">
-            {new Date(year, month - 1, 1).toLocaleString(undefined, { month: 'long' })} {year}
+          <h2 className="calendar-month-title">
+            {monthLabel} {year}
           </h2>
-          <button
-            type="button"
-            className="rounded-md px-2 py-1 text-lg text-[#ed1d24]"
-            aria-label="Next month"
-            onClick={() => {
-              if (month >= 12) {
-                setMonth(1);
-                setYear((y) => y + 1);
-              } else setMonth((m) => m + 1);
-            }}
-          >
+          <button type="button" className="calendar-nav-btn" aria-label="Next month" onClick={nextMonth}>
             ›
           </button>
         </div>
-        <div className="flex flex-wrap gap-2 font-['DM_Sans',sans-serif] text-xs">
-          <span
-            className="rounded-full px-2 py-1 font-semibold"
-            style={{ background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}
-          >
-            Full Day: {summary.present}
+        <div className="attendance-calendar-legend attendance-calendar-legend--toolbar">
+          <span>
+            <span className="legend-dot" style={{ background: '#22c55e' }} /> Present
           </span>
-          <span
-            className="rounded-full px-2 py-1 font-semibold"
-            style={{ background: 'rgba(237,29,36,0.15)', color: '#ed1d24' }}
-          >
-            Absent: {summary.absent}
+          <span>
+            <span className="legend-dot" style={{ background: '#ed1d24' }} /> Absent
           </span>
-          <span
-            className="rounded-full px-2 py-1 font-semibold"
-            style={{ background: 'rgba(234,179,8,0.15)', color: '#eab308' }}
-          >
-            Leave: {summary.leave}
+          <span>
+            <span className="legend-dot" style={{ background: '#eab308' }} /> Half Day
           </span>
-          <span
-            className="rounded-full px-2 py-1 font-semibold"
-            style={{ background: 'rgba(37,99,235,0.12)', color: '#2563eb' }}
-          >
-            Holiday: {summary.holiday}
+          <span>
+            <span className="legend-dot" style={{ background: '#2563eb' }} /> Holiday
+          </span>
+          <span>
+            <span className="legend-dot" style={{ background: '#60a5fa' }} /> Leave
           </span>
         </div>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-end gap-4">
-        <label className="font-['DM_Sans',sans-serif] text-sm font-medium text-[var(--text-primary)]">
-          Month
-          <input
-            type="number"
-            min={1}
-            max={12}
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-            className="mt-1 block min-h-[44px] rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)]"
-          />
-        </label>
-        <label className="font-['DM_Sans',sans-serif] text-sm font-medium text-[var(--text-primary)]">
-          Year
-          <input
-            type="number"
-            min={2000}
-            max={2100}
-            value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            className="mt-1 block min-h-[44px] rounded-md border border-[var(--border)] bg-[var(--bg-secondary)] px-3 py-2 text-sm text-[var(--text-primary)]"
-          />
-        </label>
-        <button
-          type="button"
-          onClick={() => build(month, year)}
-          className="min-h-[44px] rounded-md bg-[#ed1d24] px-5 py-2.5 font-['DM_Sans',sans-serif] text-sm font-semibold text-white"
-        >
-          Load
-        </button>
-      </div>
-
-      <div className="mt-6 grid grid-cols-7 gap-1 text-center font-['DM_Sans',sans-serif] text-xs font-bold uppercase tracking-wide text-[var(--text-muted)]">
+      <div className="attendance-calendar-weekdays">
         {WEEK_LABELS.map((d) => (
-          <div key={d} className="py-2">
-            {d}
-          </div>
+          <span key={d}>{d}</span>
         ))}
       </div>
-      <div className="mt-1 grid grid-cols-7 gap-1">
+
+      <div className="attendance-calendar-grid">
         {cells.map((c, idx) =>
           c.kind === 'empty' ? (
-            <div key={`pad-${idx}`} className="aspect-square bg-transparent" />
+            <div key={`pad-${idx}`} className="attendance-calendar-day bg-transparent" aria-hidden />
           ) : (
             <div key={c.dateStr || `w-${idx}`} title={cellTitle(c)} className={cellClasses(c)}>
-              <span className="text-sm font-bold text-[var(--text-primary)]">{c.day}</span>
-              <span className="flex items-center gap-1">
-                {c.kind !== 'weekend' && (
-                  <>
-                    <span className="inline-block h-2 w-2 rounded-full" style={{ background: dotColor(c) }} />
-                    <span className="font-bold leading-tight">{label(c)}</span>
-                  </>
-                )}
-                {c.holidayLabel && (
-                  <span className="mt-1 block max-w-full truncate text-[10px] font-semibold text-[var(--text-primary)]">
-                    {c.holidayLabel}
+              <span className="day-num">{c.day}</span>
+              {c.kind !== 'weekend' && (
+                <span className="day-meta" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <span className="day-dot" style={{ background: dotColor(c) }} />
+                    <span className="day-label">{label(c)}</span>
                   </span>
-                )}
-              </span>
+                  {c.punchin ? (
+                    <span className="day-punch" style={{ fontSize: '0.55rem', lineHeight: 1.2, opacity: 0.85 }}>
+                      {formatTime(c.punchin)}
+                      {c.punchout ? `–${formatTime(c.punchout)}` : ''}
+                      {c.totalhours != null ? ` · ${c.totalhours}h` : ''}
+                    </span>
+                  ) : null}
+                </span>
+              )}
             </div>
           )
         )}
       </div>
 
-      <div className="mt-6 flex flex-wrap gap-4 font-['DM_Sans',sans-serif] text-xs text-[var(--text-primary)]">
-        <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-[#22c55e]" /> Full Day
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-[#ed1d24]" /> Absent
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-[#eab308]" /> Leave
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-[#2563eb]" /> National
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-[#9333ea]" /> Festival
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-[#64748b]" /> Optional
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-[rgba(255,255,255,0.35)]" /> Off / Sun
-        </span>
-        <span className="flex items-center gap-1 text-[var(--text-muted)]">
-          <span className="inline-block h-2 w-2 rounded border border-dashed border-[var(--text-muted)]" /> Working Sat
-        </span>
-      </div>
+      <p className="attendance-calendar-hint">Hover a day for check-in/out times.</p>
     </div>
   );
 }

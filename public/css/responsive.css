@@ -1,3 +1,5 @@
+/* Legacy responsive rules + desktop shell behavior */
+
 @media (max-width: 768px) {
   .content-area {
     padding: 16px;
@@ -41,111 +43,17 @@
   }
 }
 
-/* Keep dashboard UI desktop-consistent even in device emulation */
-body.force-desktop-ui {
-  min-width: 1200px;
-  overflow-x: auto;
-}
-
-@media (max-width: 1024px) {
-  body.force-desktop-ui.has-floating-sidebar .app-main,
-  body.force-desktop-ui .app-main {
-    margin-left: 96px !important;
+/* Desktop floating rail (1025px+) */
+@media (min-width: 1025px) {
+  body.force-desktop-ui.has-floating-sidebar .app-main {
+    margin-left: var(--sidebar-float-offset);
   }
 
   body.force-desktop-ui.sidebar-collapsed .app-main {
-    margin-left: var(--sidebar-collapsed) !important;
+    margin-left: var(--sidebar-collapsed);
   }
 
   body.force-desktop-ui .mobile-menu-btn {
     display: none !important;
-  }
-
-  body.force-desktop-ui .sidebar {
-    left: 16px;
-    top: 50%;
-    bottom: auto;
-    transform: translateY(-50%);
-    width: 64px;
-    max-height: calc(100vh - 32px);
-    border-radius: 16px;
-    border-left: 1px solid rgba(230, 57, 70, 0.2);
-    background: rgba(20, 20, 20, 0.55);
-    backdrop-filter: blur(12px);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-    overflow: visible;
-  }
-
-  body.force-desktop-ui .sidebar-title,
-  body.force-desktop-ui .sidebar-user-meta,
-  body.force-desktop-ui .sidebar-accordion-head .nav-label,
-  body.force-desktop-ui .nav-caret,
-  body.force-desktop-ui .sidebar-footer #sidebarCollapseBtn {
-    display: none !important;
-  }
-
-  body.force-desktop-ui .sidebar-brand,
-  body.force-desktop-ui .sidebar-profile {
-    justify-content: center;
-    gap: 0;
-    padding: 12px 10px;
-  }
-
-  body.force-desktop-ui .sidebar-accordion-head {
-    width: 42px;
-    height: 42px;
-    justify-content: center;
-    padding: 0;
-    margin: 0 auto;
-    background: transparent;
-  }
-
-  body.force-desktop-ui .sidebar-accordion-body {
-    position: absolute;
-    left: 100%;
-    top: 0;
-    min-width: 200px;
-    max-width: 220px;
-    border: 1px solid var(--sidebar-flyout-border);
-    background: var(--sidebar-flyout-bg);
-    box-shadow: var(--shadow-lg);
-    backdrop-filter: blur(12px);
-    padding: 8px;
-    opacity: 0;
-    transform: translateX(-8px);
-    pointer-events: none;
-    visibility: hidden;
-    display: none;
-  }
-
-  [data-theme="light"] body.force-desktop-ui .sidebar {
-    background: var(--sidebar-bg);
-    box-shadow: var(--sidebar-rail-shadow);
-  }
-
-  body.force-desktop-ui .sidebar-nav-section.is-expanded .sidebar-accordion-body:not(.sidebar-menu-two-col),
-  body.force-desktop-ui .sidebar-nav-section.is-hover-open .sidebar-accordion-body:not(.sidebar-menu-two-col),
-  body.force-desktop-ui .sidebar-nav-section.is-pinned .sidebar-accordion-body:not(.sidebar-menu-two-col),
-  body.force-desktop-ui .sidebar-nav-section:focus-within .sidebar-accordion-body:not(.sidebar-menu-two-col) {
-    opacity: 1;
-    transform: translateX(0);
-    pointer-events: auto;
-    visibility: visible;
-    display: block;
-  }
-
-  body.force-desktop-ui .sidebar-nav-section.is-expanded .sidebar-accordion-body.sidebar-menu-two-col,
-  body.force-desktop-ui .sidebar-nav-section.is-hover-open .sidebar-accordion-body.sidebar-menu-two-col,
-  body.force-desktop-ui .sidebar-nav-section.is-pinned .sidebar-accordion-body.sidebar-menu-two-col,
-  body.force-desktop-ui .sidebar-nav-section:focus-within .sidebar-accordion-body.sidebar-menu-two-col {
-    opacity: 1;
-    transform: translateX(0);
-    pointer-events: auto;
-    visibility: visible;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px 8px;
-    min-width: 380px;
-    max-width: 440px;
   }
 }

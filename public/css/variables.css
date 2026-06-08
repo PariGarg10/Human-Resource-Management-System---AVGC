@@ -3,7 +3,17 @@
 ========================================================= */
 
 :root {
-  --red: #E63946;
+  --red: #ed1d24;
+  --color-primary: #ed1d24;
+  --color-grey1: #697279;
+  --color-grey2: #ebebec;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+  --font-body: Verdana, Geneva, Tahoma, sans-serif;
+  --font-heading-primary: Verdana, Geneva, Tahoma, sans-serif;
+  --font-heading-secondary: "Roboto Slab", Georgia, "Times New Roman", serif;
+  --font-accent: "Roboto", "Segoe UI", system-ui, sans-serif;
+  --font-base: var(--font-body);
   --white: #ffffff;
   --black: #0D0D0D;
   --red-soft: rgba(230, 57, 70, 0.3);
@@ -36,11 +46,15 @@
   --shadow-md: 0 6px 20px rgba(0, 0, 0, 0.06);
   --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.08);
 
-  --font-sans: "DM Sans", "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --font-display: "Bebas Neue", "DM Sans", sans-serif;
+  --font-sans: var(--font-accent);
+  --font-display: var(--font-heading-primary);
 
   --sidebar-width: 268px;
   --sidebar-collapsed: 72px;
+  --sidebar-float-left: 12px;
+  --sidebar-float-width: 84px;
+  --sidebar-float-gap: 12px;
+  --sidebar-float-offset: calc(var(--sidebar-float-left) + var(--sidebar-float-width) + var(--sidebar-float-gap));
   --navbar-height: 64px;
   --transition: 0.2s ease;
 }
@@ -217,19 +231,24 @@ body {
 
 [data-theme="light"] h1,
 [data-theme="light"] h2,
+[data-theme="dark"] h1,
+[data-theme="dark"] h2 {
+  color: var(--text-primary);
+  font-family: var(--font-heading-primary);
+  font-weight: 700;
+}
+
 [data-theme="light"] h3,
 [data-theme="light"] h4,
 [data-theme="light"] h5,
 [data-theme="light"] h6,
-[data-theme="dark"] h1,
-[data-theme="dark"] h2,
 [data-theme="dark"] h3,
 [data-theme="dark"] h4,
 [data-theme="dark"] h5,
 [data-theme="dark"] h6 {
   color: var(--text-primary);
-  font-family: var(--font-display);
-  letter-spacing: 0.04em;
+  font-family: var(--font-heading-secondary);
+  font-weight: 400;
 }
 
 [data-theme="light"] button.outline,
@@ -241,8 +260,9 @@ body {
 }
 
 .panel-title {
-  font-family: var(--font-display);
-  letter-spacing: 0.06em;
+  font-family: var(--font-heading-primary);
+  font-weight: 700;
+  letter-spacing: normal;
 }
 
 * {

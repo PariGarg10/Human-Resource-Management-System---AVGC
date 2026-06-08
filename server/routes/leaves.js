@@ -4,6 +4,8 @@ const { authMiddleware, enforcePasswordChange, requireRoles } = require('../midd
 const { logAudit } = require('../utils/audit');
 const { getHolidayDatesSet } = require('../utils/holidaysRange');
 const { createNotification } = require('../utils/notifications');
+const { TEAM_LEAD_SQL } = require('../utils/teamLeads');
+const { isEmployeeRole } = require('../constants/roles');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -48,6 +50,60 @@ async function cancellationRecipients(leave) {
   }
 
   return [];
+}
+
+async function assertTeamLeadEmployee(teamLeadId) {
+  const id = Number(teamLeadId);
+  if (!Number.isFinite(id) || id <= 0) return null;
+  const { rows } = await pool.query(
+    `
+      SELECT id, name, employeecode, designation
+      FROM employees
+      WHERE id = $1
+        AND COALESCE(isregistered, TRUE) = TRUE
+        AND ${TEAM_LEAD_SQL.replace(/\n/g, ' ')}
+      LIMIT 1
+    `,
+    [id]
+  );
+  return rows[0] || null;
+}
+
+async function notifyLeaveApplied(leave, employee, reportingToId) {
+  const employeeName = employee?.name || 'An employee';
+  const message = `${employeeName} applied for ${leave.leavetype} from ${leave.fromdate} to ${leave.todate}.`;
+  const notified = new Set();
+
+  if (reportingToId) {
+    const teamLead = await assertTeamLeadEmployee(reportingToId);
+    if (teamLead) {
+      await createNotification(teamLead.id, 'leave_applied', message, {
+        subjectEmployeeId: employee.id,
+        eventDate: leave.fromdate,
+      });
+      notified.add(teamLead.id);
+    }
+  }
+
+  const managersResult = await pool.query(
+    `
+      SELECT e.id
+      FROM manageremployees me
+      JOIN employees e ON e.id = me.managerid
+      WHERE me.employeeid = $1
+        AND COALESCE(e.isregistered, TRUE) = TRUE
+    `,
+    [employee.id]
+  );
+
+  for (const row of managersResult.rows) {
+    if (notified.has(row.id)) continue;
+    await createNotification(row.id, 'leave_applied', message, {
+      subjectEmployeeId: employee.id,
+      eventDate: leave.fromdate,
+    });
+    notified.add(row.id);
+  }
 }
 
 async function notifyLeaveCancelled(leave) {
@@ -138,7 +194,7 @@ async function applyApprovedLeaveAttendance(leave) {
 
 router.post('/apply', requireRoles(...EMPLOYEE_SELF_SERVICE_ROLES), async (req, res) => {
   try {
-    const { leavetype, fromdate, todate, reason } = req.body;
+    const { leavetype, fromdate, todate, reason, reportingToId, reporting_to_id } = req.body;
     if (!leavetype || !fromdate || !todate) {
       return res.status(400).json({ message: 'leavetype, fromdate, and todate are required' });
     }
@@ -146,17 +202,54 @@ router.post('/apply', requireRoles(...EMPLOYEE_SELF_SERVICE_ROLES), async (req, 
       return res.status(400).json({ message: 'Invalid leave type' });
     }
 
+    const reportingRaw = reportingToId ?? reporting_to_id;
+    const { rows: teamLeadRows } = await pool.query(
+      `
+        SELECT id FROM employees
+        WHERE COALESCE(isregistered, TRUE) = TRUE
+          AND ${TEAM_LEAD_SQL.replace(/\n/g, ' ')}
+      `
+    );
+    const teamLeadsExist = teamLeadRows.length > 0;
+    let reportingId = reportingRaw != null && reportingRaw !== '' ? Number(reportingRaw) : null;
+
+    if (teamLeadsExist && isEmployeeRole(req.user.role)) {
+      if (!Number.isFinite(reportingId) || reportingId <= 0) {
+        return res.status(400).json({ message: 'Please select who you are currently reporting to' });
+      }
+      const teamLead = await assertTeamLeadEmployee(reportingId);
+      if (!teamLead) {
+        return res.status(400).json({ message: 'Selected team lead is not valid' });
+      }
+    } else {
+      reportingId = null;
+    }
+
+    const employeeResult = await pool.query(
+      'SELECT id, name, email, employeecode, department, designation, reporting_to_id FROM employees WHERE id = $1',
+      [req.user.id]
+    );
+    const employee = employeeResult.rows[0];
+    if (!employee) return res.status(404).json({ message: 'Employee not found' });
+
+    if (reportingId) {
+      await pool.query('UPDATE employees SET reporting_to_id = $1 WHERE id = $2', [reportingId, req.user.id]);
+      employee.reporting_to_id = reportingId;
+    }
+
     const result = await pool.query(
       `
-      INSERT INTO leaves (employeeid, leavetype, fromdate, todate, reason, status)
-      VALUES ($1, $2, $3::date, $4::date, $5, 'pending')
-      RETURNING id
+      INSERT INTO leaves (employeeid, leavetype, fromdate, todate, reason, status, reporting_to_id)
+      VALUES ($1, $2, $3::date, $4::date, $5, 'pending', $6)
+      RETURNING id, employeeid, leavetype, fromdate, todate, reason, status, reporting_to_id
     `,
-      [req.user.id, leavetype, fromdate, todate, reason || null]
+      [req.user.id, leavetype, fromdate, todate, reason || null, reportingId]
     );
 
-    const leaveId = result.rows[0].id;
-    await logAudit(req.user.id, 'LEAVE_APPLIED', 'leaves', { leaveId });
+    const leave = result.rows[0];
+    const leaveId = leave.id;
+    await notifyLeaveApplied(leave, employee, reportingId);
+    await logAudit(req.user.id, 'LEAVE_APPLIED', 'leaves', { leaveId, reportingToId: reportingId });
     return res.status(201).json({ message: 'Leave request submitted', id: leaveId });
   } catch (err) {
     console.error('POST /leaves/apply:', err.message);

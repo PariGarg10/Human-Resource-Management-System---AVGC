@@ -2,6 +2,7 @@ const express = require('express');
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { getLeaveBalance } = require('../utils/leaveBalance');
+const { isValidPortalYear } = require('../constants/portalYear');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -27,7 +28,7 @@ router.get('/:employeeId', async (req, res) => {
     if (!Number.isInteger(employeeId) || employeeId <= 0) {
       return res.status(400).json({ message: 'Valid employeeId is required' });
     }
-    if (!Number.isInteger(year) || year < 2000 || year > 2100) {
+    if (!isValidPortalYear(year)) {
       return res.status(400).json({ message: 'Valid year is required' });
     }
 

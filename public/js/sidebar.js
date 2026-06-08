@@ -1,16 +1,48 @@
 window.HRMS = window.HRMS || {};
 
 HRMS.initSidebar = function initSidebar(options = {}) {
+  function setActiveViewSection(sectionId) {
+    document.querySelectorAll('.view-section').forEach((view) => {
+      const shouldActivate = view.id === `view-${sectionId}`;
+      view.classList.toggle('is-active', shouldActivate);
+      view.toggleAttribute('hidden', !shouldActivate);
+    });
+  }
+
+  if (options.onNavigate) {
+    HRMS._sidebarOnNavigate = options.onNavigate;
+  }
+  if (document.body.dataset.hrmsSidebarInit === '1') {
+    if (window.HRMS?.refreshNavIcons) {
+      HRMS.refreshNavIcons(document.querySelector('.sidebar') || document);
+    }
+    return;
+  }
+  document.body.dataset.hrmsSidebarInit = '1';
+
   const sidebar = document.querySelector('.sidebar');
   const toggle = document.getElementById('sidebarCollapseBtn');
   const mobileBtn = document.getElementById('mobileMenuBtn');
   const overlay = document.querySelector('.sidebar-overlay');
   const isDesktop = () => window.matchMedia('(min-width: 1025px)').matches;
 
-  if (sidebar) {
-    document.body.classList.add('has-floating-sidebar');
-    document.body.classList.add('force-desktop-ui');
+  function syncShellLayout() {
+    if (!sidebar) return;
+    const desktop = isDesktop();
+    document.body.classList.toggle('has-floating-sidebar', desktop);
+    document.body.classList.toggle('force-desktop-ui', desktop);
+    document.body.classList.remove('shell-mobile');
+    document.body.classList.remove('shell-tablet');
+    document.body.classList.remove('shell-desktop');
+    document.body.classList.remove('has-expanded-sidebar');
+    document.body.classList.remove('has-bottom-nav');
+    if (!desktop) {
+      document.body.classList.remove('sidebar-collapsed');
+    }
   }
+
+  syncShellLayout();
+  window.addEventListener('resize', syncShellLayout);
 
   if (toggle) {
     toggle.addEventListener('click', () => {
@@ -60,7 +92,7 @@ HRMS.initSidebar = function initSidebar(options = {}) {
     hoverCloseTimer = setTimeout(() => {
       section.classList.remove('is-hover-open');
       hoverCloseTimer = null;
-    }, 280);
+    }, 200);
   }
 
   function clearPinnedSections(except) {
@@ -102,35 +134,21 @@ HRMS.initSidebar = function initSidebar(options = {}) {
     const activeBtn = section.querySelector('[data-nav].is-active');
     const saved = localStorage.getItem(key);
     const shouldOpen = activeBtn != null || saved === 'open';
-    if (shouldOpen) section.classList.add('is-expanded');
+    if (shouldOpen && !isDesktop()) section.classList.add('is-expanded');
     else section.classList.remove('is-expanded');
 
     if (head) {
       head.addEventListener('click', (e) => {
+        if (head.hasAttribute('data-nav')) return;
         e.preventDefault();
         e.stopPropagation();
+        if (isDesktop()) return;
         const next = !section.classList.contains('is-expanded');
-        if (isDesktop()) {
-          document.querySelectorAll('.sidebar-nav-section').forEach((s) => {
-            if (s !== section) {
-              s.classList.remove('is-expanded');
-              s.classList.remove('is-hover-open');
-              s.classList.remove('is-pinned');
-              const otherId = s.getAttribute('data-section') || 'misc';
-              localStorage.setItem(`hrms-sidebar-section-${otherId}`, 'closed');
-            }
-          });
-          clearHoverCloseTimer();
-          section.classList.remove('is-hover-open');
-        }
         section.classList.toggle('is-expanded', next);
         section.classList.toggle('is-pinned', next);
         if (!next) section.classList.remove('is-pinned');
         else clearPinnedSections(section);
         localStorage.setItem(key, next ? 'open' : 'closed');
-        if (isDesktop() && !next) {
-          head.blur();
-        }
       });
     }
 
@@ -155,6 +173,19 @@ HRMS.initSidebar = function initSidebar(options = {}) {
       const sectionId = section.getAttribute('data-section') || '';
       body.classList.toggle('sidebar-menu-two-col', sectionId === 'administration');
 
+      body.addEventListener('mouseenter', () => {
+        if (!isDesktop()) return;
+        clearHoverCloseTimer();
+        section.classList.add('is-hover-open');
+      });
+
+      body.addEventListener('mouseleave', (e) => {
+        if (!isDesktop()) return;
+        const to = e.relatedTarget;
+        if (to && section.contains(to)) return;
+        scheduleHoverClose(section);
+      });
+
       body.addEventListener('wheel', (e) => {
         if (!isDesktop()) return;
         const canScroll = body.scrollHeight > body.clientHeight;
@@ -167,6 +198,7 @@ HRMS.initSidebar = function initSidebar(options = {}) {
   });
 
   function activateNavSection(btn) {
+      if (btn.disabled || btn.classList.contains('nav-item-disabled')) return;
       const section = btn.getAttribute('data-nav');
       if (typeof options.canNavigate === 'function' && !options.canNavigate(section)) {
         if (typeof options.onBlocked === 'function') options.onBlocked(section);
@@ -175,10 +207,9 @@ HRMS.initSidebar = function initSidebar(options = {}) {
       }
       document.querySelectorAll('.sidebar-nav [data-nav]').forEach((b) => b.classList.remove('is-active'));
       btn.classList.add('is-active');
-      document.querySelectorAll('.view-section').forEach((v) => v.classList.remove('is-active'));
+      setActiveViewSection(section);
       const target = document.getElementById(`view-${section}`);
       if (target) {
-        target.classList.add('is-active');
         const bc = document.getElementById('breadcrumbCurrent');
         if (bc) bc.textContent = btn.textContent.trim();
       }
@@ -190,7 +221,8 @@ HRMS.initSidebar = function initSidebar(options = {}) {
         parentSection.classList.remove('is-expanded');
       }
       closeMobile();
-      if (options.onNavigate) options.onNavigate(section);
+      const navCb = HRMS._sidebarOnNavigate || options.onNavigate;
+      if (navCb) navCb(section);
   }
 
   document.querySelectorAll('.sidebar-nav [data-nav]').forEach((btn) => {
@@ -223,7 +255,11 @@ HRMS.initSidebar = function initSidebar(options = {}) {
   });
 
   const initial = document.querySelector('.sidebar-nav [data-nav].is-active');
-  if (initial) expandSectionFor(initial);
+  if (initial) {
+    const initialSection = initial.getAttribute('data-nav');
+    if (initialSection) setActiveViewSection(initialSection);
+    expandSectionFor(initial);
+  }
 
   if (window.HRMS?.refreshNavIcons) HRMS.refreshNavIcons(sidebar || document);
 };

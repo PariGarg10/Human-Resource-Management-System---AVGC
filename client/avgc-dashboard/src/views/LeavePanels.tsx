@@ -1,7 +1,11 @@
-import { type FormEvent, useCallback, useEffect, useState } from 'react';
+import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
+import { monthName } from '@/lib/attendanceLabels';
+import { MIN_PORTAL_YEAR, MAX_PORTAL_YEAR } from '@/lib/yearMin';
 import { StatusBadge } from '@/components/ui/StatusBadge';
+import { useUser } from '@/context/UserContext';
+import { hasEmployeeAccess } from '@/lib/roles';
 
 type LeaveRow = {
   id?: number;
@@ -12,17 +16,69 @@ type LeaveRow = {
   reason?: string;
 };
 
+type TeamLeadOption = {
+  id: number;
+  name: string;
+  employeecode?: string;
+  designation?: string | null;
+};
+
+const LEAVE_TYPES = ['Paid Leave', 'Work From Home'] as const;
+const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
+
+function dateOnly(value: string) {
+  return value ? value.slice(0, 10) : '—';
+}
+
 export function LeaveApplyPanel() {
-  const [leaveType, setLeaveType] = useState('Casual Leave');
+  const { user } = useUser();
+  const showTeamLeadReporting = hasEmployeeAccess(user?.role);
+  const [leaveType, setLeaveType] = useState<(typeof LEAVE_TYPES)[number]>('Paid Leave');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [reason, setReason] = useState('');
+  const [reportingToId, setReportingToId] = useState('');
+  const [teamLeads, setTeamLeads] = useState<TeamLeadOption[]>([]);
+  const [loadingLeads, setLoadingLeads] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const loadTeamLeads = useCallback(async () => {
+    if (!showTeamLeadReporting) {
+      setTeamLeads([]);
+      setLoadingLeads(false);
+      return;
+    }
+    setLoadingLeads(true);
+    try {
+      const data = await api<{ teamLeads: TeamLeadOption[] }>('/api/users/team-leads');
+      const leads = data.teamLeads || [];
+      setTeamLeads(leads);
+      const saved = user?.reportingToId;
+      if (saved && leads.some((l) => l.id === saved)) {
+        setReportingToId(String(saved));
+      } else if (leads.length === 1) {
+        setReportingToId(String(leads[0].id));
+      }
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not load team leads', 'error');
+      setTeamLeads([]);
+    } finally {
+      setLoadingLeads(false);
+    }
+  }, [showTeamLeadReporting, user?.reportingToId]);
+
+  useEffect(() => {
+    loadTeamLeads().catch(() => {});
+  }, [loadTeamLeads]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setSuccessMsg(null);
+    if (showTeamLeadReporting && teamLeads.length > 0 && !reportingToId) {
+      toast('Please select your reporting team lead', 'error');
+      return;
+    }
     setSubmitting(true);
     try {
       await api('/api/leaves/apply', {
@@ -33,9 +89,12 @@ export function LeaveApplyPanel() {
           fromdate: from,
           todate: to,
           reason,
+          reportingToId: reportingToId ? Number(reportingToId) : undefined,
         }),
       });
-      setSuccessMsg('Leave applied successfully. It will appear in Leave history with status Pending until your manager reviews it.');
+      setSuccessMsg(
+        'Leave applied successfully. Your team lead and manager have been notified. It will appear in Leave history with status Pending until approved.'
+      );
       toast('Leave applied successfully ✓', 'success');
       setReason('');
       setFrom('');
@@ -49,65 +108,101 @@ export function LeaveApplyPanel() {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-900">Apply for leave</h2>
+    <div className="panel">
+      <h2 className="panel-title">Leave management</h2>
+      <p className="stat-sub">
+        {showTeamLeadReporting
+          ? 'Submit a new leave request. Your reporting team lead will be notified.'
+          : 'Submit a new leave request for review.'}
+      </p>
       {successMsg && (
-        <div
-          className="mt-4 rounded-md border border-[#ed1d24]/30 bg-[rgba(237,29,36,0.08)] px-4 py-3 text-sm font-semibold text-[#ed1d24]"
-          role="status"
-        >
+        <p className="message" style={{ marginTop: 12, color: 'var(--brand)' }} role="status">
           {successMsg}
-        </div>
+        </p>
       )}
-      <form onSubmit={onSubmit} className="mt-6 grid gap-4 sm:grid-cols-2">
-        <label className="text-sm font-medium text-slate-700">
-          Leave type
-          <select
-            value={leaveType}
-            onChange={(e) => setLeaveType(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm min-h-[44px]"
-          >
-            <option>Sick Leave</option>
-            <option>Casual Leave</option>
-            <option>Paid Leave</option>
-            <option>Work From Home</option>
-          </select>
-        </label>
-        <label className="text-sm font-medium text-slate-700">
-          From
-          <input
-            type="date"
-            required
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm min-h-[44px]"
-          />
-        </label>
-        <label className="text-sm font-medium text-slate-700">
-          To
-          <input
-            type="date"
-            required
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm min-h-[44px]"
-          />
-        </label>
-        <label className="sm:col-span-2 text-sm font-medium text-slate-700">
-          Reason
-          <input
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-xl bg-avgc-brand px-6 py-3 text-sm font-semibold text-white sm:col-span-2 min-h-[44px] disabled:opacity-60"
-        >
-          {submitting ? 'Submitting…' : 'Submit request'}
-        </button>
+      <form onSubmit={onSubmit} className="leave-apply-form" style={{ marginTop: 16 }}>
+        <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+          <label>Leave type</label>
+          <div className="leave-type-row">
+            {LEAVE_TYPES.map((type) => (
+              <button
+                key={type}
+                type="button"
+                className={`leave-type-chip${leaveType === type ? ' is-selected' : ''}`}
+                onClick={() => setLeaveType(type)}
+              >
+                {type}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="leave-apply-grid">
+          <div className="form-group">
+            <label htmlFor="leave-from">From date</label>
+            <input
+              id="leave-from"
+              type="date"
+              required
+              value={from}
+              onChange={(e) => setFrom(e.target.value)}
+              placeholder="When does your leave start?"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="leave-to">To date</label>
+            <input
+              id="leave-to"
+              type="date"
+              required
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              placeholder="When do you return?"
+            />
+          </div>
+          <div className="form-group">
+            <label htmlFor="leave-reason">Reason</label>
+            <input
+              id="leave-reason"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Brief reason for your time away"
+            />
+          </div>
+          {showTeamLeadReporting ? (
+            <div className="form-group">
+              <label htmlFor="leave-reporting">Reporting to</label>
+              <select
+                id="leave-reporting"
+                required={teamLeads.length > 0}
+                value={reportingToId}
+                onChange={(e) => setReportingToId(e.target.value)}
+                disabled={loadingLeads}
+              >
+                <option value="">{loadingLeads ? 'Loading team leads…' : 'Choose your team lead'}</option>
+                {teamLeads.map((lead) => (
+                  <option key={lead.id} value={lead.id}>
+                    {lead.name}
+                    {lead.designation ? ` — ${lead.designation}` : ''}
+                    {lead.employeecode ? ` (${lead.employeecode})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
+        </div>
+
+        {showTeamLeadReporting && !loadingLeads && teamLeads.length === 0 && (
+          <p className="stat-sub" style={{ margin: '0 0 12px' }}>
+            No team leads are configured yet. Ask admin to set designation (e.g. Team Lead) on the right people.
+          </p>
+        )}
+
+        <div className="leave-apply-actions">
+          <button type="submit" className="btn btn-primary" disabled={submitting || loadingLeads}>
+            {submitting ? 'Submitting…' : 'Submit request'}
+          </button>
+        </div>
       </form>
     </div>
   );
@@ -115,7 +210,8 @@ export function LeaveApplyPanel() {
 
 export function LeaveHistoryPanel() {
   const [rows, setRows] = useState<LeaveRow[]>([]);
-  const [q, setQ] = useState('');
+  const [searchMonth, setSearchMonth] = useState('');
+  const [searchYear, setSearchYear] = useState('');
   const [cancellingId, setCancellingId] = useState<number | null>(null);
 
   const load = useCallback(async () => {
@@ -157,71 +253,92 @@ export function LeaveHistoryPanel() {
     }
   }
 
-  const filtered = rows.filter((r) => {
-    if (!q.trim()) return true;
-    const t = q.toLowerCase();
-    return (
-      r.leavetype.toLowerCase().includes(t) ||
-      r.status.toLowerCase().includes(t) ||
-      (r.reason || '').toLowerCase().includes(t)
-    );
-  });
+  const filtered = useMemo(() => {
+    return rows.filter((r) => {
+      const from = dateOnly(r.fromdate);
+      if (!from || from === '—') return !searchMonth && !searchYear;
+      const [, m] = from.split('-').map(Number);
+      const y = Number(from.slice(0, 4));
+      if (searchMonth && m !== Number(searchMonth)) return false;
+      if (searchYear && y !== Number(searchYear)) return false;
+      return true;
+    });
+  }, [rows, searchMonth, searchYear]);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="text-lg font-semibold text-slate-900">Leave history</h2>
-        <input
-          type="search"
-          placeholder="Search…"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          className="rounded-xl border border-slate-200 px-3 py-2 text-sm"
-        />
+    <div className="panel panel--scroll">
+      <div className="panel-header">
+        <h2 className="panel-title">Leave history</h2>
+        <div className="filters-inline">
+          <label>
+            Month{' '}
+            <select value={searchMonth} onChange={(e) => setSearchMonth(e.target.value)}>
+              <option value="">All</option>
+              {MONTHS.map((m) => (
+                <option key={m} value={m}>
+                  {monthName(m)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Year{' '}
+            <input
+              type="number"
+              min={MIN_PORTAL_YEAR}
+              max={MAX_PORTAL_YEAR}
+              placeholder="e.g. 2026"
+              value={searchYear}
+              onChange={(e) => setSearchYear(e.target.value)}
+            />
+          </label>
+        </div>
       </div>
-      <div className="mt-4 overflow-x-auto">
-        <table className="w-full min-w-[600px] text-left text-sm">
+      <div className="table-wrap table-wrap--scroll" style={{ marginTop: 16 }}>
+        <table className="data-table">
           <thead>
-            <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-              <th className="pb-3 font-semibold">Type</th>
-              <th className="pb-3 font-semibold">From</th>
-              <th className="pb-3 font-semibold">To</th>
-              <th className="pb-3 font-semibold">Status</th>
-              <th className="pb-3 font-semibold">Reason</th>
-              <th className="pb-3 font-semibold">Action</th>
+            <tr>
+              <th>Sr. No.</th>
+              <th>Type</th>
+              <th>From</th>
+              <th>To</th>
+              <th>Status</th>
+              <th>Reason</th>
+              <th>Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody id="employeeLeaveHistoryBody">
             {filtered.length === 0 ? (
               <tr>
-                <td className="py-8 text-center text-slate-500 sm:col-span-6" colSpan={6}>
+                <td colSpan={7} className="stat-sub">
                   No leave requests yet. Apply above and they will show here.
                 </td>
               </tr>
             ) : (
-              filtered.map((leave) => {
+              filtered.map((leave, index) => {
                 const canCancel = ['pending', 'approved'].includes(leave.status.toLowerCase());
                 return (
                   <tr key={leave.id ?? `${leave.fromdate}-${leave.todate}-${leave.leavetype}`}>
-                    <td className="py-3">{leave.leavetype}</td>
-                    <td className="py-3">{leave.fromdate}</td>
-                    <td className="py-3">{leave.todate}</td>
-                    <td className="py-3">
+                    <td>{index + 1}</td>
+                    <td>{leave.leavetype}</td>
+                    <td>{dateOnly(leave.fromdate)}</td>
+                    <td>{dateOnly(leave.todate)}</td>
+                    <td>
                       <StatusBadge status={leave.status} />
                     </td>
-                    <td className="py-3 text-slate-600">{leave.reason || '—'}</td>
-                    <td className="py-3">
+                    <td>{leave.reason || '—'}</td>
+                    <td>
                       {canCancel && leave.id ? (
                         <button
                           type="button"
+                          className="btn btn-outline btn-sm"
                           onClick={() => cancelLeave(leave)}
                           disabled={cancellingId === leave.id}
-                          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"
                         >
-                          {cancellingId === leave.id ? 'Cancelling…' : 'Cancel Leave'}
+                          {cancellingId === leave.id ? 'Cancelling…' : 'Cancel'}
                         </button>
                       ) : (
-                        <span className="text-xs text-slate-400">—</span>
+                        '—'
                       )}
                     </td>
                   </tr>

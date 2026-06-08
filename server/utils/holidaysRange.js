@@ -40,7 +40,7 @@ function isValidHolidayDate(value) {
     parsed.getFullYear() === year &&
     parsed.getMonth() === month - 1 &&
     parsed.getDate() === day &&
-    year >= 2000 &&
+    year >= 2026 &&
     year <= 2100
   );
 }

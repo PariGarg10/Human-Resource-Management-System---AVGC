@@ -5,6 +5,7 @@ const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { requireAdminAccess } = require('../middleware/adminAuth');
 const { requirePermission, PERMISSION_MODULES } = require('../utils/adminPermissions');
 const { parseYmdLocal, getSaturdayConfigMerged } = require('../utils/saturdayConfigRange');
+const { MIN_PORTAL_YEAR, MAX_PORTAL_YEAR } = require('../constants/portalYear');
 
 const router = express.Router();
 
@@ -21,13 +22,13 @@ function rangeFromQuery(query) {
   }
   const yr = Number(year);
   const mo = Number(month);
-  if (yr >= 2000 && yr <= 2100 && mo >= 1 && mo <= 12) {
+  if (yr >= MIN_PORTAL_YEAR && yr <= MAX_PORTAL_YEAR && mo >= 1 && mo <= 12) {
     const fromStr = `${yr}-${String(mo).padStart(2, '0')}-01`;
     const last = new Date(yr, mo, 0).getDate();
     const toStr = `${yr}-${String(mo).padStart(2, '0')}-${String(last).padStart(2, '0')}`;
     return { from: fromStr, to: toStr };
   }
-  if (yr >= 2000 && yr <= 2100) {
+  if (yr >= MIN_PORTAL_YEAR && yr <= MAX_PORTAL_YEAR) {
     return {
       from: format(startOfYear(new Date(yr, 0, 1)), 'yyyy-MM-dd'),
       to: format(endOfYear(new Date(yr, 0, 1)), 'yyyy-MM-dd'),

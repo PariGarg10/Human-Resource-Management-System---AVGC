@@ -1,0 +1,64 @@
+/* AVGC brand tokens — spec-aligned globals */
+:root {
+  --color-primary: #ed1d24;
+  --color-grey1: #697279;
+  --color-grey2: #ebebec;
+  --color-bg: #ffffff;
+  --color-text: #000000;
+  --red: var(--color-primary);
+  --primary: var(--color-primary);
+  --primary-hover: var(--color-primary);
+}
+
+body {
+  background: #fff;
+  color: #000;
+}
+
+a:hover,
+.sidebar-nav button:not(:disabled):hover,
+.sidebar-nav a:hover,
+.top-navbar a:hover,
+.btn:hover:not(:disabled),
+.navbar-right button:hover,
+.profile-dropdown button:hover {
+  color: #ed1d24;
+  transition: color 0.2s ease;
+}
+
+.navbar-logo {
+  max-height: 48px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.sidebar-logo-img {
+  max-height: 54px;
+  width: auto;
+  object-fit: contain;
+}
+
+.role-pill--success-manager {
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.nav-item-disabled {
+  opacity: 0.55;
+  cursor: not-allowed !important;
+  color: #697279 !important;
+  pointer-events: none;
+}
+
+.nav-coming-soon-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--color-grey2);
+  color: var(--color-grey1);
+}

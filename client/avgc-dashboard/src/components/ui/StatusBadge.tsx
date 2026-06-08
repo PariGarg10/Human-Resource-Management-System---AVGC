@@ -21,7 +21,7 @@ export function StatusBadge({ status }: { status?: string }) {
   const label = status || 'absent';
   const pretty =
     raw === 'present'
-      ? 'Full Day'
+      ? 'Present'
       : raw === 'halfday'
         ? 'Half Day'
         : String(label).replace(/^\w/, (c) => c.toUpperCase());

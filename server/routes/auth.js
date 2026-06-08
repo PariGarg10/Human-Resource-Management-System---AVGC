@@ -199,10 +199,12 @@ async function issueEmployeeLogin(res, employee, allowedRole) {
     name: employee.name,
     email: employee.email,
     department: employee.department,
+    designation: employee.designation || null,
+    reportingToId: employee.reporting_to_id ?? null,
     role,
+    employeecode: employee.employeecode,
     force_password_change: forcePasswordChange,
   };
-  if (role !== 'employee') safeEmployee.employeecode = employee.employeecode;
 
   return issueAuthResponse(res, payload, safeEmployee, forcePasswordChange);
 }
@@ -210,7 +212,7 @@ async function issueEmployeeLogin(res, employee, allowedRole) {
 async function handleEmployeeCredentialLogin(res, loginId, password, allowedRole) {
   const result = await pool.query(
     `
-      SELECT id, employeecode, name, email, passwordhash, role, department,
+      SELECT id, employeecode, name, email, passwordhash, role, department, designation, reporting_to_id,
              mustchangepassword, force_password_change, temp_password_hash,
              temp_password_expiry, failed_login_attempts, account_locked_until
       FROM employees

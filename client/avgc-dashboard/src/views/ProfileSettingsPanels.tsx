@@ -128,60 +128,39 @@ export function ProfilePanel({
 
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-6 text-sm text-slate-500 shadow-sm">
-        Loading profile…
+      <div className="panel profile-panel-shell">
+        <p className="stat-sub">Loading profile…</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-900">{name.trim() || 'My profile'}</h2>
-      <p className="mt-1 text-sm text-slate-500">
-        Update your details. Email is managed by your administrator and cannot be changed here.
+    <div className="panel profile-panel-shell">
+      <h2 className="panel-title">{name.trim() || 'Profile'}</h2>
+      <p className="stat-sub">
+        Your name is managed by your administrator. Update contact details and photo below.
       </p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Employee Name</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{name || '—'}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Designation</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{designation || '—'}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Department</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{department || '—'}</p>
-        </div>
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Employee ID</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">{user?.employeecode || '—'}</p>
-        </div>
-      </div>
+
       {saveOk && (
-        <div
-          className="mt-4 rounded-md border border-[#ed1d24]/30 bg-[rgba(237,29,36,0.08)] px-4 py-3 text-sm font-semibold text-[#ed1d24]"
-          role="status"
-        >
-          Profile saved successfully. Your name and photo are updated across the app.
-        </div>
+        <p className="message profile-save-msg" role="status">
+          Profile saved successfully. Your photo is updated across the app.
+        </p>
       )}
 
-      <form onSubmit={onSubmit} className="mt-6 max-w-2xl space-y-5">
-        <div className="flex flex-wrap items-start gap-6">
-          <div className="shrink-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Photo</p>
-            <div className="mt-2 flex h-28 w-28 items-center justify-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+      <form onSubmit={onSubmit} className="profile-two-col">
+        <aside className="profile-col profile-col--identity">
+          <div className="profile-photo-card">
+            <div className="profile-photo-frame">
               {previewUrl ? (
-                <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+                <img src={previewUrl} alt="" />
               ) : (
-                <span className="text-2xl font-bold text-slate-400">
+                <span className="profile-photo-initial">
                   {(name || email || '?').charAt(0).toUpperCase()}
                 </span>
               )}
             </div>
-            <label className="mt-2 block text-sm font-medium text-avgc-brand">
-              <span className="cursor-pointer hover:underline">Upload image</span>
+            <label className="profile-upload-btn">
+              <span>Change photo</span>
               <input
                 type="file"
                 accept="image/*"
@@ -211,83 +190,74 @@ export function ProfilePanel({
             </label>
           </div>
 
-          <div className="min-w-0 flex-1 space-y-4">
-            <label className="block text-sm font-medium text-slate-700">
-              Full name
-              <input
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm min-h-[44px]"
-              />
+          <div className="profile-identity-tiles">
+            <div className="profile-identity-tile">
+              <span className="profile-identity-label">Full name</span>
+              <strong>{name || '—'}</strong>
+            </div>
+            <div className="profile-identity-tile">
+              <span className="profile-identity-label">Designation</span>
+              <strong>{designation || '—'}</strong>
+            </div>
+            <div className="profile-identity-tile">
+              <span className="profile-identity-label">Department</span>
+              <strong>{department || '—'}</strong>
+            </div>
+            <div className="profile-identity-tile">
+              <span className="profile-identity-label">Employee ID</span>
+              <strong>{user?.employeecode || '—'}</strong>
+            </div>
+          </div>
+        </aside>
+
+        <div className="profile-col profile-col--fields">
+          <div className="profile-fields-grid">
+            <label className="profile-field">
+              <span>Email</span>
+              <input readOnly value={email} className="is-readonly" />
             </label>
-            <label className="block text-sm font-medium text-slate-700">
-              Email
-              <input
-                readOnly
-                value={email}
-                className="mt-1 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600 min-h-[44px]"
-              />
-            </label>
-            <label className="block text-sm font-medium text-slate-700">
-              Employee ID
-              <input
-                readOnly
-                value={user?.employeecode || ''}
-                className="mt-1 w-full cursor-not-allowed rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-600 min-h-[44px]"
-              />
-            </label>
-            <label className="block text-sm font-medium text-slate-700">
-              Phone number
+            <label className="profile-field">
+              <span>Phone number</span>
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="e.g. +91 98765 43210"
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm min-h-[44px]"
+                placeholder="How can we reach you?"
               />
             </label>
-            <label className="block text-sm font-medium text-slate-700">
-              Location (city / country)
+            <label className="profile-field">
+              <span>Location</span>
               <input
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
-                placeholder="e.g. Bengaluru, India"
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm min-h-[44px]"
+                placeholder="City or country you work from"
               />
             </label>
-            <label className="block text-sm font-medium text-slate-700">
-              Date of Birth
-              <input
-                type="date"
-                value={dateOfBirth}
-                onChange={(e) => setDateOfBirth(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm min-h-[44px]"
-              />
-              <span className="mt-1 block text-xs text-slate-500">Optional. Used for birthday reminders only.</span>
-              {derivedAge != null && (
-                <span className="mt-1 block text-xs font-medium text-slate-600">Age (derived): {derivedAge}</span>
+            <label className="profile-field">
+              <span>Date of birth</span>
+              <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
+              {derivedAge != null ? (
+                <small>Age (derived): {derivedAge}</small>
+              ) : (
+                <small>Optional — used for birthday reminders only</small>
               )}
             </label>
-            <label className="block text-sm font-medium text-slate-700">
-              Bio / About
+            <label className="profile-field profile-field--wide">
+              <span>Bio / About</span>
               <textarea
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
                 rows={4}
-                className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
-                placeholder="Short introduction…"
+                placeholder="A short intro — hobbies, fun facts, what you work on…"
               />
             </label>
           </div>
-        </div>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-xl bg-avgc-brand px-6 py-3 text-sm font-semibold text-white disabled:opacity-60 min-h-[44px]"
-        >
-          {saving ? 'Saving…' : 'Save profile'}
-        </button>
+          <div className="profile-form-actions">
+            <button type="submit" className="btn btn-primary" disabled={saving}>
+              {saving ? 'Saving…' : 'Save profile'}
+            </button>
+          </div>
+        </div>
       </form>
     </div>
   );
@@ -296,9 +266,14 @@ export function ProfilePanel({
 export function SettingsPanel() {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    if (next !== confirm) {
+      toast('New passwords do not match', 'error');
+      return;
+    }
     try {
       await api('/api/auth/change-password', {
         method: 'POST',
@@ -316,33 +291,63 @@ export function SettingsPanel() {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-slate-900">Security</h2>
-      <form onSubmit={onSubmit} className="mt-6 grid max-w-xl gap-4">
-        <label className="text-sm font-medium text-slate-700">
-          Current password
-          <input
-            type="password"
-            value={current}
-            onChange={(e) => setCurrent(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm min-h-[44px]"
-          />
-        </label>
-        <label className="text-sm font-medium text-slate-700">
-          New password
-          <input
-            type="password"
-            value={next}
-            onChange={(e) => setNext(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm min-h-[44px]"
-          />
-        </label>
-        <button
-          type="submit"
-          className="rounded-xl bg-avgc-brand px-6 py-3 text-sm font-semibold text-white min-h-[44px] w-fit"
-        >
-          Update password
-        </button>
+    <div className="panel">
+      <h2 className="panel-title">Settings</h2>
+      <p className="stat-sub">Keep your account secure with a strong password.</p>
+      <form onSubmit={onSubmit} className="settings-creative-grid">
+        <div className="settings-card">
+          <span className="settings-card-icon" aria-hidden="true">
+            🔒
+          </span>
+          <label className="settings-card-field">
+            <span>Current password</span>
+            <input
+              type="password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+              placeholder="Enter your current password"
+              required
+            />
+          </label>
+        </div>
+        <div className="settings-card">
+          <span className="settings-card-icon" aria-hidden="true">
+            ✨
+          </span>
+          <label className="settings-card-field">
+            <span>New password</span>
+            <input
+              type="password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+              placeholder="Choose a strong new password"
+              required
+            />
+          </label>
+        </div>
+        <div className="settings-card">
+          <span className="settings-card-icon" aria-hidden="true">
+            ✓
+          </span>
+          <label className="settings-card-field">
+            <span>Confirm new password</span>
+            <input
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="Re-enter your new password"
+              required
+            />
+          </label>
+        </div>
+        <div className="settings-card settings-card--action">
+          <button type="submit" className="btn btn-primary">
+            Update password
+          </button>
+          <p className="stat-sub" style={{ margin: '8px 0 0' }}>
+            You will be signed out on all devices after updating.
+          </p>
+        </div>
       </form>
     </div>
   );

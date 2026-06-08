@@ -1,42 +1,32 @@
 /**
- * Mounts Team Hub panels into manager/admin HTML dashboards (vanilla shell).
+ * Mounts React panels into the admin HTML dashboard (vanilla shell).
+ * Each mount targets one section only — org chart is limited to Teams.
  */
 import { createRoot, type Root } from 'react-dom/client';
-import { OrgChartPanel } from '@/features/team-hub/OrgChartPanel';
-import { ManagerTeamPanel } from '@/features/team-hub/ManagerTeamPanel';
-import { TaskManagerPanel } from '@/features/team-hub/TaskManagerPanel';
+import { OrgTreePanel } from '@/features/team-hub/OrgTreePanel';
 import { CalendarPanel } from '@/views/CalendarPanel';
+import { HolidayCalendarPanel } from '@/views/HolidayCalendarPanel';
 import './index.css';
+import './portal-dashboard-entry';
 
 const roots = new WeakMap<HTMLElement, Root>();
 
-function readStoredUserName() {
-  try {
-    const raw = localStorage.getItem('employee');
-    if (!raw) return null;
-    return (JSON.parse(raw) as { name?: string }).name ?? null;
-  } catch {
-    return null;
-  }
-}
-
-type TeamHubPanel = 'org' | 'tasks' | 'calendar' | 'manager-team';
+type TeamHubPanel = 'org-tree' | 'calendar' | 'holiday';
 
 function mount(el: HTMLElement, panel: TeamHubPanel) {
   if (!el || el.dataset.teamHubMounted === '1') return;
   const root = createRoot(el);
   roots.set(el, root);
   el.dataset.teamHubMounted = '1';
-  const userName = readStoredUserName();
   const content =
-    panel === 'org' ? (
-      <OrgChartPanel />
+    panel === 'org-tree' ? (
+      <OrgTreePanel />
     ) : panel === 'calendar' ? (
       <CalendarPanel />
-    ) : panel === 'manager-team' ? (
-      <ManagerTeamPanel />
     ) : (
-      <TaskManagerPanel userName={userName} />
+      <div className="holiday-calendar-viewport">
+        <HolidayCalendarPanel />
+      </div>
     );
   root.render(content);
 }
@@ -55,8 +45,12 @@ function resolveEl(target: HTMLElement | string) {
   return typeof target === 'string' ? document.querySelector<HTMLElement>(target) : target;
 }
 
+function isTeamsViewActive() {
+  return document.getElementById('view-teams')?.classList.contains('is-active') ?? false;
+}
+
 type TeamHubHrms = typeof window.HRMS & {
-  mountTeamHubManagerTeam?: (target: HTMLElement | string) => void;
+  mountTeamHubOrgTree?: (target: HTMLElement | string) => void;
 };
 
 if (!window.HRMS) {
@@ -64,19 +58,9 @@ if (!window.HRMS) {
 }
 const hrms = window.HRMS as TeamHubHrms;
 
-hrms.mountTeamHubOrg = (target: HTMLElement | string) => {
+hrms.mountTeamHubOrgTree = (target: HTMLElement | string) => {
   const el = resolveEl(target);
-  if (el) mount(el, 'org');
-};
-
-hrms.mountTeamHubManagerTeam = (target: HTMLElement | string) => {
-  const el = resolveEl(target);
-  if (el) mount(el, 'manager-team');
-};
-
-hrms.mountTeamHubTasks = (target: HTMLElement | string) => {
-  const el = resolveEl(target);
-  if (el) mount(el, 'tasks');
+  if (el) mount(el, 'org-tree');
 };
 
 hrms.mountAttendanceCalendar = (target: HTMLElement | string) => {
@@ -84,15 +68,13 @@ hrms.mountAttendanceCalendar = (target: HTMLElement | string) => {
   if (el) mount(el, 'calendar');
 };
 
-hrms.refreshTeamHubPanels = () => {
-  remount('#teamHubOrgRoot', 'org');
-  remount('#teamHubTeamsRoot', 'manager-team');
+hrms.mountHolidayCalendar = (target: HTMLElement | string) => {
+  const el = resolveEl(target);
+  if (el) mount(el, 'holiday');
 };
 
-hrms.initTeamHubPanels = () => {
-  hrms.mountTeamHubOrg?.('#teamHubOrgRoot');
-  hrms.mountTeamHubManagerTeam?.('#teamHubTeamsRoot');
-  hrms.mountTeamHubTasks?.('#teamHubTasksRoot');
-  hrms.mountAttendanceCalendar?.('#adminCalendarRoot');
-  hrms.mountAttendanceCalendar?.('#managerCalendarRoot');
+/** Refresh org chart only when the Teams section is visible. */
+hrms.refreshTeamHubPanels = () => {
+  if (!isTeamsViewActive()) return;
+  remount('#teamHubOrgTreeRoot', 'org-tree');
 };

@@ -29,7 +29,7 @@
     container.innerHTML = modules
       .map(
         (m) => `
-      <label class="perm-check" style="display:flex;align-items:center;gap:8px;margin:6px 0;">
+      <label class="perm-check">
         <input type="checkbox" data-module="${escapeHtml(m.key)}" ${set.has(m.key) ? 'checked' : ''} />
         <span>${escapeHtml(m.label)}</span>
       </label>`

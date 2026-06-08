@@ -3,9 +3,9 @@
     try {
       const v = localStorage.getItem('theme_preference') || localStorage.getItem('hrms-theme');
       if (v === 'dark' || v === 'light') return v;
-      return 'dark';
+      return 'light';
     } catch (_e) {
-      return 'dark';
+      return 'light';
     }
   }
 

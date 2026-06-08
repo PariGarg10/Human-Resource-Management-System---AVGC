@@ -42,17 +42,17 @@ export function LeadershipMessage() {
           />
         ) : (
           <div
-            className="mx-auto mb-5 flex h-[120px] w-[120px] items-center justify-center rounded-full border-4 border-[#ed1d24] bg-[#ed1d24] font-['Bebas_Neue',sans-serif] text-4xl text-white"
+            className="mx-auto mb-5 flex h-[120px] w-[120px] items-center justify-center rounded-full border-4 border-[#ed1d24] bg-[#ed1d24] text-4xl font-bold text-white"
             aria-hidden
           >
             AM
           </div>
         )}
-        <p className="mx-auto max-w-[680px] font-['DM_Sans',sans-serif] text-xl italic leading-[1.8] text-white">
+        <p className="mx-auto max-w-[680px] text-xl italic leading-[1.8] text-white">
           {quote}
         </p>
-        <div className="mt-6 font-['Bebas_Neue',sans-serif] text-2xl tracking-[3px] text-[#ed1d24]">Ashish Mishra</div>
-        <div className="mt-1.5 font-['DM_Sans',sans-serif] text-xs uppercase tracking-[2px] text-white/50">
+        <h2 className="mt-6 text-2xl font-bold tracking-[3px] text-[#ed1d24]">Ashish Mishra</h2>
+        <div className="mt-1.5 text-xs uppercase tracking-[2px] text-white/50">
           Founder
         </div>
       </div>

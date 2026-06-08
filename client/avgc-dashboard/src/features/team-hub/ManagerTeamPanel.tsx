@@ -55,7 +55,7 @@ export function ManagerTeamPanel() {
   }
 
   return (
-    <div className="w-full font-['DM_Sans',sans-serif]">
+    <div className="w-full ">
       <p className="mb-4 text-sm text-[var(--text-muted)]">
         People who report to you ({members.length}). This list comes from manager assignments, not the full
         organization chart.

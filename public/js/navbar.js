@@ -184,7 +184,7 @@ HRMS.initNotificationBell = function initNotificationBell(apiFn) {
         badge.classList.toggle('hidden', unread === 0);
       }
       if (!items.length) {
-        list.innerHTML = '<p class="stat-sub" style="padding:12px;">No notifications</p>';
+        list.innerHTML = '<p class="notif-empty">No notifications</p>';
         return;
       }
       list.innerHTML = items

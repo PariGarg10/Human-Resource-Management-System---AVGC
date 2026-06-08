@@ -20,10 +20,10 @@
     calendar: MODULE.ATTENDANCE,
     'holiday-calendar': MODULE.HOLIDAY_CALENDAR,
     employees: MODULE.EMPLOYEE_MANAGEMENT,
-    managers: MODULE.EMPLOYEE_MANAGEMENT,
+    teams: MODULE.EMPLOYEE_MANAGEMENT,
+    'manager-controls': MODULE.EMPLOYEE_MANAGEMENT,
     'manager-assignments': MODULE.EMPLOYEE_MANAGEMENT,
     'manager-directory': MODULE.EMPLOYEE_MANAGEMENT,
-    'org-chart': MODULE.EMPLOYEE_MANAGEMENT,
     attendance: MODULE.ATTENDANCE,
     leaves: MODULE.LEAVE_MANAGEMENT,
     'leave-entitlements': MODULE.LEAVE_MANAGEMENT,
@@ -35,12 +35,14 @@
     broadcast: MODULE.SETTINGS,
     biometric: MODULE.SETTINGS,
     assignments: MODULE.EMPLOYEE_MANAGEMENT,
-    'requests-inbox': MODULE.REQUEST_APPROVALS,
-    'requests-all': MODULE.REQUEST_APPROVALS,
     'manage-admins': null,
+    'asset-management': MODULE.SETTINGS,
+    'policies-and-links': MODULE.SETTINGS,
+    'live-activity-links': MODULE.SETTINGS,
+    'live-nomination-stats': MODULE.SETTINGS,
   };
 
-  const ALWAYS_VISIBLE = new Set(['my-tasks', 'profile', 'requests-raise', 'requests-my', 'not-authorized']);
+  const ALWAYS_VISIBLE = new Set(['my-tasks', 'profile', 'asset-management', 'policies-and-links', 'not-authorized']);
 
   function readAdminUser() {
     try {
@@ -82,12 +84,12 @@
     });
     const canPeople = getPermissions(user).includes(MODULE.EMPLOYEE_MANAGEMENT);
     document
-      .querySelectorAll('.sidebar-nav [data-nav="manager-assignments"], .sidebar-nav [data-nav="manager-directory"]')
+      .querySelectorAll(
+        '.sidebar-nav [data-nav="manager-controls"], .sidebar-nav [data-nav="manager-assignments"], .sidebar-nav [data-nav="manager-directory"], .sidebar-nav [data-nav="teams"]'
+      )
       .forEach((el) => {
         el.style.display = canPeople ? '' : 'none';
       });
-    const dashPeople = document.getElementById('adminPeopleQuickLinks');
-    if (dashPeople) dashPeople.style.display = canPeople ? '' : 'none';
     const nav = document.querySelector('.sidebar-nav');
     if (!nav) return;
     const children = [...nav.children];
@@ -113,9 +115,11 @@
   }
 
   function showNotAuthorized() {
-    document.querySelectorAll('.view-section').forEach((v) => v.classList.remove('is-active'));
-    const view = document.getElementById('view-not-authorized');
-    if (view) view.classList.add('is-active');
+    document.querySelectorAll('.view-section').forEach((view) => {
+      const shouldActivate = view.id === 'view-not-authorized';
+      view.classList.toggle('is-active', shouldActivate);
+      view.toggleAttribute('hidden', !shouldActivate);
+    });
     const bc = document.getElementById('breadcrumbCurrent');
     if (bc) bc.textContent = 'Not Authorized';
   }

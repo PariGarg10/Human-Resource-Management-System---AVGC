@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { formatDateTime } from '@/lib/datetime';
-import { StatusBadge } from '@/components/ui/StatusBadge';
+import { formatTime } from '@/lib/datetime';
+import {
+  formatAttendanceStatus,
+  formatLiveDate,
+  getMonday,
+  monthName,
+  weeksInMonth,
+} from '@/lib/attendanceLabels';
+import { clampPortalYear, currentPortalYear, MIN_PORTAL_YEAR } from '@/lib/yearMin';
 
 type RecordRow = {
   date: string;
@@ -10,15 +17,18 @@ type RecordRow = {
   punchout?: string | null;
   totalhours?: number | null;
   status?: string;
+  reason?: string | null;
 };
+
+const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 export function AttendancePanel() {
   const [month, setMonth] = useState(() => new Date().getMonth() + 1);
-  const [year, setYear] = useState(() => new Date().getFullYear());
+  const [year, setYear] = useState(() => currentPortalYear());
   const [rows, setRows] = useState<RecordRow[]>([]);
   const [summary, setSummary] = useState('');
-  const [filter, setFilter] = useState('');
   const [todayCard, setTodayCard] = useState<RecordRow | null>(null);
+  const [weekKey, setWeekKey] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -31,20 +41,10 @@ export function AttendancePanel() {
       ]);
       setRows(historyData.records || []);
       setSummary(
-        `Full Day: ${summaryData.present} · Half Day: ${summaryData.halfday} · Leave: ${summaryData.leave || 0} · Absent: ${summaryData.absent} · Holidays: ${summaryData.holidays ?? 0}`
+        `Present: ${summaryData.present} · Half Day: ${summaryData.halfday} · Leave: ${summaryData.leave || 0} · Absent: ${summaryData.absent}`
       );
       const r = todayData.record;
-      setTodayCard(
-        r
-          ? {
-              date: r.date || '',
-              punchin: r.punchin,
-              punchout: r.punchout,
-              totalhours: r.totalhours,
-              status: r.status,
-            }
-          : null
-      );
+      setTodayCard(r ? { ...r, date: r.date || '' } : null);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Failed to load', 'error');
     }
@@ -54,102 +54,154 @@ export function AttendancePanel() {
     load().catch(() => {});
   }, [load]);
 
-  const filtered = rows.filter((row) => !filter || row.date.includes(filter) || row.status?.includes(filter));
+  const weekOptions = useMemo(() => weeksInMonth(month, year), [month, year]);
+
+  useEffect(() => {
+    if (weekOptions.length && !weekOptions.some((w) => w.key === weekKey)) {
+      const today = new Date();
+      const key = getMonday(today).toISOString().slice(0, 10);
+      const match = weekOptions.find((w) => w.key === key);
+      setWeekKey(match?.key || weekOptions[0].key);
+    }
+  }, [weekOptions, weekKey]);
+
+  const yesterday = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return d.toISOString().slice(0, 10);
+  }, []);
+
+  const yesterdayRow = rows.find((r) => r.date === yesterday);
+
+  const grouped = useMemo(() => {
+    const filtered = weekKey
+      ? rows.filter((row) => {
+          const mon = getMonday(new Date(row.date));
+          return mon.toISOString().slice(0, 10) === weekKey;
+        })
+      : rows;
+    const map = new Map<string, RecordRow[]>();
+    for (const row of filtered) {
+      const mon = getMonday(new Date(row.date));
+      const key = mon.toISOString().slice(0, 10);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(row);
+    }
+    return Array.from(map.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [rows, weekKey]);
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatMini label="Check in" value={todayCard?.punchin ? formatDateTime(todayCard.punchin) : '—'} />
-        <StatMini label="Check out" value={todayCard?.punchout ? formatDateTime(todayCard.punchout) : '—'} />
-        <StatMini label="Total hours" value={todayCard?.totalhours != null ? String(todayCard.totalhours) : '—'} />
-        <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-medium uppercase text-slate-500">Status today</p>
-          <div className="mt-2">
-            <StatusBadge status={todayCard?.status} />
+    <>
+      <div className="panel" style={{ marginBottom: 16 }}>
+        <h2 className="panel-title">Check In Today — {formatLiveDate()}</h2>
+        <div className="stat-grid" style={{ marginTop: 12 }}>
+          <div className="stat-card">
+            <p className="stat-label">Check in</p>
+            <p className="stat-value" style={{ fontSize: '1rem' }}>
+              {todayCard?.punchin ? formatTime(todayCard.punchin) : '—'}
+            </p>
+          </div>
+          <div className="stat-card">
+            <p className="stat-label">Check out</p>
+            <p className="stat-value" style={{ fontSize: '1rem' }}>
+              {todayCard?.punchout ? formatTime(todayCard.punchout) : '—'}
+            </p>
+          </div>
+          <div className="stat-card">
+            <p className="stat-label">Total hours</p>
+            <p className="stat-value" style={{ fontSize: '1rem' }}>
+              {todayCard?.totalhours != null ? String(todayCard.totalhours) : '—'}
+            </p>
+          </div>
+          <div className="stat-card">
+            <p className="stat-label">Status yesterday</p>
+            <p className="stat-value" style={{ fontSize: '1rem' }}>
+              {yesterdayRow
+                ? formatAttendanceStatus(yesterdayRow.status, yesterdayRow.reason)
+                : '—'}
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-end gap-4">
-          <label className="text-sm font-medium text-slate-700">
-            Month
-            <input
-              type="number"
-              min={1}
-              max={12}
-              value={month}
-              onChange={(e) => setMonth(Number(e.target.value))}
-              className="mt-1 block rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </label>
-          <label className="text-sm font-medium text-slate-700">
-            Year
-            <input
-              type="number"
-              min={2000}
-              max={2100}
-              value={year}
-              onChange={(e) => setYear(Number(e.target.value))}
-              className="mt-1 block rounded-xl border border-slate-200 px-3 py-2 text-sm"
-            />
-          </label>
-          <button
-            type="button"
-            onClick={() => load().catch(() => {})}
-            className="rounded-xl bg-avgc-brand px-5 py-2.5 text-sm font-semibold text-white hover:bg-avgc-brand-hover min-h-[44px]"
-          >
-            Load
-          </button>
+      <div className="panel panel--scroll">
+        <div className="panel-header">
+          <h2 className="panel-title">Attendance history</h2>
+          <div className="filters-inline">
+            <label>
+              Month{' '}
+              <select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+                {MONTHS.map((m) => (
+                  <option key={m} value={m}>
+                    {monthName(m)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Year{' '}
+              <input
+                type="number"
+                min={MIN_PORTAL_YEAR}
+                max={2100}
+                value={year}
+                onChange={(e) => setYear(clampPortalYear(e.target.value))}
+              />
+            </label>
+            <label>
+              Week{' '}
+              <select value={weekKey} onChange={(e) => setWeekKey(e.target.value)}>
+                {weekOptions.map((w) => (
+                  <option key={w.key} value={w.key}>
+                    {w.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => load().catch(() => {})}>
+              Submit
+            </button>
+          </div>
         </div>
-
-        <div className="mt-4">
-          <input
-            type="search"
-            placeholder="Filter rows…"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            className="w-full max-w-md rounded-xl border border-slate-200 px-3 py-2 text-sm"
-          />
+        <p className="stat-sub" style={{ marginTop: 8 }}>
+          {summary || 'Select month and year, then submit.'}
+        </p>
+        <div className="table-wrap" style={{ marginTop: 16 }}>
+          {grouped.length === 0 ? (
+            <p className="stat-sub">No records for this period.</p>
+          ) : (
+            grouped.map(([key, weekRows]) => (
+              <div key={key} style={{ marginBottom: 20 }}>
+                <h3 className="stat-label" style={{ marginBottom: 8 }}>
+                  Week of {weekOptions.find((w) => w.key === key)?.label || key}
+                </h3>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Check in</th>
+                      <th>Check out</th>
+                      <th>Total hours</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {weekRows.map((row) => (
+                      <tr key={row.date}>
+                        <td>{row.date}</td>
+                        <td>{row.punchin ? formatTime(row.punchin) : '—'}</td>
+                        <td>{row.punchout ? formatTime(row.punchout) : '—'}</td>
+                        <td>{row.totalhours != null ? row.totalhours : '—'}</td>
+                        <td>{formatAttendanceStatus(row.status, row.reason)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))
+          )}
         </div>
-
-        <div className="mt-4 overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
-            <thead>
-              <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                <th className="pb-3 pr-4 font-semibold">Date</th>
-                <th className="pb-3 pr-4 font-semibold">Check in</th>
-                <th className="pb-3 pr-4 font-semibold">Check out</th>
-                <th className="pb-3 pr-4 font-semibold">Hours</th>
-                <th className="pb-3 font-semibold">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map((row) => (
-                <tr key={row.date} className="text-slate-800">
-                  <td className="py-3 pr-4">{row.date}</td>
-                  <td className="py-3 pr-4">{formatDateTime(row.punchin)}</td>
-                  <td className="py-3 pr-4">{formatDateTime(row.punchout)}</td>
-                  <td className="py-3 pr-4">{row.totalhours ?? '—'}</td>
-                  <td className="py-3">
-                    <StatusBadge status={row.status} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <p className="mt-4 text-sm text-slate-600">{summary}</p>
       </div>
-    </div>
-  );
-}
-
-function StatMini({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-      <p className="text-xs font-medium uppercase text-slate-500">{label}</p>
-      <p className="mt-2 font-semibold text-slate-900">{value}</p>
-    </div>
+    </>
   );
 }

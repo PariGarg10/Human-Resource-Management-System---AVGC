@@ -2,18 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AVGC · Sign in</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>AVGC Studios · Sign in</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Montserrat:wght@700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400&family=Roboto:wght@500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/auth-bundle.css" />
 </head>
 <body>
   <div class="auth-page">
     <div class="auth-brand">
       <div class="auth-brand-inner">
-        <a href="/" class="auth-brand-logo-link" aria-label="AVGC home">AVGC</a>
+        <a href="/" class="auth-brand-logo-link" aria-label="AVGC Studios home">AVGC Studios</a>
         <h2>People-first attendance &amp; leave management</h2>
         <p>Secure sign-in for employees, managers, and administrators. One portal — role-aware dashboards.</p>
       </div>
@@ -30,20 +30,8 @@
           <button type="submit" class="btn btn-primary">Sign in</button>
         </form>
         <p class="auth-forgot-wrap"><a href="/forgot-password" class="auth-forgot-link">Forgot Password?</a></p>
+        <p class="auth-back-link">New here? <a href="/register">Register</a></p>
         <p id="message" class="message"></p>
-
-        <div class="auth-section-title">Employee registration</div>
-        <p class="subtitle">Only if your organisation has pre-onboarded your work email.</p>
-        <form id="registerForm">
-          <label for="regEmail">Email</label>
-          <input id="regEmail" type="email" required placeholder="you@company.com" />
-          <label for="regPassword">Password</label>
-          <input id="regPassword" type="password" required />
-          <label for="regName">Name (optional)</label>
-          <input id="regName" placeholder="Full name" />
-          <button type="submit" class="btn btn-outline">Create account</button>
-        </form>
-        <p id="registerMessage" class="message"></p>
       </div>
     </div>
   </div>

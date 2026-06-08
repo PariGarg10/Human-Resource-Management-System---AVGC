@@ -145,10 +145,19 @@ body.site-nav-open {
 .site-header__cta:focus-visible {
   background: var(--primary-hover);
   border-color: var(--primary-hover);
+  color: #fff;
   -webkit-transform: scale(1.02);
   transform: scale(1.02);
   -webkit-box-shadow: 0 0 0 4px rgba(204, 0, 0, 0.25);
   box-shadow: 0 0 0 4px rgba(204, 0, 0, 0.25);
+}
+
+.site-header__cta:active {
+  background: #fff;
+  color: var(--primary);
+  border-color: var(--primary);
+  -webkit-transform: none;
+  transform: none;
 }
 
 .site-nav-toggle {
@@ -1221,7 +1230,8 @@ body.site-subpage .site-nav-toggle span {
   border: 4px solid #ed1d24;
   background: #ed1d24;
   color: #ffffff;
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-heading-primary);
+  font-weight: 700;
   font-size: 2.25rem;
   display: flex;
   align-items: center;
@@ -1231,7 +1241,7 @@ body.site-subpage .site-nav-toggle span {
 .founder-section__quote {
   margin: 0 auto;
   max-width: 42.5rem;
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-body);
   font-size: 1.25rem;
   font-style: italic;
   font-weight: 400;
@@ -1243,7 +1253,8 @@ body.site-subpage .site-nav-toggle span {
 
 .founder-section__name {
   margin: 1.5rem 0 0;
-  font-family: "Bebas Neue", sans-serif;
+  font-family: var(--font-heading-primary);
+  font-weight: 700;
   font-size: 1.5rem;
   letter-spacing: 0.2em;
   color: #ed1d24;
@@ -1252,7 +1263,7 @@ body.site-subpage .site-nav-toggle span {
 
 .founder-section__role {
   margin: 0.35rem 0 0;
-  font-family: "DM Sans", sans-serif;
+  font-family: var(--font-heading-secondary);
   font-size: 0.75rem;
   letter-spacing: 0.15em;
   text-transform: uppercase;

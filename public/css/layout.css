@@ -10,16 +10,32 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  width: 100%;
   margin-left: var(--sidebar-width);
   transition: margin-left var(--transition);
 }
 
+@media (max-width: 1024px) {
+  .app-main {
+    margin-left: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+}
+
 body.has-floating-sidebar .app-main {
-  margin-left: 96px;
+  margin-left: var(--sidebar-float-offset);
+  width: calc(100% - var(--sidebar-float-offset));
+  max-width: calc(100vw - var(--sidebar-float-offset));
 }
 
 body.sidebar-collapsed .app-main {
   margin-left: var(--sidebar-collapsed);
+}
+
+body.has-floating-sidebar.sidebar-collapsed .app-main {
+  width: calc(100% - var(--sidebar-collapsed));
+  max-width: calc(100vw - var(--sidebar-collapsed));
 }
 
 .content-area {
@@ -53,39 +69,60 @@ body.sidebar-collapsed .app-main {
   display: block;
 }
 
+.view-section[hidden] {
+  display: none !important;
+}
+
+.view-section.org-teams-viewport.is-active {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+.app-main:has(.org-teams-viewport.is-active) {
+  overflow: hidden;
+}
+
+.app-main:has(.org-teams-viewport.is-active) .content-area {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-width: none;
+}
+
 .hidden {
   display: none !important;
 }
 
 @media (max-width: 1024px) {
-  body.has-floating-sidebar .app-main {
-    margin-left: 0;
-  }
-
+  body.has-floating-sidebar .app-main,
+  body.has-floating-sidebar.sidebar-collapsed .app-main,
+  body.sidebar-collapsed .app-main,
   .app-main {
     margin-left: 0;
-  }
-
-  body.sidebar-collapsed .app-main {
-    margin-left: 0;
+    width: 100%;
+    max-width: 100%;
   }
 }
 
 /* Fixed theme toggle (all dashboard pages) */
 .hrms-theme-fab {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
+  bottom: 20px;
+  right: 20px;
   z-index: 12000;
-  width: 48px;
-  height: 48px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 15px;
   line-height: 1;
   background: var(--red);
   color: var(--white);

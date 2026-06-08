@@ -12,6 +12,8 @@ CREATE TABLE IF NOT EXISTS employees (
   failed_login_attempts INTEGER NOT NULL DEFAULT 0,
   account_locked_until TIMESTAMPTZ,
   department TEXT,
+  designation TEXT,
+  reporting_to_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
   role TEXT NOT NULL DEFAULT 'employee',
   isregistered BOOLEAN NOT NULL DEFAULT TRUE,
   mustchangepassword BOOLEAN NOT NULL DEFAULT FALSE,
@@ -52,6 +54,7 @@ CREATE TABLE IF NOT EXISTS leaves (
   reason TEXT,
   status TEXT NOT NULL DEFAULT 'pending',
   approvedby INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  reporting_to_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
   createdat TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -228,3 +231,80 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
 
 CREATE INDEX IF NOT EXISTS idx_password_reset_token_hash ON password_reset_tokens (token_hash);
 CREATE INDEX IF NOT EXISTS idx_password_reset_email_created ON password_reset_tokens (lower(email), created_at);
+
+CREATE TABLE IF NOT EXISTS inventory_items (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  category TEXT NOT NULL,
+  total_count INTEGER NOT NULL DEFAULT 0 CHECK (total_count >= 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS asset_allocations (
+  id SERIAL PRIMARY KEY,
+  inventory_item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
+  employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  allocated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  notes TEXT,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'returned')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_asset_allocations_item ON asset_allocations (inventory_item_id, status);
+CREATE INDEX IF NOT EXISTS idx_asset_allocations_employee ON asset_allocations (employee_id, status);
+
+CREATE TABLE IF NOT EXISTS policy_documents (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  description TEXT,
+  type TEXT NOT NULL CHECK (type IN ('policy', 'link')),
+  file_url TEXT,
+  external_url TEXT,
+  uploaded_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  is_visible BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_policy_documents_visible ON policy_documents (is_visible, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS live_activity_links (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  url TEXT NOT NULL,
+  description TEXT,
+  created_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_live_activity_links_active
+  ON live_activity_links (is_active, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS live_activity_nominations (
+  id SERIAL PRIMARY KEY,
+  category TEXT NOT NULL CHECK (category IN ('mvp', 'team_lead')),
+  nominator_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  nominee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (category, nominator_id, nominee_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_live_activity_nominations_category
+  ON live_activity_nominations (category, nominee_id);
+
+CREATE TABLE IF NOT EXISTS live_activity_winners (
+  id SERIAL PRIMARY KEY,
+  category TEXT NOT NULL CHECK (category IN ('mvp', 'team_lead')),
+  employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  message TEXT,
+  announced_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_live_activity_winners_active
+  ON live_activity_winners (category, is_active, created_at DESC);

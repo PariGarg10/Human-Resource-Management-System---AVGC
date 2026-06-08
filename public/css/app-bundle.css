@@ -1,5 +1,7 @@
 /* Load order — single entry for dashboards */
 @import url("variables.css");
+@import url("typography.css");
+@import url("brand-globals.css");
 @import url("layout.css");
 @import url("sidebar.css");
 @import url("navbar.css");
@@ -9,6 +11,9 @@
 @import url("modals.css");
 @import url("dashboard.css");
 @import url("responsive.css");
+@import url("portal-scroll.css");
+@import url("portal-responsive.css");
+@import url("portal-shell.css");
 
 *,
 *::before,
@@ -17,7 +22,7 @@
 }
 
 html {
-  font-family: var(--font-sans);
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
 }
 

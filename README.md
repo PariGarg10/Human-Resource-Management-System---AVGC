@@ -60,7 +60,7 @@ Human resources and attendance platform for **AVGC** — multi-role dashboards, 
 
 | Role | Login / dashboard | Description |
 |------|-----------------|-------------|
-| **Employee** | `/login` → `/employee/dashboard` | React app — attendance, leave, tasks, helpdesk |
+| **Employee** | `/login` → `/employee/dashboard` | React app — same shell as manager; attendance, leave, assets, policies |
 | **Manager** | `/manager/login` → `/manager/dashboard` | Team attendance, leaves, requests, reports |
 | **Admin** | `/admin/login` → `/admin/dashboard` | Full HRMS — employees, imports, biometric, RBAC |
 | **Super Admin** | Same as admin | All modules + manage other admins |
@@ -133,15 +133,18 @@ Marketing / landing: `/` (static `index.html`).
 - **Saturday configuration** — mark Saturdays working or off (Sundays always off)
 - Calendar reflects holidays and Saturday rules
 
-### Requests / helpdesk (concerns)
+### Asset management
 
-- Raise request (subject, priority, description, attachment)
-- Route to manager / admin / director
-- **Threaded replies** (`concern_messages`)
-- Turn-based replies (only awaiting party can reply)
-- **Reply & close** for assignee
-- Employee **My Requests** with reply from raiser
-- Admin: My / Inbox / All requests
+- **Inventory** (`inventory_items`) with allocated / available counts
+- **Allocations** (`asset_allocations`) — admin allocate/revoke; manager read-only; employee sees own assets only
+- API: `/api/assets/*`
+
+### Policies & important links
+
+- Upload policy PDF/DOCX or add external links (`policy_documents`)
+- Admin: full CRUD + visibility toggle
+- Manager & employee: read visible entries only
+- API: `/api/policies/*`
 
 ### Tasks
 
@@ -183,7 +186,7 @@ Marketing / landing: `/` (static `index.html`).
 - Dashboard home (quick actions, charts, spotlight)
 - My attendance & calendar
 - Leave apply / history
-- Raise concern / my concerns / inbox (role-dependent)
+- Asset management (my allocations) and policies & links (read-only)
 - **Task manager**
 - **Org chart** (embedded where mounted)
 - **AVGC Buzz** chat UI (feature-flagged)

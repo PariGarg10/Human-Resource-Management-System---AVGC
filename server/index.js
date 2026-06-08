@@ -9,7 +9,9 @@ const biometricRoutes = require('./routes/biometric');
 const attendanceRoutes = require('./routes/attendance');
 const adminRoutes = require('./routes/admin');
 const adminAccountsRoutes = require('./routes/adminAccounts');
-const concernRoutes = require('./routes/concerns');
+const assetsRoutes = require('./routes/assets');
+const policiesRoutes = require('./routes/policies');
+const liveActivitiesRoutes = require('./routes/liveActivities');
 const leaveRoutes = require('./routes/leaves');
 const managerRoutes = require('./routes/manager');
 const usersRoutes = require('./routes/users');
@@ -65,11 +67,12 @@ app.use((req, res, next) => {
 // HTML pages — register BEFORE express.static so routes are never shadowed
 app.get('/', (_req, res) => sendPublicHtml(res, 'index.html'));
 app.get('/login', (_req, res) => sendPublicHtml(res, 'login.html'));
+app.get('/register', (_req, res) => sendPublicHtml(res, 'register.html'));
 app.get('/forgot-password', (_req, res) => sendPublicHtml(res, 'forgot-password.html'));
 app.get('/reset-password', (_req, res) => sendPublicHtml(res, 'reset-password.html'));
 app.get('/pricing', (_req, res) => res.redirect(301, '/'));
 app.get('/features', (_req, res) => res.redirect(301, '/'));
-app.get('/index.html', (_req, res) => res.redirect(301, '/login'));
+app.get('/index.html', (_req, res) => res.redirect(301, '/'));
 app.get('/employee/dashboard', (_req, res) => sendPublicHtml(res, 'employee-dashboard.html'));
 app.get('/employee/dashboard/', (_req, res) => res.redirect(301, '/employee/dashboard'));
 app.get('/app.html', (_req, res) => sendPublicHtml(res, 'employee-dashboard.html'));
@@ -125,12 +128,8 @@ app.use('/api/biometric', biometricRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/admin/accounts', adminAccountsRoutes);
-app.use('/api/concern', concernRoutes);
-app.use('/api/concerns', concernRoutes);
 app.use('/api/leave', leaveRoutes);
 app.use('/api/leaves', leaveRoutes);
-app.use('/concern', concernRoutes);
-app.use('/concerns', concernRoutes);
 app.use('/leave', leaveRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/users', usersRoutes);
@@ -139,6 +138,9 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/saturday-config', saturdayConfigRoutes);
 app.use('/api/holidays', holidaysRoutes);
 app.use('/api/leave-balance', leaveBalanceRoutes);
+app.use('/api/assets', assetsRoutes);
+app.use('/api/policies', policiesRoutes);
+app.use('/api/live-activities', liveActivitiesRoutes);
 
 app.use((err, req, res, _next) => {
   console.error('[AVGC] Unhandled error:', req.method, req.path, err.stack || err.message);
@@ -162,11 +164,19 @@ async function startBackgroundJobs() {
 }
 
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`AVGC server running on http://localhost:${PORT}`);
-    console.log('[AVGC] HTML dashboards: /employee/dashboard, /manager/dashboard, /admin/dashboard');
-    startBackgroundJobs();
-  });
+  (async () => {
+    try {
+      const { ensureEmployeeSchemaColumns } = require('./utils/ensureSchema');
+      await ensureEmployeeSchemaColumns();
+    } catch (err) {
+      console.warn('[AVGC] Schema ensure failed (login may fail until db:init):', err.message);
+    }
+    app.listen(PORT, () => {
+      console.log(`AVGC server running on http://localhost:${PORT}`);
+      console.log('[AVGC] HTML dashboards: /employee/dashboard, /manager/dashboard, /admin/dashboard');
+      startBackgroundJobs();
+    });
+  })();
 }
 
 module.exports = app;

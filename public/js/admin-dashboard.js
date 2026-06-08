@@ -37,7 +37,7 @@ if (reportFromEl && reportToEl) {
   const reportMonthFilter = document.getElementById('reportMonthFilter');
   const reportYearFilter = document.getElementById('reportYearFilter');
   if (reportMonthFilter) reportMonthFilter.value = String(now.getMonth() + 1);
-  if (reportYearFilter) reportYearFilter.value = String(now.getFullYear());
+  if (reportYearFilter) reportYearFilter.value = String(HRMS.currentPortalYear());
 }
 const ROLE_OPTIONS = [
   { value: 'employee', label: 'Employee' },
@@ -68,6 +68,13 @@ async function api(path, options = {}, withAuth = true) {
   if (options.body instanceof FormData) {
     delete headers['Content-Type'];
     delete headers['content-type'];
+  } else if (
+    options.body &&
+    typeof options.body === 'string' &&
+    !headers['Content-Type'] &&
+    !headers['content-type']
+  ) {
+    headers['Content-Type'] = 'application/json';
   }
   const response = await fetch(path, { ...options, headers });
   const data = await response.json().catch(() => ({}));
@@ -111,182 +118,6 @@ async function uploadHolidayFile(path, file) {
   return data;
 }
 
-function requestStatusBadge(status) {
-  return HRMS.badge(status || 'Open');
-}
-
-function requestRowsEmpty(colspan) {
-  return `<tr><td colspan="${colspan}" class="stat-sub" style="padding:24px;text-align:center;">No requests found.</td></tr>`;
-}
-
-function requestFormData(prefix) {
-  const fd = new FormData();
-  fd.append('subject', document.getElementById(`${prefix}ReqSubject`).value.trim());
-  fd.append('description', document.getElementById(`${prefix}ReqDescription`).value.trim());
-  fd.append('raisedTo', document.getElementById(`${prefix}ReqRaisedTo`).value);
-  fd.append('priority', document.getElementById(`${prefix}ReqPriority`).value);
-  const file = document.getElementById(`${prefix}ReqAttachment`)?.files?.[0];
-  if (file) fd.append('attachment', file);
-  return fd;
-}
-
-function responseSummary(request) {
-  const attachment = request.responseAttachmentUrl
-    ? ` <a href="${escapeHtml(request.responseAttachmentUrl)}" target="_blank" rel="noreferrer">View file</a>`
-    : '';
-  return `${escapeHtml(request.response || '—')}${attachment}`;
-}
-
-function requestMessagesHtml(request) {
-  const messages = request.messages?.length
-    ? request.messages
-    : request.response
-      ? [{ authorName: 'Latest', body: request.response, attachmentUrl: request.responseAttachmentUrl }]
-      : [];
-  if (!messages.length) return '<p class="stat-sub">No replies yet.</p>';
-  return messages
-    .map((m) => {
-      const file = m.attachmentUrl
-        ? ` <a href="${escapeHtml(m.attachmentUrl)}" target="_blank" rel="noreferrer">View file</a>`
-        : '';
-      return `<div class="stat-sub" style="margin-bottom:8px;padding:8px;border-radius:8px;background:var(--bg-secondary);"><strong>${escapeHtml(m.authorName || 'Reply')}</strong><br/>${escapeHtml(m.body)}${file}</div>`;
-    })
-    .join('');
-}
-
-function responseFormHtml(requestId, prefix, showClose) {
-  const closeBtn = showClose
-    ? `<button type="button" class="btn btn-outline btn-sm" data-${prefix}-req-close="${requestId}">Reply &amp; close</button>`
-    : '';
-  return `
-    <div style="margin-top:8px;">
-      <textarea data-${prefix}-req-response="${requestId}" rows="2" placeholder="Write your reply..." style="padding:8px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea>
-      <input type="file" data-${prefix}-req-file="${requestId}" style="margin-top:6px;font-size:12px;width:100%;" />
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;">
-        <button type="button" class="btn btn-primary btn-sm" data-${prefix}-req-reply="${requestId}">Send reply</button>
-        ${closeBtn}
-      </div>
-    </div>`;
-}
-
-function requestThreadCell(request, prefix, { showClose = false } = {}) {
-  const waiting =
-    request.status !== 'Closed' && !request.canReply
-      ? '<p class="stat-sub" style="margin-top:6px;">Waiting for the other party to reply.</p>'
-      : '';
-  const form = request.canReply ? responseFormHtml(request.id, prefix, showClose) : '';
-  return `<div style="min-width:260px;">${requestMessagesHtml(request)}${waiting}${form}</div>`;
-}
-
-function bindRequestReplyHandlers(root, prefix, reload) {
-  if (!root) return;
-  root.querySelectorAll(`[data-${prefix}-req-reply]`).forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      try {
-        await respondToAdminRequest(btn.getAttribute(`data-${prefix}-req-reply`), false, prefix);
-        await reload();
-      } catch (e) {
-        HRMS.toast(e.message || 'Could not respond', 'error');
-      }
-    });
-  });
-  root.querySelectorAll(`[data-${prefix}-req-close]`).forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      try {
-        await respondToAdminRequest(btn.getAttribute(`data-${prefix}-req-close`), true, prefix);
-        await reload();
-      } catch (e) {
-        HRMS.toast(e.message || 'Could not close request', 'error');
-      }
-    });
-  });
-}
-
-async function submitAdminRequest(e) {
-  e.preventDefault();
-  const msg = document.getElementById('adminRequestMessage');
-  if (msg) msg.textContent = '';
-  try {
-    await api('/api/concerns', { method: 'POST', body: requestFormData('admin') });
-    HRMS.toast('Request submitted', 'success');
-    e.target.reset();
-    await Promise.all([loadAdminMyRequests(), loadAdminInboxRequests(), loadAdminAllRequests()]);
-  } catch (err) {
-    if (msg) msg.textContent = err.message;
-    HRMS.toast(err.message || 'Could not submit request', 'error');
-  }
-}
-
-async function reloadAdminRequests() {
-  await Promise.all([loadAdminMyRequests(), loadAdminInboxRequests(), loadAdminAllRequests()]);
-}
-
-async function loadAdminMyRequests() {
-  const data = await api('/api/concerns/my');
-  const body = document.getElementById('adminMyRequestsBody');
-  if (!body) return;
-  const rows = data.concerns || [];
-  body.innerHTML = rows.length
-    ? rows
-        .map(
-          (r) =>
-            `<tr><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.raisedToName || '—')}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}</td><td>${requestThreadCell(r, 'admin-my', { showClose: false })}</td></tr>`
-        )
-        .join('')
-    : requestRowsEmpty(5);
-  bindRequestReplyHandlers(body, 'admin-my', reloadAdminRequests);
-}
-
-async function respondToAdminRequest(id, close, prefix = 'admin') {
-  const responseEl = document.querySelector(`[data-${prefix}-req-response="${id}"]`);
-  const fileEl = document.querySelector(`[data-${prefix}-req-file="${id}"]`);
-  const response = responseEl?.value?.trim() || '';
-  if (!response) {
-    HRMS.toast('Write a response first', 'error');
-    return;
-  }
-  const fd = new FormData();
-  fd.append('response', response);
-  fd.append('close', close ? 'true' : 'false');
-  if (fileEl?.files?.[0]) fd.append('responseAttachment', fileEl.files[0]);
-  await api(`/api/concerns/${id}/respond`, {
-    method: 'PATCH',
-    body: fd,
-  });
-  HRMS.toast(close ? 'Request closed with response' : 'Response sent', 'success');
-}
-
-async function loadAdminInboxRequests() {
-  const data = await api('/api/concerns/inbox');
-  const body = document.getElementById('adminInboxRequestsBody');
-  if (!body) return;
-  const rows = data.concerns || [];
-  body.innerHTML = rows.length
-    ? rows
-        .map(
-          (r) =>
-            `<tr><td>${escapeHtml(r.raisedByName || '—')}</td><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}</td><td>${r.status === 'Closed' ? requestMessagesHtml(r) : requestThreadCell(r, 'admin', { showClose: true })}</td></tr>`
-        )
-        .join('')
-    : requestRowsEmpty(5);
-  bindRequestReplyHandlers(body, 'admin', reloadAdminRequests);
-}
-
-async function loadAdminAllRequests() {
-  const data = await api('/api/concerns/all');
-  const body = document.getElementById('adminAllRequestsBody');
-  if (!body) return;
-  const rows = data.concerns || [];
-  body.innerHTML = rows.length
-    ? rows
-        .map(
-          (r) =>
-            `<tr><td>${escapeHtml(r.raisedByName || '—')}</td><td>${escapeHtml(r.raisedToName || '—')}</td><td>${escapeHtml(r.subject)}</td><td>${escapeHtml(r.priority)}</td><td>${requestStatusBadge(r.status)}<div style="margin-top:4px;">${requestMessagesHtml(r)}</div></td></tr>`
-        )
-        .join('')
-    : requestRowsEmpty(5);
-}
-
 let reportsChart = null;
 let analyticsChart = null;
 
@@ -325,6 +156,7 @@ async function loadUpcomingBirthdays() {
 }
 
 async function loadAdminStats() {
+  if (!document.getElementById('adminStatCards')) return;
   const [empData, leaveData, hist] = await Promise.all([
     api('/api/admin/employees'),
     api('/api/admin/leaves?status=pending'),
@@ -567,7 +399,7 @@ function renderReportTable(def, rows) {
         <button type="button" class="btn btn-outline btn-sm" data-report-export="${def.key}">Export Excel</button>
       </div>
       ${note}
-      <div class="table-wrap">
+      <div class="table-wrap table-wrap--scroll">
         <table class="data-table">
           <thead><tr>${def.columns.map(([, label]) => `<th>${escapeHtml(label)}</th>`).join('')}</tr></thead>
           <tbody>${body}</tbody>
@@ -757,6 +589,11 @@ async function removeEmployee(employeeId, employeeName) {
   window.HRMS?.refreshTeamHubPanels?.();
 }
 
+function portalRoleSelectValue(role) {
+  const r = String(role || 'employee').toLowerCase().trim();
+  return r === 'manager' || r === 'admin' || r === 'it_head' ? 'manager' : 'employee';
+}
+
 async function loadEmployees() {
   const body = document.getElementById('employeesBody');
   if (!body) return;
@@ -769,15 +606,71 @@ async function loadEmployees() {
           const removeBtn = isSelf
             ? '<span class="stat-sub">—</span>'
             : `<button type="button" class="btn btn-outline btn-sm" data-remove-employee="${emp.id}">Remove</button>`;
-          return `<tr><td>${emp.id}</td><td>${escapeHtml(emp.employeecode)}</td><td>${escapeHtml(emp.name)}</td><td>${escapeHtml(emp.email)}</td><td>${escapeHtml(emp.department || '—')}</td><td>${escapeHtml(emp.role || 'employee')}</td><td>${removeBtn}</td></tr>`;
+          const roleVal = portalRoleSelectValue(emp.role);
+          const roleCell = `<div class="table-cell-stack emp-role-cell">
+              <select data-role-select="${emp.id}">
+                <option value="employee"${roleVal === 'employee' ? ' selected' : ''}>Employee</option>
+                <option value="manager"${roleVal === 'manager' ? ' selected' : ''}>Manager</option>
+              </select>
+              <button type="button" class="btn btn-outline btn-sm" data-role-save-emp="${emp.id}">Save</button>
+            </div>`;
+          const designationCell = `<div class="table-cell-stack">
+              <input data-designation-emp="${emp.id}" value="${escapeHtml(emp.designation || '')}" placeholder="e.g. Team Lead" />
+              <button type="button" class="btn btn-outline btn-sm" data-designation-save-emp="${emp.id}">Save</button>
+            </div>`;
+          return `<tr>
+            <td data-label="Code">${escapeHtml(emp.employeecode)}</td>
+            <td data-label="Name">${escapeHtml(emp.name)}</td>
+            <td data-label="Email" class="col-hide-mobile">${escapeHtml(emp.email)}</td>
+            <td data-label="Designation">${designationCell}</td>
+            <td data-label="Portal role">${roleCell}</td>
+            <td class="table-cell-actions" data-label="Actions">${removeBtn}</td>
+          </tr>`;
         })
         .join('')
-    : '<tr><td colspan="7" class="stat-sub" style="padding:24px;text-align:center;">No employees found.</td></tr>';
+    : '<tr><td colspan="6" class="stat-sub" style="padding:24px;text-align:center;">No employees found.</td></tr>';
+  body.querySelectorAll('[data-designation-save-emp]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-designation-save-emp');
+      const input = body.querySelector(`[data-designation-emp="${id}"]`);
+      if (!id || !input) return;
+      try {
+        await api(`/api/admin/employees/${id}/designation`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ designation: input.value.trim() || null }),
+        });
+        HRMS.toast('Designation updated', 'success');
+        await Promise.all([loadEmployees(), loadRoleManagement()]);
+      } catch (e) {
+        HRMS.toast(e.message || 'Could not update designation', 'error');
+      }
+    });
+  });
+  body.querySelectorAll('[data-role-save-emp]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const id = btn.getAttribute('data-role-save-emp');
+      const select = body.querySelector(`[data-role-select="${id}"]`);
+      if (!id || !select) return;
+      try {
+        await api(`/api/admin/employees/${id}/role`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ role: select.value }),
+        });
+        HRMS.toast('Role updated', 'success');
+        await loadEmployees();
+        await loadRoleManagement();
+      } catch (e) {
+        HRMS.toast(e.message || 'Could not update role', 'error');
+      }
+    });
+  });
   body.querySelectorAll('[data-remove-employee]').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const id = btn.getAttribute('data-remove-employee');
       const row = btn.closest('tr');
-      const name = row?.children?.[2]?.textContent?.trim();
+      const name = row?.children?.[1]?.textContent?.trim();
       try {
         await removeEmployee(id, name);
       } catch (e) {
@@ -805,15 +698,42 @@ async function loadRoleManagement() {
         <td>${escapeHtml(emp.name)}</td>
         <td>${escapeHtml(emp.email)}</td>
         <td>${escapeHtml(emp.department || '—')}</td>
+        <td>
+          <div class="table-cell-stack">
+            <input data-designation-role="${emp.id}" value="${escapeHtml(emp.designation || '')}" placeholder="e.g. Team Lead" />
+            <button type="button" class="btn btn-outline btn-sm" data-designation-save-role="${emp.id}">Save</button>
+          </div>
+        </td>
         <td>${escapeHtml(emp.role || 'employee')}</td>
         <td>
-          <input data-role-input="${emp.id}" value="${escapeHtml(emp.role || 'employee')}" placeholder="Type role name" style="padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);min-width:160px;width:100%;" />
+          <div class="table-cell-stack">
+            <input data-role-input="${emp.id}" value="${escapeHtml(emp.role || 'employee')}" placeholder="Portal role" />
+            <button type="button" class="btn btn-primary btn-sm" data-role-save="${emp.id}">Save</button>
+          </div>
         </td>
-        <td><button type="button" class="btn btn-primary btn-sm" data-role-save="${emp.id}">Save role</button></td>
       </tr>`
           )
           .join('')
       : '<tr><td colspan="8" class="stat-sub" style="padding:24px;text-align:center;">No employees found.</td></tr>';
+
+    body.querySelectorAll('[data-designation-save-role]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-designation-save-role');
+        const input = body.querySelector(`[data-designation-role="${id}"]`);
+        if (!id || !input) return;
+        try {
+          await api(`/api/admin/employees/${id}/designation`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ designation: input.value.trim() || null }),
+          });
+          HRMS.toast('Designation updated', 'success');
+          await Promise.all([loadRoleManagement(), loadEmployees()]);
+        } catch (error) {
+          HRMS.toast(error.message || 'Could not update designation', 'error');
+        }
+      });
+    });
 
     body.querySelectorAll('button[data-role-save]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -849,11 +769,12 @@ document.getElementById('addEmployeeForm').addEventListener('submit', async (e) 
     await api('/api/admin/employees', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
+        body: JSON.stringify({
+        employeecode: document.getElementById('newEmpCode')?.value?.trim() || undefined,
         name: document.getElementById('newEmpName').value.trim(),
         email: document.getElementById('newEmpEmail').value.trim(),
         password: document.getElementById('newEmpPassword').value.trim(),
-        department: document.getElementById('newEmpDept').value.trim(),
+        designation: document.getElementById('newEmpDesignation')?.value?.trim() || null,
         role: document.getElementById('newEmpRole').value
       })
     });
@@ -870,6 +791,32 @@ document.getElementById('loadEmployeesBtn').addEventListener('click', () => load
 document.getElementById('loadRolesBtn')?.addEventListener('click', () => loadRoleManagement().catch((e) => HRMS.toast(e.message, 'error')));
 document.getElementById('loadReportsBtn')?.addEventListener('click', () => loadAdminReports().catch((e) => HRMS.toast(e.message, 'error')));
 document.getElementById('exportAllReportsBtn')?.addEventListener('click', exportAllReportsToExcel);
+document.getElementById('liveLinksRefreshBtn')?.addEventListener('click', () => loadLiveActivityLinks().catch((e) => HRMS.toast(e.message, 'error')));
+document.getElementById('nominationStatsRefreshBtn')?.addEventListener('click', () => {
+  Promise.all([loadNominationStats(), loadLiveWinnersAdmin()]).catch((e) => HRMS.toast(e.message, 'error'));
+});
+document.getElementById('liveLinkForm')?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const msg = document.getElementById('liveLinkMessage');
+  if (msg) msg.textContent = '';
+  try {
+    await api('/api/live-activities/links', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: document.getElementById('liveLinkTitle').value.trim(),
+        url: document.getElementById('liveLinkUrl').value.trim(),
+        description: document.getElementById('liveLinkDescription').value.trim(),
+      }),
+    });
+    HRMS.toast('Activity link sent', 'success');
+    e.target.reset();
+    await loadLiveActivityLinks();
+  } catch (error) {
+    if (msg) msg.textContent = error.message;
+    HRMS.toast(error.message || 'Could not send link', 'error');
+  }
+});
 document.getElementById('generateReportBtn')?.addEventListener('click', () => loadAdminReports().catch((e) => HRMS.toast(e.message, 'error')));
 document.getElementById('exportSelectedReportExcelBtn')?.addEventListener('click', () => {
   const selected = selectedReportRows();
@@ -1350,17 +1297,6 @@ document.getElementById('broadcastForm')?.addEventListener('submit', async (e) =
   }
 });
 
-document.getElementById('adminRequestForm')?.addEventListener('submit', submitAdminRequest);
-document.getElementById('loadAdminMyRequestsBtn')?.addEventListener('click', () => {
-  loadAdminMyRequests().catch((e) => HRMS.toast(e.message, 'error'));
-});
-document.getElementById('loadAdminInboxRequestsBtn')?.addEventListener('click', () => {
-  loadAdminInboxRequests().catch((e) => HRMS.toast(e.message, 'error'));
-});
-document.getElementById('loadAdminAllRequestsBtn')?.addEventListener('click', () => {
-  loadAdminAllRequests().catch((e) => HRMS.toast(e.message, 'error'));
-});
-
 function esslDateRangeInputs() {
   const fromEl = document.getElementById('esslFromDate');
   const toEl = document.getElementById('esslToDate');
@@ -1793,6 +1729,92 @@ function escapeHtml(value) {
   }[ch]));
 }
 
+function liveCategoryLabel(category) {
+  return category === 'team_lead' ? 'Most Valuable Team Lead' : 'MVP';
+}
+
+async function loadLiveActivityLinks() {
+  const list = document.getElementById('liveLinksList');
+  if (!list) return;
+  const data = await api('/api/live-activities/links');
+  const links = data.links || [];
+  list.innerHTML = links.length
+    ? links
+        .map(
+          (link) => `
+          <a class="live-admin-card" href="${escapeHtml(link.url)}" target="_blank" rel="noreferrer">
+            <span>Activity link</span>
+            <strong>${escapeHtml(link.title)}</strong>
+            <p>${escapeHtml(link.description || 'Open activity')}</p>
+            <small>${escapeHtml(link.createdBy ? `Shared by ${link.createdBy}` : '')}</small>
+          </a>`
+        )
+        .join('')
+    : '<p class="stat-sub">No live activity links sent yet.</p>';
+}
+
+async function loadLiveWinnersAdmin() {
+  const wrap = document.getElementById('liveWinnersAdmin');
+  if (!wrap) return;
+  const data = await api('/api/live-activities/winners');
+  const winners = data.winners || [];
+  wrap.innerHTML = winners.length
+    ? winners
+        .map(
+          (winner) => `
+          <div class="live-admin-card live-admin-card--winner">
+            <span>${escapeHtml(liveCategoryLabel(winner.category))} winner</span>
+            <strong>${escapeHtml(winner.name)}</strong>
+            <p>${escapeHtml(winner.designation || winner.department || 'AVGCian')}</p>
+            ${winner.message ? `<small>${escapeHtml(winner.message)}</small>` : ''}
+          </div>`
+        )
+        .join('')
+    : '<p class="stat-sub">No winners announced yet.</p>';
+}
+
+async function loadNominationStats() {
+  const body = document.getElementById('nominationStatsBody');
+  if (!body) return;
+  const data = await api('/api/live-activities/nominations/stats');
+  const rows = data.stats || [];
+  body.innerHTML = rows.length
+    ? rows
+        .map(
+          (row) => `
+          <tr>
+            <td>${escapeHtml(liveCategoryLabel(row.category))}</td>
+            <td>${escapeHtml(row.name)}</td>
+            <td>${escapeHtml(row.designation || '—')}</td>
+            <td>${escapeHtml(row.department || '—')}</td>
+            <td><strong>${row.votes}</strong></td>
+            <td><button type="button" class="btn btn-primary btn-sm" data-announce-winner="${row.employeeId}" data-category="${row.category}" data-name="${escapeHtml(row.name)}">Announce</button></td>
+          </tr>`
+        )
+        .join('')
+    : '<tr><td colspan="6" class="stat-sub" style="padding:20px;text-align:center;">No nominations yet.</td></tr>';
+  body.querySelectorAll('[data-announce-winner]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const employeeId = Number(btn.getAttribute('data-announce-winner'));
+      const category = btn.getAttribute('data-category');
+      const name = btn.getAttribute('data-name') || 'winner';
+      const message = window.prompt(`Announcement message for ${name}`, `Congratulations ${name}!`);
+      if (message === null) return;
+      try {
+        await api('/api/live-activities/winners', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employeeId, category, message }),
+        });
+        HRMS.toast('Winner announced', 'success');
+        await Promise.all([loadNominationStats(), loadLiveWinnersAdmin()]);
+      } catch (e) {
+        HRMS.toast(e.message || 'Could not announce winner', 'error');
+      }
+    });
+  });
+}
+
 function downloadSampleExcel(filename, headers, rows) {
   const table = `
     <table>
@@ -2093,8 +2115,8 @@ async function loadSaturdayAdminConfig() {
   const y = Number(document.getElementById('satYear')?.value);
   const msg = document.getElementById('satMessage');
   if (msg) msg.textContent = '';
-  if (!y || y < 2000 || y > 2100) {
-    if (msg) msg.textContent = 'Enter a valid year (2000–2100).';
+  if (!y || y < HRMS.MIN_PORTAL_YEAR || y > HRMS.MAX_PORTAL_YEAR) {
+    if (msg) msg.textContent = `Enter a valid year (${HRMS.MIN_PORTAL_YEAR}–${HRMS.MAX_PORTAL_YEAR}).`;
     return;
   }
   try {
@@ -2133,7 +2155,7 @@ function initSaturdayAdminPanel() {
   syncSaturdayViewModeFields();
   const yEl = document.getElementById('satYear');
   const mEl = document.getElementById('satMonth');
-  if (yEl && !yEl.value) yEl.value = String(new Date().getFullYear());
+  if (yEl && !yEl.value) yEl.value = String(HRMS.currentPortalYear());
   if (mEl && !mEl.value) mEl.value = String(new Date().getMonth() + 1);
   if (!saturdayAdminListenersBound) {
     saturdayAdminListenersBound = true;
@@ -2171,8 +2193,8 @@ async function loadHolidayAdminList() {
   const y = Number(document.getElementById('holYear')?.value);
   const msg = document.getElementById('holMessage');
   if (msg) msg.textContent = '';
-  if (!y || y < 2000 || y > 2100) {
-    if (msg) msg.textContent = 'Enter a valid year (2000–2100).';
+  if (!y || y < HRMS.MIN_PORTAL_YEAR || y > HRMS.MAX_PORTAL_YEAR) {
+    if (msg) msg.textContent = `Enter a valid year (${HRMS.MIN_PORTAL_YEAR}–${HRMS.MAX_PORTAL_YEAR}).`;
     return;
   }
   try {
@@ -2243,7 +2265,7 @@ function resetHolidayImportPreview(options = {}) {
 
 function initHolidayAdminPanel() {
   const yEl = document.getElementById('holYear');
-  if (yEl && !yEl.value) yEl.value = String(new Date().getFullYear());
+  if (yEl && !yEl.value) yEl.value = String(HRMS.currentPortalYear());
   if (!holidayAdminListenersBound) {
     holidayAdminListenersBound = true;
     document.getElementById('holLoadBtn')?.addEventListener('click', () => {
@@ -2377,8 +2399,8 @@ async function loadPublicHolidayCalendar() {
   if (actionsHead) actionsHead.style.display = allowRemove ? '' : 'none';
   if (msg) msg.textContent = '';
   if (!body) return;
-  if (!y || y < 2000 || y > 2100) {
-    if (msg) msg.textContent = 'Enter a valid year (2000-2100).';
+  if (!y || y < HRMS.MIN_PORTAL_YEAR || y > HRMS.MAX_PORTAL_YEAR) {
+    if (msg) msg.textContent = `Enter a valid year (${HRMS.MIN_PORTAL_YEAR}–${HRMS.MAX_PORTAL_YEAR}).`;
     return;
   }
   try {
@@ -2409,10 +2431,22 @@ async function loadPublicHolidayCalendar() {
 }
 
 function mountTeamHubWhenReady(section) {
-  if (!['calendar'].includes(section)) return;
+  const mounts = {
+    dashboard: () => window.HRMS?.mountPortalDashboard?.('#adminDashboardReactRoot'),
+    teams: () => window.HRMS?.mountTeamHubOrgTree?.('#teamHubOrgTreeRoot'),
+    'holiday-calendar': () => window.HRMS?.mountHolidayCalendar?.('#adminPublicHolidayRoot'),
+    calendar: () => window.HRMS?.mountAttendanceCalendar?.('#adminCalendarRoot'),
+  };
+  const mountFn = mounts[section];
+  if (!mountFn) return;
   const tryMount = (attempt) => {
-    if (window.HRMS?.initTeamHubPanels) {
-      window.HRMS.initTeamHubPanels();
+    const ready =
+      (section === 'dashboard' && window.HRMS?.mountPortalDashboard) ||
+      (section === 'teams' && window.HRMS?.mountTeamHubOrgTree) ||
+      (section === 'holiday-calendar' && window.HRMS?.mountHolidayCalendar) ||
+      (section === 'calendar' && window.HRMS?.mountAttendanceCalendar);
+    if (ready) {
+      mountFn();
       return;
     }
     if (attempt < 50) setTimeout(() => tryMount(attempt + 1), 80);
@@ -2471,11 +2505,6 @@ HRMS.initSidebar({
       initSaturdayAdminPanel();
       initHolidayAdminPanel();
     }
-    if (section === 'holiday-calendar') {
-      const yEl = document.getElementById('holPublicYear');
-      if (yEl && !yEl.value) yEl.value = String(new Date().getFullYear());
-      loadPublicHolidayCalendar().catch(() => {});
-    }
     if (section === 'roles') {
       loadRoleManagement().catch((e) => HRMS.toast(e.message, 'error'));
     }
@@ -2486,8 +2515,13 @@ HRMS.initSidebar({
       loadReportEmployeeFilter().catch(() => {});
       loadAdminReports().catch((e) => HRMS.toast(e.message, 'error'));
     }
-    if (section === 'calendar') {
-      window.HRMS?.mountAttendanceCalendar?.('#adminCalendarRoot');
+    if (section === 'live-activity-links') {
+      loadLiveActivityLinks().catch((e) => HRMS.toast(e.message, 'error'));
+    }
+    if (section === 'live-nomination-stats') {
+      Promise.all([loadNominationStats(), loadLiveWinnersAdmin()]).catch((e) =>
+        HRMS.toast(e.message, 'error')
+      );
     }
     if (section === 'biometric') {
       esslDateRangeInputs();
@@ -2498,6 +2532,18 @@ HRMS.initSidebar({
     }
     if (section === 'manager-directory' && window.HRMS.initManagerDirectory) {
       HRMS.initManagerDirectory(api).catch((e) => HRMS.toast(e?.message || 'Could not open directory', 'error'));
+    }
+    if (section === 'asset-management' && HRMS.initAssetManagement) {
+      const adminRole = isFounderProfile(user) ? 'founder' : user.role || 'admin';
+      HRMS.initAssetManagement({ api, role: adminRole }).catch((e) =>
+        HRMS.toast(e?.message || 'Could not load assets', 'error')
+      );
+    }
+    if (section === 'policies-and-links' && HRMS.initPoliciesPortal) {
+      const adminRole = isFounderProfile(user) ? 'founder' : user.role || 'admin';
+      HRMS.initPoliciesPortal({ api, role: adminRole }).catch((e) =>
+        HRMS.toast(e?.message || 'Could not load policies', 'error')
+      );
     }
   },
 });
@@ -2551,7 +2597,7 @@ function scheduleDataLoads() {
   const M = PERMS?.MODULE || {};
   const tasks = [];
   if (!PERMS || hasPerm(M.DASHBOARD_OVERVIEW)) {
-    tasks.push(loadAdminStats(), loadAdminLeaveBalance(), loadAdminLeaveSummary());
+    mountTeamHubWhenReady('dashboard');
     refreshBirthdayBanner().catch(() => {});
   }
   if (!PERMS || hasPerm(M.EMPLOYEE_MANAGEMENT)) tasks.push(loadEmployees());
@@ -2565,11 +2611,6 @@ function scheduleDataLoads() {
     tasks.push(loadAdminLeaves(), loadLeaveEntitlements());
   }
   loadAdminProfileFromServer().catch(() => {});
-  loadAdminMyRequests().catch(() => {});
-  if (!PERMS || hasPerm(M.REQUEST_APPROVALS)) {
-    loadAdminInboxRequests().catch(() => {});
-    loadAdminAllRequests().catch(() => {});
-  }
   Promise.all(tasks).catch(console.error);
 }
 

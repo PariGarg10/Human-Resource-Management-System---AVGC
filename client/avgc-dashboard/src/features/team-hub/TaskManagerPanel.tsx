@@ -229,7 +229,7 @@ export function TaskManagerPanel({ userName }: Props = {}) {
   const doneCount = grouped.completed.length;
 
   return (
-    <div className="w-full font-['DM_Sans',sans-serif]">
+    <div className="w-full ">
       <p className="mb-4 text-sm text-[var(--text-muted)]">
         Personal tasks for <strong className="text-[var(--text-primary)]">{displayName}</strong> — only you
         can see and edit these. All past and completed tasks stay in your list.

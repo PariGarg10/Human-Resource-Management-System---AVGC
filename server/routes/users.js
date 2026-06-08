@@ -9,10 +9,12 @@ const {
 } = require('../utils/profilePhoto');
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
-const { buildOrgSections } = require('../utils/orgDirectory');
+const { buildOrgSections, personFromRow } = require('../utils/orgDirectory');
+const { buildOrgTree } = require('../utils/orgTree');
 const { ensurePersonalTasksTable, rowToTask, PRIORITIES, parseDueDateInput } = require('../utils/personalTasks');
 const { logAudit } = require('../utils/audit');
 const { ageFromDateOfBirth } = require('../utils/birthdays');
+const { TEAM_LEAD_SQL } = require('../utils/teamLeads');
 
 const router = express.Router();
 
@@ -56,7 +58,8 @@ function rowToProfile(row) {
     email: row.email,
     department: row.department,
     role: row.role,
-    designation: row.role,
+    designation: row.designation || null,
+    reportingToId: row.reporting_to_id ?? null,
     dateOfBirth: row.dateofbirth || null,
     phone: row.phone || null,
     location: row.location || null,
@@ -143,10 +146,11 @@ async function applyProfileUpdate(userId, fields, profilePhotoUrl, profileFile) 
 
   const updatedResult = await pool.query(
     `
-      SELECT id, employeecode, name, email, department, role, dateofbirth, phone, location, bio, profilephotourl, createdat
+      SELECT id, employeecode, name, email, department, designation, role, reporting_to_id,
+             dateofbirth, phone, location, bio, profilephotourl, createdat
       FROM employees WHERE id = $1
     `,
-    [userId]
+      [userId]
   );
   return updatedResult.rows[0];
 }
@@ -195,23 +199,83 @@ async function patchProfile(req, res, userId) {
   }
 }
 
-router.get('/org-directory', authMiddleware, enforcePasswordChange, async (_req, res) => {
+router.get('/team-leads', authMiddleware, enforcePasswordChange, async (req, res) => {
   try {
+    const { isEmployeeRole } = require('../constants/roles');
+    if (!isEmployeeRole(req.user.role)) {
+      return res.status(403).json({ message: 'Team lead reporting is only available to employees' });
+    }
+
     const { rows } = await pool.query(
       `
-      SELECT id, employeecode, name, email, department, role, profilephotourl
+        SELECT id, name, employeecode, designation, department
+        FROM employees
+        WHERE COALESCE(isregistered, TRUE) = TRUE
+          AND id != $1
+          AND ${TEAM_LEAD_SQL.replace(/\n/g, ' ')}
+        ORDER BY name ASC
+      `,
+      [req.user.id]
+    );
+    return res.json({ teamLeads: rows });
+  } catch (err) {
+    console.error('GET /users/team-leads:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/org-directory', authMiddleware, enforcePasswordChange, async (_req, res) => {
+  try {
+    await ensureProfilePhotoColumns();
+    const { rows } = await pool.query(
+      `
+      SELECT id, employeecode, name, email, department, designation, role, profilephotourl,
+             phone, location,
+             (profile_photo IS NOT NULL) AS has_profile_photo
       FROM employees
       WHERE COALESCE(isregistered, TRUE) = TRUE
       ORDER BY name ASC
     `
     );
     const sections = buildOrgSections(rows);
+    const allPeople = rows
+      .map((row) => personFromRow(row))
+      .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
     return res.json({
       sections,
+      allPeople,
       total: rows.length,
     });
   } catch (err) {
     console.error('GET /users/org-directory:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/org-tree', authMiddleware, enforcePasswordChange, async (_req, res) => {
+  try {
+    await ensureProfilePhotoColumns();
+    const [employeesResult, assignmentsResult] = await Promise.all([
+      pool.query(
+        `
+        SELECT id, employeecode, name, email, department, designation, role, reporting_to_id,
+               profilephotourl, phone, location,
+               (profile_photo IS NOT NULL) AS has_profile_photo
+        FROM employees
+        WHERE COALESCE(isregistered, TRUE) = TRUE
+        ORDER BY name ASC
+      `
+      ),
+      pool.query('SELECT managerid, employeeid FROM manageremployees'),
+    ]);
+
+    const tree = buildOrgTree(employeesResult.rows, assignmentsResult.rows);
+    if (!tree) {
+      return res.status(404).json({ message: 'No employees found to build org chart' });
+    }
+    return res.json({ tree });
+  } catch (err) {
+    console.error('GET /users/org-tree:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -355,6 +419,47 @@ router.delete('/my-tasks/:taskId', authMiddleware, enforcePasswordChange, async 
   }
 });
 
+router.get('/profile-photo/employee/:employeeId', authMiddleware, enforcePasswordChange, async (req, res) => {
+  try {
+    const employeeId = Number(req.params.employeeId);
+    if (!Number.isFinite(employeeId)) {
+      return res.status(400).json({ message: 'Invalid employee id' });
+    }
+    await ensureProfilePhotoColumns();
+    const result = await pool.query(
+      'SELECT profile_photo, profile_photo_mime, profilephotourl FROM employees WHERE id = $1',
+      [employeeId]
+    );
+    const row = result.rows[0];
+    if (!row) {
+      return res.status(404).json({ message: 'Photo not found' });
+    }
+    if (row.profile_photo) {
+      res.setHeader('Content-Type', row.profile_photo_mime || 'image/jpeg');
+      res.setHeader('Cache-Control', 'private, max-age=3600');
+      return res.send(row.profile_photo);
+    }
+    const filePath = resolveProfilePhotoPath(row.profilephotourl);
+    if (!filePath) {
+      return res.status(404).json({ message: 'Photo not found' });
+    }
+    const ext = path.extname(filePath).toLowerCase();
+    const types = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+    };
+    res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    return res.sendFile(path.resolve(filePath));
+  } catch (err) {
+    console.error('GET /users/profile-photo/employee:', err.message);
+    return res.status(500).json({ message: 'Could not load photo' });
+  }
+});
+
 router.get('/profile-photo/me', authMiddleware, async (req, res) => {
   try {
     await ensureProfilePhotoColumns();
@@ -405,7 +510,8 @@ router.get('/me', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
       `
-      SELECT id, employeecode, name, email, department, role, dateofbirth, phone, location, bio, profilephotourl, createdat
+      SELECT id, employeecode, name, email, department, designation, role, reporting_to_id,
+             dateofbirth, phone, location, bio, profilephotourl, createdat
       FROM employees WHERE id = $1
     `,
       [req.user.id]
@@ -427,7 +533,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
     }
     const result = await pool.query(
       `
-      SELECT id, employeecode, name, email, department, role, dateofbirth, phone, location, bio, profilephotourl, createdat
+      SELECT id, employeecode, name, email, department, designation, role, reporting_to_id,
+             dateofbirth, phone, location, bio, profilephotourl, createdat
       FROM employees WHERE id = $1
     `,
       [req.user.id]

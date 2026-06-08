@@ -17,10 +17,15 @@
 }
 
 .table-wrap {
-  overflow-x: auto;
+  overflow: visible;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
+}
+
+.table-wrap--scroll {
+  overflow: auto;
+  max-height: min(58vh, 560px);
 }
 
 .data-table {
@@ -137,4 +142,171 @@
 .badge.employee {
   background: var(--primary-soft);
   color: var(--primary);
+}
+
+/* Admin Employees / Roles — fit viewport, no horizontal scroll */
+.admin-people-viewport.is-active {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.panel--people-fit {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-bottom: 0;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.admin-people-meta,
+.admin-people-toolbar {
+  flex-shrink: 0;
+}
+
+.admin-people-toolbar {
+  margin-bottom: 12px;
+}
+
+.table-wrap--people-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.data-table--roles,
+.data-table--people {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.data-table--roles thead th,
+.data-table--people thead th {
+  white-space: normal;
+  padding: 10px 8px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+.data-table--roles tbody td,
+.data-table--people tbody td {
+  padding: 10px 8px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+.data-table--roles th:nth-child(1),
+.data-table--roles td:nth-child(1) {
+  width: 5%;
+}
+
+.data-table--roles th:nth-child(2),
+.data-table--roles td:nth-child(2) {
+  width: 9%;
+}
+
+.data-table--roles th:nth-child(3),
+.data-table--roles td:nth-child(3) {
+  width: 12%;
+}
+
+.data-table--roles th:nth-child(4),
+.data-table--roles td:nth-child(4) {
+  width: 20%;
+}
+
+.data-table--roles th:nth-child(5),
+.data-table--roles td:nth-child(5) {
+  width: 10%;
+}
+
+.data-table--roles th:nth-child(6),
+.data-table--roles td:nth-child(6) {
+  width: 18%;
+}
+
+.data-table--roles th:nth-child(7),
+.data-table--roles td:nth-child(7) {
+  width: 10%;
+}
+
+.data-table--roles th:nth-child(8),
+.data-table--roles td:nth-child(8) {
+  width: 16%;
+}
+
+.data-table--people th:nth-child(1),
+.data-table--people td:nth-child(1) {
+  width: 10%;
+}
+
+.data-table--people th:nth-child(2),
+.data-table--people td:nth-child(2) {
+  width: 14%;
+}
+
+.data-table--people th:nth-child(3),
+.data-table--people td:nth-child(3) {
+  width: 26%;
+}
+
+.data-table--people th:nth-child(4),
+.data-table--people td:nth-child(4) {
+  width: 18%;
+}
+
+.data-table--people th:nth-child(5),
+.data-table--people td:nth-child(5) {
+  width: 18%;
+}
+
+.data-table--people th:nth-child(6),
+.data-table--people td:nth-child(6) {
+  width: 14%;
+}
+
+.table-cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.table-cell-stack input,
+.table-cell-stack select,
+.emp-role-cell select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  box-sizing: border-box;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.table-cell-stack .btn {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.table-cell-actions {
+  white-space: nowrap;
+}
+
+.table-cell-actions .btn {
+  padding: 6px 10px;
+  font-size: 12px;
 }

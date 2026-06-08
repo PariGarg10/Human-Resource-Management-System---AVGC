@@ -50,6 +50,7 @@
 }
 
 .stat-label {
+  font-family: var(--font-accent);
   font-size: 13px;
   color: var(--text-muted);
   font-weight: 500;
@@ -57,8 +58,9 @@
 }
 
 .stat-value {
+  font-family: var(--font-accent);
   font-size: 28px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: -0.03em;
   line-height: 1.2;
 }
@@ -109,6 +111,48 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 16px;
+}
+
+.live-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.live-admin-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.live-admin-card--winner {
+  border-left: 4px solid var(--primary);
+}
+
+.live-admin-card span {
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.live-admin-card strong {
+  font-size: 15px;
+}
+
+.live-admin-card p,
+.live-admin-card small {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
 .tile {

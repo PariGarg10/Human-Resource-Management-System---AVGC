@@ -1,8 +1,31 @@
 window.HRMS = window.HRMS || {};
 
+HRMS.MIN_PORTAL_YEAR = 2026;
+HRMS.MAX_PORTAL_YEAR = 2100;
+
+HRMS.clampPortalYear = function clampPortalYear(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) {
+    return Math.max(new Date().getFullYear(), HRMS.MIN_PORTAL_YEAR);
+  }
+  return Math.min(HRMS.MAX_PORTAL_YEAR, Math.max(HRMS.MIN_PORTAL_YEAR, Math.floor(n)));
+};
+
+HRMS.currentPortalYear = function currentPortalYear() {
+  return Math.max(new Date().getFullYear(), HRMS.MIN_PORTAL_YEAR);
+};
+
 HRMS.formatDateTime = function formatDateTime(value) {
   if (!value) return '—';
   return new Date(value).toLocaleString();
+};
+
+/** DD MMM YYYY — consistent across portals */
+HRMS.formatDisplayDate = function formatDisplayDate(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
 HRMS.badge = function badge(status, extraClass) {
@@ -20,7 +43,7 @@ HRMS.badge = function badge(status, extraClass) {
   const label = status || 'absent';
   const pretty =
     normalized === 'present'
-      ? 'Full Day'
+      ? 'Present'
       : normalized === 'halfday'
         ? 'Half Day'
         : String(label).replace(/^\w/, (c) => c.toUpperCase());

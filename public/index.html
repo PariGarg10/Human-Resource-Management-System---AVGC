@@ -1,113 +1,46 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="home-landing-root">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="AVGC — attendance, leave, and HR self-service for your organisation." />
-  <title>AVGC · HR &amp; attendance portal</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="description" content="AVGC Studios — Human Resource Management System" />
+  <title>AVGC Studios · HRMS</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet" />
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@400&family=Roboto:wght@500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/variables.css" />
-  <link rel="stylesheet" href="/css/site-marketing.css" />
+  <link rel="stylesheet" href="/css/typography.css" />
+  <link rel="stylesheet" href="/css/home-landing.css" />
 </head>
-<body class="site-marketing">
-  <a class="skip-link" href="#main-content">Skip to main content</a>
-
-  <div class="site-nav-overlay" id="siteNavOverlay" aria-hidden="true"></div>
-  <nav class="site-nav-drawer" id="siteNavDrawer" aria-label="Mobile menu">
-    <a href="/">Home</a>
-    <a href="/login">Sign in</a>
-    <a href="/login#registerForm">Register</a>
-  </nav>
-
-  <header class="site-header" role="banner">
-    <a class="site-header__brand" href="/" aria-label="AVGC home">AVGC</a>
-    <nav class="site-header__nav" aria-label="Primary">
-      <a href="/" aria-current="page">Home</a>
-    </nav>
-    <div class="site-header__actions">
-      <a class="site-header__cta" href="/login">Sign in</a>
-      <a class="site-header__cta" href="/login#registerForm">Register</a>
-      <button type="button" class="site-nav-toggle" id="siteNavToggle" aria-expanded="false" aria-controls="siteNavDrawer" aria-label="Open menu">
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
+<body class="home-landing">
+  <!-- Backdrop: save your image as /public/assets/home-backdrop.jpg (or change the src below) -->
+  <div class="home-landing__backdrop" id="homeBackdrop">
+    <img
+      class="home-landing__backdrop-img"
+      id="homeBackdropImg"
+      src="/assets/home-backdrop.jpg"
+      alt=""
+      onerror="this.classList.add('is-missing'); document.getElementById('homeBackdrop').classList.add('is-empty');"
+    />
+    <div class="home-landing__backdrop-slot" aria-hidden="true">
+      <span>Backdrop image</span>
+      <small>Add your file at <code>public/assets/home-backdrop.jpg</code><br />or edit <code>src</code> in index.html</small>
     </div>
-  </header>
+    <div class="home-landing__backdrop-overlay"></div>
+  </div>
 
-  <main id="main-content">
-    <section class="hero" aria-label="Introduction">
-      <div class="hero__video-wrap">
-        <video
-          class="hero__video"
-          autoplay
-          muted
-          loop
-          playsinline
-          preload="metadata"
-          
-          aria-hidden="true"
-        >
-          <source src="/assets/Alphabet.mp4" type="video/mp4" />
-        </video>
-        <div class="hero__scroll-overlay" aria-hidden="true"></div>
-      </div>
-      <a class="hero__scroll" href="#heroIntro" aria-label="Scroll to company introduction">
-        <span>Scroll</span>
-        <span class="hero__scroll-arrow" aria-hidden="true"></span>
+  <div class="home-landing__content">
+    <header class="home-landing__header">
+      <a class="home-landing__brand" href="/" aria-label="AVGC Studios home">
+        <img src="/assets/avgc-logo.png" alt="" class="home-landing__logo" aria-hidden="true" />
       </a>
-    </section>
+      <a class="home-landing__signin" href="/login">Sign in</a>
+    </header>
 
-    <section class="hero-intro reveal-on-scroll" id="heroIntro" aria-label="Company introduction">
-      <div class="hero-watermark" aria-hidden="true">AVGC</div>
-      <div class="hero__inner">
-        <p class="hero__eyebrow">— AVGC HR portal —</p>
-        <h1 class="hero__headline">
-          <span>AVGC</span>
-          <span class="hero__headline-accent">HRMS</span>
-        </h1>
-        <p class="hero__sub">
-          AVGC's very own HumanResources portal for attendance, leave, and HR self-service.
-        </p>
-      </div>
-    </section>
-
-    <section class="founder-section reveal-on-scroll" id="founderSection" aria-labelledby="founderHeading">
-      <span class="founder-section__mark" aria-hidden="true">&ldquo;</span>
-      <div class="founder-section__inner">
-        <h2 id="founderHeading" class="visually-hidden">Leadership message</h2>
-        <div id="founderPhotoSlot" class="founder-section__photo-wrap"></div>
-        <blockquote class="founder-section__quote" id="founderQuoteSlot"></blockquote>
-        <p class="founder-section__name">Ashish Mishra</p>
-        <p class="founder-section__role">Founder & CEO</p>
-      </div>
-    </section>
-
-  </main>
-
-  <footer class="site-footer" role="contentinfo">
-    <div class="site-footer__grid">
-      <div>
-        <div class="site-footer__brand">AVGC</div>
-        <p style="margin:0;max-width:28rem;font-size:0.9375rem;line-height:1.6;color:rgba(255,255,255,0.75);">
-          Attendance, leave, and role-aware HR tools in one AVGC stack — aligned with the same design tokens as your signed-in experience.
-        </p>
-      </div>
-      <div>
-        <p style="margin:0 0 0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;font-size:0.75rem;">Portal</p>
-        <a href="/login">Sign in</a><br />
-        <a href="/login#registerForm">Register</a>
-      </div>
-    </div>
-    <div class="site-footer__bottom">© <span id="footerYear"></span> AVGC. All rights reserved.</div>
-  </footer>
-
-  <script defer src="/js/site-marketing.js"></script>
-  <script>
-    document.getElementById('footerYear').textContent = new Date().getFullYear();
-  </script>
+    <main class="home-landing__main">
+      <h1 class="home-landing__title">AVGC Studios</h1>
+      <p class="home-landing__subtitle">Human Resource Management System</p>
+    </main>
+  </div>
 </body>
 </html>

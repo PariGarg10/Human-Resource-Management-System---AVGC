@@ -64,7 +64,7 @@ router.get('/session', (req, res) => {
 
 router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
   try {
-    const { name, email, password, department, role } = req.body;
+    const { name, email, password, department, role, employeecode, designation } = req.body;
 
     if (!name || !email) {
       return res.status(400).json({ message: 'name and email are required' });
@@ -77,30 +77,54 @@ router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEME
       return res.status(400).json({ message: 'Password is required for manager, admin, and IT Head roles' });
     }
 
-    const generatedCode = await generateEmployeeCode();
+    let code = String(employeecode || '')
+      .trim()
+      .toUpperCase();
+    if (!code) {
+      code = await generateEmployeeCode();
+    } else if (!/^[A-Z0-9_-]+$/.test(code)) {
+      return res.status(400).json({ message: 'Employee code may only contain letters, numbers, hyphen, and underscore' });
+    }
+
+    const designationValue = designation != null ? String(designation).trim() || null : null;
     const isEmployee = normalizedRole === 'employee';
     const isRegistered = !isEmployee;
-    const passwordhash = bcrypt.hashSync(password || `Temp@${Date.now()}_${generatedCode}`, 10);
+    const passwordhash = bcrypt.hashSync(password || `Temp@${Date.now()}_${code}`, 10);
 
     const result = await pool.query(
       `
-      INSERT INTO employees (employeecode, name, email, passwordhash, department, role, isregistered, mustchangepassword)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO employees (employeecode, name, email, passwordhash, department, designation, role, isregistered, mustchangepassword)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING id
     `,
-      [generatedCode, name, email, passwordhash, department || null, normalizedRole, isRegistered, false]
+      [
+        code,
+        name,
+        email,
+        passwordhash,
+        department || null,
+        designationValue,
+        normalizedRole,
+        isRegistered,
+        false,
+      ]
     );
 
-    await logAudit(req.user.id, 'EMPLOYEE_CREATED', 'employees', { employeecode: generatedCode, role: normalizedRole });
+    await logAudit(req.user.id, 'EMPLOYEE_CREATED', 'employees', {
+      employeecode: code,
+      role: normalizedRole,
+      designation: designationValue,
+    });
 
     return res.status(201).json({
       id: result.rows[0].id,
       name,
       email,
       department: department || null,
+      designation: designationValue,
       role: normalizedRole,
       isregistered: isRegistered,
-      employeecode: generatedCode,
+      employeecode: code,
     });
   } catch (error) {
     if (error.code === '23505') {
@@ -114,7 +138,7 @@ router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEME
 router.get('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (_req, res) => {
   try {
     const { rows: employees } = await pool.query(
-      'SELECT id, employeecode, name, email, department, role, isregistered, createdat FROM employees ORDER BY id ASC'
+      'SELECT id, employeecode, name, email, department, designation, role, isregistered, createdat FROM employees ORDER BY id ASC'
     );
     return res.json({ employees });
   } catch (err) {
@@ -161,6 +185,38 @@ router.delete('/employees/:id', requirePermission(PERMISSION_MODULES.EMPLOYEE_MA
     return res.json({ message: 'Employee removed successfully' });
   } catch (err) {
     console.error('DELETE /admin/employees/:id:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.patch('/employees/:id/designation', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
+  try {
+    const employeeId = Number(req.params.id);
+    if (!Number.isFinite(employeeId) || employeeId <= 0) {
+      return res.status(400).json({ message: 'Valid employee id is required' });
+    }
+    const designation =
+      req.body.designation != null ? String(req.body.designation).trim() || null : null;
+
+    const targetResult = await pool.query(
+      'SELECT id, name, designation FROM employees WHERE id = $1',
+      [employeeId]
+    );
+    const target = targetResult.rows[0];
+    if (!target) return res.status(404).json({ message: 'Employee not found' });
+
+    await pool.query('UPDATE employees SET designation = $1 WHERE id = $2', [designation, employeeId]);
+    await logAudit(req.user.id, 'EMPLOYEE_DESIGNATION_UPDATED', 'employees', {
+      employeeId,
+      previousDesignation: target.designation,
+      designation,
+    });
+    return res.json({
+      message: 'Designation updated',
+      employee: { ...target, designation },
+    });
+  } catch (err) {
+    console.error('PATCH /admin/employees/:id/designation:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });

@@ -19,25 +19,56 @@ function isFounder(row) {
   return name === 'ashish mishra' || name.includes('ashish mishra');
 }
 
+function hasStoredProfilePhoto(row) {
+  if (row.has_profile_photo === true || row.has_profile_photo === 't') return true;
+  const normalized = normalizeProfilePhotoUrl(row.profilephotourl);
+  return Boolean(normalized);
+}
+
+function resolveEmployeePhotoUrl(row) {
+  const normalized = normalizeProfilePhotoUrl(row.profilephotourl);
+  if (normalized && normalized.startsWith('/uploads/profile-photos/')) {
+    return normalized;
+  }
+  if (hasStoredProfilePhoto(row)) {
+    return `/api/users/profile-photo/employee/${row.id}`;
+  }
+  return null;
+}
+
+function displayDesignation(row) {
+  const designation = row.designation ? String(row.designation).trim() : '';
+  if (designation) return designation;
+
+  const department = row.department ? String(row.department).trim() : '';
+  const role = normalizeRole(row.role);
+  if (role === 'manager' && department) return department;
+  if (role === 'manager') return 'Manager';
+  if (role === 'admin' && department) return department;
+  if (role === 'admin') return 'Administrator';
+  if (department) return department;
+  if (role === 'employee') return 'Employee';
+  return roleLabel(role) || 'Employee';
+}
+
 function personFromRow(row) {
   const department = row.department ? String(row.department).trim() : '';
   const role = normalizeRole(row.role);
-  let title = department || role;
-  if (role === 'manager' && department) title = department;
-  else if (role === 'manager') title = 'Manager';
-  else if (role === 'admin' && department) title = department;
-  else if (role === 'admin') title = 'Administrator';
-  else if (role === 'employee' && department) title = department;
-  else if (role === 'employee') title = 'Employee';
+  const designation = row.designation ? String(row.designation).trim() : '';
+  const title = displayDesignation(row);
 
   return {
     id: row.id,
     name: row.name,
+    email: row.email || null,
     title,
+    designation: designation || null,
     department: department || null,
     role,
-    employeecode: row.employeecode,
-    profilePhotoUrl: normalizeProfilePhotoUrl(row.profilephotourl),
+    employeecode: row.employeecode || null,
+    phone: row.phone || null,
+    location: row.location || null,
+    profilePhotoUrl: resolveEmployeePhotoUrl(row),
   };
 }
 
@@ -95,4 +126,4 @@ function buildOrgSections(employees) {
   return sections;
 }
 
-module.exports = { buildOrgSections, personFromRow };
+module.exports = { buildOrgSections, personFromRow, isFounder };

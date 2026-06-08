@@ -1,0 +1,152 @@
+/* Portal scroll policy — lock page shell; scroll only in marked regions */
+
+body:has(.app-main),
+body:has(#root .app-main) {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+#root {
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#root .app-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: 100dvh;
+}
+
+.app-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.top-navbar {
+  flex-shrink: 0;
+}
+
+.content-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Fit viewports — no scroll in the main content column */
+.content-area:has(> .holiday-calendar-viewport),
+.content-area:has(> .dashboard-home-viewport),
+.content-area:has(> .dashboard-react-viewport),
+.content-area:has(> .profile-viewport),
+.content-area:has(> .org-teams-viewport),
+.content-area:has(> .panel.attendance-calendar-panel),
+.content-area:has(> .view-section.holiday-calendar-viewport.is-active),
+.content-area:has(> .view-section.org-teams-viewport.is-active),
+.content-area:has(> .view-section.dashboard-react-viewport.is-active),
+.content-area:has(> .view-section.admin-people-viewport.is-active) {
+  overflow: hidden;
+}
+
+/* Scrollable admin / portal sections */
+.view-section.is-active:not(.org-teams-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport) {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.view-section.holiday-calendar-viewport.is-active,
+.view-section.org-teams-viewport.is-active,
+.view-section.dashboard-react-viewport.is-active,
+.view-section.admin-people-viewport.is-active {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#adminDashboardReactRoot {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.holiday-calendar-viewport {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.holiday-calendar-panel,
+.holiday-calendar-viewport .holiday-calendar-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.holiday-calendar-table {
+  flex: 0 1 auto;
+  overflow: visible;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.holiday-calendar-table .data-table thead th {
+  position: static;
+}
+
+.holiday-calendar-table .data-table thead th,
+.holiday-calendar-table .data-table tbody td {
+  padding: 8px 12px;
+  white-space: normal;
+}
+
+.panel--fit {
+  overflow: hidden;
+}
+
+.content-area:has(> .panel.panel--scroll) {
+  overflow: hidden;
+}
+
+.content-area > .panel.panel--scroll,
+.view-section.panel--scroll.is-active {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.panel--scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.table-wrap--scroll {
+  overflow: auto;
+  max-height: min(58vh, 560px);
+}
+
+.manager-assignment-page.is-active {
+  overflow-y: auto;
+}
+
+.org-info-panel {
+  overflow-y: auto;
+  overflow-x: hidden;
+}

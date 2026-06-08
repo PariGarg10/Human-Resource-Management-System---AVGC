@@ -16,8 +16,8 @@ function calculateTotalHours(punchIn, punchOut) {
 
 function getAttendanceStatus(totalHours) {
   if (totalHours === null || totalHours === undefined) return 'absent';
-  if (totalHours >= 8.5) return 'present';
-  if (totalHours > 4) return 'halfday';
+  if (totalHours >= 8) return 'present';
+  if (totalHours > 4 && totalHours < 8) return 'halfday';
   return 'absent';
 }
 

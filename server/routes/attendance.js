@@ -78,7 +78,7 @@ router.get('/history', async (req, res) => {
     const month = Number(req.query.month);
     const year = Number(req.query.year);
 
-    if (!month || !year || month < 1 || month > 12) {
+    if (!month || !year || month < 1 || month > 12 || year < 2026 || year > 2100) {
       return res.status(400).json({ message: 'Valid month and year are required' });
     }
 
@@ -147,7 +147,7 @@ router.get('/summary', async (req, res) => {
     const month = Number(req.query.month);
     const year = Number(req.query.year);
 
-    if (!month || !year || month < 1 || month > 12) {
+    if (!month || !year || month < 1 || month > 12 || year < 2026 || year > 2100) {
       return res.status(400).json({ message: 'Valid month and year are required' });
     }
 
