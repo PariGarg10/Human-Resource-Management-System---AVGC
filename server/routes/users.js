@@ -10,7 +10,8 @@ const {
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { buildOrgSections, personFromRow } = require('../utils/orgDirectory');
-const { buildOrgTree, scopeOrgTreeForViewer } = require('../utils/orgTree');
+const { buildOrgTree, scopeOrgTreeForViewer, sortTreeAlphabetically } = require('../utils/orgTree');
+const { isAdminRole } = require('../constants/roles');
 const { ensurePersonalTasksTable, rowToTask, PRIORITIES, parseDueDateInput } = require('../utils/personalTasks');
 const { logAudit } = require('../utils/audit');
 const { ageFromDateOfBirth } = require('../utils/birthdays');
@@ -252,7 +253,7 @@ router.get('/org-directory', authMiddleware, enforcePasswordChange, async (_req,
   }
 });
 
-router.get('/org-tree', authMiddleware, enforcePasswordChange, async (_req, res) => {
+router.get('/org-tree', authMiddleware, enforcePasswordChange, async (req, res) => {
   try {
     await ensureProfilePhotoColumns();
     const [employeesResult, assignmentsResult] = await Promise.all([
@@ -273,10 +274,16 @@ router.get('/org-tree', authMiddleware, enforcePasswordChange, async (_req, res)
     if (!tree) {
       return res.status(404).json({ message: 'No employees found to build org chart' });
     }
-    const scoped = scopeOrgTreeForViewer(tree, employeesResult.rows, req.user.id);
-    return res.json({ tree: scoped });
+
+    const viewerRole = String(req.user?.role || '').toLowerCase().trim();
+    const isAdminViewer = Boolean(req.user?.adminId) || isAdminRole(viewerRole);
+    const result = isAdminViewer
+      ? sortTreeAlphabetically(tree)
+      : scopeOrgTreeForViewer(tree, employeesResult.rows, req.user.id);
+
+    return res.json({ tree: result });
   } catch (err) {
-    console.error('GET /users/org-tree:', err.message);
+    console.error('GET /users/org-tree:', err.message, err.stack);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });

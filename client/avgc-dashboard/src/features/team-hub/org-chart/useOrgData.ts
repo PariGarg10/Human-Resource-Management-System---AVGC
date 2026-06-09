@@ -21,12 +21,22 @@ export function useOrgData() {
 
   const refreshOrg = useCallback(async (bustPhotoCache = false) => {
     if (bustPhotoCache) clearProfilePhotoCache();
-    const [treeRes, directoryRes] = await Promise.all([
-      api<OrgTreeResponse>('/api/users/org-tree'),
-      api<OrgDirectoryResponse>('/api/users/org-directory'),
-    ]);
+    let treeRes: OrgTreeResponse;
+    try {
+      treeRes = await api<OrgTreeResponse>('/api/users/org-tree');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Request failed';
+      throw new Error(msg || 'Could not load organization chart');
+    }
+    let directory: DirectoryPerson[] = [];
+    try {
+      const directoryRes = await api<OrgDirectoryResponse>('/api/users/org-directory');
+      directory = flattenDirectory(directoryRes);
+    } catch {
+      /* Chart still works without directory enrichment */
+    }
     setData(treeRes.tree);
-    setDirectory(flattenDirectory(directoryRes));
+    setDirectory(directory);
     setLoadError(null);
   }, []);
 
@@ -36,10 +46,15 @@ export function useOrgData() {
       setLoading(true);
       try {
         await refreshOrg(false);
-      } catch {
+      } catch (err) {
         if (!cancelled) {
           setData(clone(DEFAULT_ORG_DATA));
-          setLoadError('Could not load live org data. Showing saved preview.');
+          const detail = err instanceof Error ? err.message : '';
+          setLoadError(
+            detail
+              ? `Could not load live org data (${detail}). Showing saved preview.`
+              : 'Could not load live org data. Showing saved preview.'
+          );
         }
       } finally {
         if (!cancelled) setLoading(false);
