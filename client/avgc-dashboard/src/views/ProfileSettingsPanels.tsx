@@ -148,7 +148,9 @@ export function ProfilePanel({
         </p>
       )}
 
-      <form onSubmit={onSubmit} className="profile-two-col">
+      <form onSubmit={onSubmit} className="profile-form">
+        <div className="profile-form-scroll">
+          <div className="profile-two-col">
         <aside className="profile-col profile-col--identity">
           <div className="profile-photo-card">
             <div className="profile-photo-frame">
@@ -212,54 +214,56 @@ export function ProfilePanel({
         </aside>
 
         <div className="profile-col profile-col--fields">
-          <div className="profile-fields-grid">
-            <label className="profile-field">
-              <span>Email</span>
-              <input readOnly value={email} className="is-readonly" />
-            </label>
-            <label className="profile-field">
-              <span>Phone number</span>
-              <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                placeholder="How can we reach you?"
-              />
-            </label>
-            <label className="profile-field">
-              <span>Location</span>
-              <input
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                placeholder="City or country you work from"
-              />
-            </label>
-            <label className="profile-field">
-              <span>Date of birth</span>
-              <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
-              {derivedAge != null ? (
-                <small>Age (derived): {derivedAge}</small>
-              ) : (
-                <small>Optional — used for birthday reminders only</small>
-              )}
-            </label>
-            <label className="profile-field profile-field--wide">
-              <span>Bio / About</span>
-              <textarea
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                rows={4}
-                placeholder="A short intro — hobbies, fun facts, what you work on…"
-              />
-            </label>
+            <div className="profile-fields-grid">
+              <label className="profile-field">
+                <span>Email</span>
+                <input readOnly value={email} className="is-readonly" />
+              </label>
+              <label className="profile-field">
+                <span>Phone number</span>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="How can we reach you?"
+                />
+              </label>
+              <label className="profile-field">
+                <span>Location</span>
+                <input
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="City or country you work from"
+                />
+              </label>
+              <label className="profile-field">
+                <span>Date of birth</span>
+                <input type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} />
+                {derivedAge != null ? (
+                  <small>Age (derived): {derivedAge}</small>
+                ) : (
+                  <small>Optional — used for birthday reminders only</small>
+                )}
+              </label>
+              <label className="profile-field profile-field--wide">
+                <span>Bio / About</span>
+                <textarea
+                  value={bio}
+                  onChange={(e) => setBio(e.target.value)}
+                  rows={4}
+                  placeholder="A short intro — hobbies, fun facts, what you work on…"
+                />
+              </label>
 
-            <EmployeeDocumentsSection />
+              <EmployeeDocumentsSection />
+            </div>
+        </div>
           </div>
+        </div>
 
-          <div className="profile-form-actions">
-            <button type="submit" className="btn btn-primary" disabled={saving}>
-              {saving ? 'Saving…' : 'Save profile'}
-            </button>
-          </div>
+        <div className="profile-form-actions">
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            {saving ? 'Saving…' : 'Save profile'}
+          </button>
         </div>
       </form>
     </div>

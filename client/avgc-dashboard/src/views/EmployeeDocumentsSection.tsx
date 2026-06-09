@@ -140,18 +140,20 @@ export function EmployeeDocumentsSection() {
         <small>PDF, JPG, PNG, DOC, or DOCX</small>
       </label>
 
-      <div className="profile-field profile-field--wide">
-        <span>Your uploads</span>
-        {loading ? <small>Loading documents…</small> : <DocList rows={mine} empty="No documents uploaded yet." />}
-      </div>
+      <div className="profile-docs-panel">
+        <div className="profile-docs-block">
+          <span>Your uploads</span>
+          {loading ? <small>Loading documents…</small> : <DocList rows={mine} empty="No documents uploaded yet." />}
+        </div>
 
-      <div className="profile-field profile-field--wide">
-        <span>From admin / HR</span>
-        {loading ? (
-          <small>Loading…</small>
-        ) : (
-          <DocList rows={fromAdmin} empty="No admin documents shared yet." />
-        )}
+        <div className="profile-docs-block">
+          <span>From admin / HR</span>
+          {loading ? (
+            <small>Loading…</small>
+          ) : (
+            <DocList rows={fromAdmin} empty="No admin documents shared yet." />
+          )}
+        </div>
       </div>
     </>
   );

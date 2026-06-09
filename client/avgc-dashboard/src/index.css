@@ -1008,6 +1008,7 @@ body.has-floating-sidebar.sidebar-collapsed #root .app-main {
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  padding-bottom: 8px;
 }
 
 .holiday-calendar-table {
@@ -1080,13 +1081,29 @@ body.has-floating-sidebar.sidebar-collapsed #root .app-main {
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-primary, #ed1d24) 25%, transparent);
 }
 
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-top: 16px;
+  overflow: hidden;
+}
+
+.profile-form-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 4px;
+  padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
 .profile-two-col {
   display: grid;
   grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
   gap: 24px;
-  margin-top: 16px;
-  flex: 1 1 auto;
-  min-height: 0;
   align-items: start;
 }
 
@@ -1200,8 +1217,20 @@ body.has-floating-sidebar.sidebar-collapsed #root .app-main {
   color: var(--text-muted);
 }
 
+.profile-panel-shell > .panel-title,
+.profile-panel-shell > .stat-sub,
+.profile-panel-shell > .profile-save-msg {
+  flex-shrink: 0;
+}
+
 .profile-form-actions {
-  margin-top: 16px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 0 6px;
+  margin-top: 0;
+  border-top: 1px solid var(--border);
+  background: var(--bg-card, #fff);
 }
 
 .profile-field select {
@@ -1211,6 +1240,29 @@ body.has-floating-sidebar.sidebar-collapsed #root .app-main {
   padding: 10px 12px;
   min-height: 44px;
   background: var(--bg-card, #fff);
+}
+
+.profile-docs-panel {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: min(360px, 42vh);
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--bg-secondary);
+  -webkit-overflow-scrolling: touch;
+}
+
+.profile-docs-block > span {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
 .profile-doc-list {
@@ -1224,15 +1276,26 @@ body.has-floating-sidebar.sidebar-collapsed #root .app-main {
 
 .profile-doc-list li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 10px;
+  padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--bg-card, #fff);
   font-weight: 400;
   font-size: 0.8125rem;
+}
+
+.profile-doc-list li > span {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+.profile-doc-list li .btn {
+  flex-shrink: 0;
 }
 
 .profile-save-msg {
