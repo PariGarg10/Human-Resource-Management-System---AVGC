@@ -1,7 +1,5 @@
 const form = document.getElementById('loginForm');
 const messageEl = document.getElementById('message');
-const registerForm = document.getElementById('registerForm');
-const registerMessage = document.getElementById('registerMessage');
 
 function normalizeRole(role) {
   return String(role || 'employee').toLowerCase().trim();
@@ -26,7 +24,7 @@ function dashboardPathForEmployee(employee) {
   const token = localStorage.getItem('token');
   if (!token) return;
   const path = window.location.pathname.replace(/\/$/, '') || '/';
-  if (!['/login', '/register'].includes(path)) return;
+  if (path !== '/login') return;
   try {
     const emp = JSON.parse(localStorage.getItem('employee') || '{}');
     window.location.replace(dashboardPathForEmployee(emp));
@@ -68,35 +66,6 @@ if (form) {
       window.location.href = dashboardPathForEmployee(employee);
     } catch (_error) {
       if (messageEl) messageEl.textContent = 'Network error while logging in';
-    }
-  });
-}
-
-if (registerForm) {
-  registerForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (registerMessage) registerMessage.textContent = '';
-    try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: document.getElementById('regEmail').value.trim(),
-          password: document.getElementById('regPassword').value.trim(),
-          name: document.getElementById('regName').value.trim(),
-        }),
-      });
-      const data = await response.json();
-      if (registerMessage) {
-        registerMessage.textContent = data.message || (response.ok ? 'Registered' : 'Registration failed');
-      }
-      if (response.ok) {
-        setTimeout(() => {
-          window.location.href = '/login';
-        }, 1500);
-      }
-    } catch (_error) {
-      if (registerMessage) registerMessage.textContent = 'Network error while registering';
     }
   });
 }

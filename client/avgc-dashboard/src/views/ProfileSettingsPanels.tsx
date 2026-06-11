@@ -1,4 +1,5 @@
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useUser } from '@/context/UserContext';
 import { api, apiPatchProfile, persistEmployeePatch } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -304,7 +305,7 @@ export function SettingsPanel() {
       <form onSubmit={onSubmit} className="settings-creative-grid">
         <div className="settings-card">
           <span className="settings-card-icon" aria-hidden="true">
-            🔒
+            <KeyRound size={20} strokeWidth={2} />
           </span>
           <label className="settings-card-field">
             <span>Current password</span>
@@ -319,7 +320,7 @@ export function SettingsPanel() {
         </div>
         <div className="settings-card">
           <span className="settings-card-icon" aria-hidden="true">
-            ✨
+            <LockKeyhole size={20} strokeWidth={2} />
           </span>
           <label className="settings-card-field">
             <span>New password</span>
@@ -334,7 +335,7 @@ export function SettingsPanel() {
         </div>
         <div className="settings-card">
           <span className="settings-card-icon" aria-hidden="true">
-            ✓
+            <ShieldCheck size={20} strokeWidth={2} />
           </span>
           <label className="settings-card-field">
             <span>Confirm new password</span>

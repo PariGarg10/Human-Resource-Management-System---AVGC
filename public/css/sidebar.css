@@ -146,8 +146,8 @@
 
 .sidebar-accordion-head:hover {
   color: #ffffff;
-  background: #E63946;
-  border-color: #E63946;
+  background: #ed1d24;
+  border-color: #ed1d24;
   box-shadow: 0 0 10px rgba(230,57,70,0.55), 0 0 18px rgba(230,57,70,0.28);
 }
 
@@ -170,16 +170,16 @@
 .sidebar-accordion-head:hover,
 .sidebar-nav-section.is-hover-open .sidebar-accordion-head,
 .sidebar-nav-section.is-pinned .sidebar-accordion-head {
-  background: #E63946;
+  background: #ed1d24;
   color: #ffffff;
-  border-color: #E63946;
+  border-color: #ed1d24;
   box-shadow: 0 0 10px rgba(230,57,70,0.55), 0 0 18px rgba(230,57,70,0.28);
 }
 
 .sidebar-nav-section--direct .sidebar-accordion-head.is-active {
-  background: #E63946;
+  background: #ed1d24;
   color: #ffffff;
-  border-color: #E63946;
+  border-color: #ed1d24;
   box-shadow: 0 0 10px rgba(230,57,70,0.55), 0 0 18px rgba(230,57,70,0.28);
 }
 
@@ -217,7 +217,7 @@
   background: var(--sidebar-flyout-bg);
   backdrop-filter: blur(12px);
   box-shadow: var(--shadow-lg);
-  border-left: 2px solid #E63946;
+  border-left: 2px solid #ed1d24;
   opacity: 0;
   transform: translateX(-8px);
   pointer-events: none;
@@ -323,7 +323,7 @@
 .sidebar-nav button:hover,
 .sidebar-nav a:hover {
   background: rgba(230,57,70,0.12);
-  color: #E63946;
+  color: #ed1d24;
   transform: translateX(3px);
   opacity: 1;
 }
@@ -429,8 +429,8 @@ a.sidebar-page-link {
 }
 
 .sidebar-logout-btn:hover {
-  background: #e63946;
-  border-color: #e63946;
+  background: #ed1d24;
+  border-color: #ed1d24;
   color: #fff;
   box-shadow: 0 0 12px rgba(230, 57, 70, 0.45);
 }
@@ -561,9 +561,9 @@ body.mobile-sidebar-open .sidebar-overlay {
   }
 
   .sidebar-nav-section.is-expanded .sidebar-accordion-head {
-    background: #E63946;
+    background: #ed1d24;
     color: #ffffff;
-    border-color: #E63946;
+    border-color: #ed1d24;
     box-shadow: 0 0 10px rgba(230, 57, 70, 0.55), 0 0 18px rgba(230, 57, 70, 0.28);
   }
 

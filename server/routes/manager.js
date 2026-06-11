@@ -84,9 +84,12 @@ router.get('/team-summary', async (req, res) => {
       return res.status(400).json({ message: 'month and year are required' });
     }
 
-    const monthString = String(month).padStart(2, '0');
-    const startDate = `${year}-${monthString}-01`;
-    const endDate = `${year}-${monthString}-31`;
+    const monthNum = Number(month);
+    const yearNum = Number(year);
+    const monthString = String(monthNum).padStart(2, '0');
+    const startDate = `${yearNum}-${monthString}-01`;
+    const lastDay = new Date(yearNum, monthNum, 0).getDate();
+    const endDate = `${yearNum}-${monthString}-${String(lastDay).padStart(2, '0')}`;
 
     const { rows } = await pool.query(
       `

@@ -65,12 +65,10 @@ export function TopHeader({
   const photo = avatarOverride || user?.profilePhotoUrl || null;
   const unread = notifications.filter((n) => !n.isRead).length;
 
-  async function markRead(id: number) {
+  async function dismissNotification(id: number) {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
     try {
       await api(`/api/notifications/${id}/read`, { method: 'PATCH' });
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-      );
     } catch (e) {
       if (e instanceof ApiError && e.message) {
         /* noop */
@@ -146,7 +144,7 @@ export function TopHeader({
                         !n.isRead && 'bg-[var(--bg-secondary)]'
                       )}
                       onClick={() => {
-                        if (!n.isRead) void markRead(n.id);
+                        void dismissNotification(n.id);
                       }}
                     >
                       <span className="shrink-0 text-base" aria-hidden>

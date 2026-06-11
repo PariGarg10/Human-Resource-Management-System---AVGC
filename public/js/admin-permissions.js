@@ -22,7 +22,6 @@
     employees: MODULE.EMPLOYEE_MANAGEMENT,
     'employee-documents': MODULE.EMPLOYEE_MANAGEMENT,
     teams: MODULE.EMPLOYEE_MANAGEMENT,
-    'manager-controls': MODULE.EMPLOYEE_MANAGEMENT,
     'manager-assignments': MODULE.EMPLOYEE_MANAGEMENT,
     'manager-directory': MODULE.EMPLOYEE_MANAGEMENT,
     attendance: MODULE.ATTENDANCE,
@@ -33,7 +32,6 @@
     reports: MODULE.REPORTS_EXPORT,
     roles: MODULE.ROLE_MANAGEMENT,
     system: MODULE.SETTINGS,
-    broadcast: MODULE.SETTINGS,
     biometric: MODULE.SETTINGS,
     assignments: MODULE.EMPLOYEE_MANAGEMENT,
     'manage-admins': null,
@@ -95,7 +93,7 @@
     const canPeople = getPermissions(user).includes(MODULE.EMPLOYEE_MANAGEMENT);
     document
       .querySelectorAll(
-        '.sidebar-nav [data-nav="manager-controls"], .sidebar-nav [data-nav="manager-assignments"], .sidebar-nav [data-nav="manager-directory"], .sidebar-nav [data-nav="teams"]'
+        '.sidebar-nav [data-nav="manager-assignments"], .sidebar-nav [data-nav="manager-directory"], .sidebar-nav [data-nav="teams"]'
       )
       .forEach((el) => {
         el.style.display = canPeople ? '' : 'none';

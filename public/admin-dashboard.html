@@ -59,7 +59,6 @@
           <span class="nav-label">Manager controls</span>
         </button>
         <div class="sidebar-accordion-body">
-          <button type="button" data-nav="manager-controls"><span class="nav-icon" data-lucide="user-plus"></span><span>Create manager</span></button>
           <button type="button" data-nav="manager-assignments"><span class="nav-icon" data-lucide="git-branch"></span><span>Manager assignments</span></button>
           <button type="button" data-nav="manager-directory"><span class="nav-icon" data-lucide="contact"></span><span>Manager directory</span></button>
         </div>
@@ -114,7 +113,6 @@
           <span class="nav-label">Administration</span>
         </button>
         <div class="sidebar-accordion-body sidebar-menu-two-col">
-          <button type="button" data-nav="broadcast"><span class="nav-icon" data-lucide="megaphone"></span><span>Broadcast</span></button>
           <button type="button" data-nav="import-employees"><span class="nav-icon" data-lucide="upload"></span><span>Import data</span></button>
           <button type="button" data-nav="import-attendance"><span class="nav-icon" data-lucide="file-spreadsheet"></span><span>Import attendance</span></button>
           <button type="button" data-nav="reports"><span class="nav-icon" data-lucide="bar-chart-3"></span><span>Analytics</span></button>
@@ -191,8 +189,9 @@
         <div id="adminDashboardReactRoot"></div>
       </section>
 
-      <section id="view-asset-management" class="view-section">
-        <div class="panel" data-asset-admin-only>
+      <section id="view-asset-management" class="view-section asset-management-viewport">
+        <div class="asset-management-layout">
+        <div class="panel panel--asset-form" data-asset-admin-only>
           <h2 class="panel-title">Asset Management</h2>
           <p class="stat-sub">Add inventory items, allocate to employees, edit totals, or remove items when nothing is assigned.</p>
           <form id="assetAddForm" class="form-row" style="margin-top:16px;">
@@ -202,7 +201,7 @@
             <div class="form-group" style="align-self:flex-end;"><button type="submit" class="btn btn-primary">Add item</button></div>
           </form>
         </div>
-        <div class="panel" style="margin-top:16px;">
+        <div class="panel panel--asset-inventory">
           <h3 class="panel-title" style="font-size:1.05rem;">Inventory</h3>
           <div class="table-wrap table-wrap--scroll">
             <table class="data-table">
@@ -211,7 +210,7 @@
             </table>
           </div>
         </div>
-        <div class="panel" style="margin-top:16px;" data-asset-admin-only>
+        <div class="panel panel--asset-allocate" data-asset-admin-only>
           <h3 class="panel-title" style="font-size:1.05rem;">Allocate asset</h3>
           <form id="assetAllocateForm" class="form-row">
             <div class="form-group"><label>Item</label><select id="assetAllocateItem" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"></select></div>
@@ -221,7 +220,7 @@
             <div class="form-group" style="align-self:flex-end;"><button type="submit" class="btn btn-primary">Allocate</button></div>
           </form>
         </div>
-        <div class="panel" style="margin-top:16px;">
+        <div class="panel panel--asset-allocations">
           <h3 class="panel-title" style="font-size:1.05rem;">All allocations</h3>
           <div class="table-wrap table-wrap--scroll">
             <table class="data-table">
@@ -230,10 +229,11 @@
             </table>
           </div>
         </div>
+        </div>
       </section>
 
-      <section id="view-company-social" class="view-section" style="padding:0;">
-        <div id="adminSocialPortalRoot" style="min-height:calc(100vh - 120px);"></div>
+      <section id="view-company-social" class="view-section social-portal-viewport" style="padding:0;">
+        <div id="adminSocialPortalRoot" class="social-portal-root"></div>
       </section>
 
       <section id="view-homepage-recognition" class="view-section">
@@ -299,38 +299,37 @@
         <div id="policiesList" class="hidden"></div>
       </section>
 
-      <section id="view-live-activity-links" class="view-section">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <h2 class="panel-title">Send live activity links</h2>
-              <p class="stat-sub">Share activity URLs with employees and managers.</p>
+      <section id="view-live-activity-links" class="view-section live-activity-viewport">
+        <div class="live-activity-layout">
+          <div class="panel panel--live-links">
+            <div class="panel-header">
+              <div>
+                <h2 class="panel-title">Send live activity links</h2>
+                <p class="stat-sub">Share activity URLs with employees and managers.</p>
+              </div>
+              <button type="button" class="btn btn-outline btn-sm" id="liveLinksRefreshBtn">Refresh</button>
             </div>
-            <button type="button" class="btn btn-outline btn-sm" id="liveLinksRefreshBtn">Refresh</button>
+            <form id="liveLinkForm" class="form-row" style="align-items:flex-end;">
+              <div class="form-group"><label>Title</label><input id="liveLinkTitle" required placeholder="Activity name" /></div>
+              <div class="form-group"><label>URL</label><input id="liveLinkUrl" required type="url" placeholder="https://..." /></div>
+              <div class="form-group"><label>Description</label><input id="liveLinkDescription" placeholder="Short instructions" /></div>
+              <div class="form-group"><button type="submit" class="btn btn-primary">Send link</button></div>
+            </form>
+            <p id="liveLinkMessage" class="message"></p>
+            <div id="liveLinksList" class="live-admin-grid"></div>
           </div>
-          <form id="liveLinkForm" class="form-row" style="align-items:flex-end;">
-            <div class="form-group"><label>Title</label><input id="liveLinkTitle" required placeholder="Activity name" /></div>
-            <div class="form-group"><label>URL</label><input id="liveLinkUrl" required type="url" placeholder="https://..." /></div>
-            <div class="form-group"><label>Description</label><input id="liveLinkDescription" placeholder="Short instructions" /></div>
-            <div class="form-group"><button type="submit" class="btn btn-primary">Send link</button></div>
-          </form>
-          <p id="liveLinkMessage" class="message"></p>
-          <div id="liveLinksList" class="live-admin-grid"></div>
-        </div>
-      </section>
-
-      <section id="view-broadcast" class="view-section">
-        <div class="panel">
-          <h2 class="panel-title">Broadcast notification</h2>
-          <p class="stat-sub">Send an announcement to all active employees and managers.</p>
-          <form id="broadcastForm" style="margin-top:16px;">
-            <div class="form-group">
-              <label>Message</label>
-              <textarea id="broadcastMessage" rows="4" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary" style="margin-top:12px;">Send broadcast</button>
-          </form>
-          <p id="broadcastResult" class="message"></p>
+          <div class="panel panel--announcements">
+            <h2 class="panel-title">Important Announcements</h2>
+            <p class="stat-sub">Send an announcement to all active employees and managers.</p>
+            <form id="broadcastForm" style="margin-top:16px;">
+              <div class="form-group">
+                <label>Message</label>
+                <textarea id="broadcastMessage" rows="4" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary" style="margin-top:12px;">Send announcement</button>
+            </form>
+            <p id="broadcastResult" class="message"></p>
+          </div>
         </div>
       </section>
 
@@ -366,7 +365,7 @@
             <div class="form-group"><label>Designation</label><input id="newEmpDesignation" placeholder="e.g. Team Lead, Developer" /></div>
             <div class="form-group"><label>Portal role</label>
               <select id="newEmpRole">
-                <option value="employee">employee</option><option value="manager">manager</option><option value="admin">admin</option><option value="it_head">IT Head</option>
+                <option value="employee">employee</option><option value="manager">manager</option>
               </select>
             </div>
             <div class="form-group form-group--action"><button type="submit" class="btn btn-primary">Save</button></div>
@@ -386,37 +385,9 @@
         <div id="teamHubOrgTreeRoot" class="org-teams-viewport"></div>
       </section>
 
-      <section id="view-manager-controls" class="view-section panel--scroll">
-        <div class="panel">
-          <h2 class="panel-title">Create or promote manager</h2>
-          <p class="stat-sub" style="margin-bottom:12px;">If the person is already in Employees, enter their same work email here to promote them (their employee code stays the same). Use a new email only for someone not yet in the directory.</p>
-          <form id="newManagerForm" class="form-row">
-            <div class="form-group"><label>Name</label><input id="mgrName" required style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
-            <div class="form-group"><label>Email</label><input id="mgrEmail" type="email" required style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
-            <div class="form-group"><label>Password</label><input id="mgrPassword" type="password" required style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
-            <div class="form-group"><label>Department</label><input id="mgrDept" style="padding:12px;width:100%;border-radius:8px;border:1px solid var(--border);" /></div>
-            <button type="submit" class="btn btn-primary">Create manager</button>
-          </form>
-          <p id="mgrMessage" class="message"></p>
-        </div>
-      </section>
-
-      <section id="view-manager-assignments" class="view-section manager-assignment-page panel--scroll">
-        <div class="stat-grid manager-assignment-summary" style="margin-bottom:16px;">
-          <div class="stat-card"><div class="stat-label">Employees</div><div class="stat-value" id="maAssignmentTotalEmployees">—</div></div>
-          <div class="stat-card stat-success"><div class="stat-label">Assigned</div><div class="stat-value" id="maAssignmentAssignedCount">—</div></div>
-          <div class="stat-card stat-warning"><div class="stat-label">Unassigned</div><div class="stat-value" id="maAssignmentUnassignedCount">—</div></div>
-          <div class="stat-card stat-info"><div class="stat-label">Managers</div><div class="stat-value" id="maAssignmentManagerCount">—</div></div>
-        </div>
-        <div class="panel manager-assignment-panel">
-          <h2 class="panel-title">Filters</h2>
-          <div class="filters-inline manager-assignment-filters">
-            <label>Department <input id="maDepartmentFilter" placeholder="e.g. Development" /></label>
-            <label>Search <input id="maSearchFilter" placeholder="name or email" /></label>
-            <button type="button" class="btn btn-primary btn-sm" id="maLoadAssignmentsBtn">Apply filters</button>
-          </div>
-        </div>
-        <div class="panel manager-assignment-panel">
+      <section id="view-manager-assignments" class="view-section manager-assignment-viewport">
+        <div class="manager-assignment-layout">
+        <div class="panel manager-assignment-panel panel--ma-quick">
           <h2 class="panel-title">Quick assign</h2>
           <form id="maSingleAssignForm" class="form-row manager-assignment-form">
             <div class="form-group"><label for="maSingleManagerSelect">Manager</label><select id="maSingleManagerSelect"></select></div>
@@ -425,7 +396,7 @@
           </form>
           <p id="maSingleAssignMessage" class="message"></p>
         </div>
-        <div class="panel manager-assignment-panel">
+        <div class="panel manager-assignment-panel panel--ma-bulk">
           <h2 class="panel-title">Bulk assign</h2>
           <form id="maAssignForm" class="form-row manager-assignment-form">
             <div class="form-group"><label for="maManagerSelect">Manager</label><select id="maManagerSelect"></select></div>
@@ -434,7 +405,7 @@
           </form>
           <p id="maAssignMessage" class="message"></p>
         </div>
-        <div class="panel manager-assignment-panel">
+        <div class="panel manager-assignment-panel panel--ma-mapping">
           <h2 class="panel-title">Current mapping</h2>
           <div id="maAssignmentsLoading" class="stat-sub">Loading assignments…</div>
           <div id="maAssignmentsEmpty" class="hidden stat-sub">No employees found.</div>
@@ -444,6 +415,7 @@
               <tbody id="maAssignmentBody"></tbody>
             </table>
           </div>
+        </div>
         </div>
       </section>
 
@@ -490,12 +462,12 @@
           <h2 class="panel-title">Import employees (Excel)</h2>
           <div class="dropzone" id="employeeDropzone">
             <p><strong>Drop your Excel file here</strong> or use the button below.</p>
-            <p class="stat-sub import-excel-hint">
+            <p class="stat-sub import-excel-hint import-excel-hint--center">
               Required columns: <strong>Name</strong>, <strong>Email</strong>, <strong>Employee Code</strong>. Optional: <strong>Role</strong>, <strong>Department</strong>.
               Re-importing skips emails already in HRMS (not an error).
             </p>
             <label for="employeeImportFile" class="btn btn-primary import-excel-cta" style="display:inline-flex;align-items:center;justify-content:center;margin-top:16px;cursor:pointer;">
-              📊 Choose Excel file (.xlsx, .xls, .csv)
+              📁 Choose Excel file (.xlsx, .xls, .csv)
             </label>
             <button type="button" class="btn btn-outline import-excel-cta" id="employeeSampleBtn" style="display:inline-flex;align-items:center;justify-content:center;margin-top:16px;margin-left:8px;">Download Sample Format</button>
             <span id="employeeImportFileName" class="stat-sub" style="display:block;margin-top:10px;font-weight:500;">No file selected.</span>
@@ -530,8 +502,9 @@
         </div>
       </section>
 
-      <section id="view-import-attendance" class="view-section">
-        <div class="panel">
+      <section id="view-import-attendance" class="view-section import-attendance-viewport">
+        <div class="import-attendance-layout">
+        <div class="panel panel--import-form">
           <h2 class="panel-title">Import attendance</h2>
           <p class="stat-sub" style="margin-bottom:12px;">
             Excel columns (first row = headers): <strong>Name</strong>, <strong>Shift</strong>, <strong>InTime</strong>, <strong>OutTime</strong>, <strong>Work Dur.</strong>, <strong>OT</strong>, <strong>Tot. Dur.</strong>, <strong>Status</strong>.
@@ -565,12 +538,15 @@
           </form>
           <p id="importMessage" class="message"></p>
           <div id="importSummary" class="stat-sub"></div>
-          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:20px;">
+        </div>
+        <div class="panel panel--import-history">
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
             <h3 class="panel-title" style="margin:0;flex:1;min-width:200px;">Import history</h3>
             <button type="button" class="btn btn-outline btn-danger-outline" id="deleteAllImportsBtn">Delete all imported data</button>
           </div>
           <p class="stat-sub" style="margin:8px 0 12px;">Removes attendance rows written by file imports and clears the history below. Older imports (before tracking) only remove the history row.</p>
           <div class="table-wrap table-wrap--scroll"><table class="data-table"><thead><tr><th>ID</th><th>File</th><th>Total</th><th>OK</th><th>Fail</th><th>When</th><th></th></tr></thead><tbody id="importHistoryBody"></tbody></table></div>
+        </div>
         </div>
       </section>
 
@@ -642,23 +618,15 @@
         </div>
       </section>
 
-      <section id="view-reports" class="view-section">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <h2 class="panel-title">Analytics & reports</h2>
-              <p class="stat-sub">Generate attendance, leave, employee, combined, ticket, and OD reports with employee/month/year filters.</p>
-            </div>
-            <div class="filters-inline">
-              <label>From <input type="date" id="reportFrom" /></label>
-              <label>To <input type="date" id="reportTo" /></label>
-              <button type="button" class="btn btn-primary btn-sm" id="loadReportsBtn">Load reports</button>
-              <button type="button" class="btn btn-outline btn-sm" id="exportAllReportsBtn">Export all Excel</button>
-            </div>
-          </div>
-          <div class="panel" style="border:1px dashed var(--border);padding:16px;margin-top:16px;">
+      <section id="view-reports" class="view-section reports-viewport">
+        <div class="panel panel--reports-fit">
+          <h2 class="panel-title">Analytics &amp; reports</h2>
+          <p class="stat-sub">Generate attendance, leave, employee, and combined reports with date, employee, month, and year filters.</p>
+          <div class="panel report-generation-block" style="border:1px dashed var(--border);padding:16px;margin-top:16px;">
             <h3 class="panel-title" style="font-size:1rem;">Report Generation</h3>
             <div class="form-row" style="align-items:flex-end;flex-wrap:wrap;margin-top:12px;">
+              <div class="form-group"><label>From</label><input type="date" id="reportFrom" style="padding:12px;border-radius:8px;border:1px solid var(--border);" /></div>
+              <div class="form-group"><label>To</label><input type="date" id="reportTo" style="padding:12px;border-radius:8px;border:1px solid var(--border);" /></div>
               <div class="form-group"><label>Report type</label><select id="reportTypeSelect" style="padding:12px;border-radius:8px;border:1px solid var(--border);min-width:220px;"><option value="allAttendanceRecords">All Attendance records</option><option value="monthWiseAttendance">Month-wise Attendance report</option><option value="leaveRecords">Leave records</option><option value="combinedAttendanceLeave">Combined Attendance + Leave report</option><option value="allEmployeeData">All Employee data report</option></select></div>
               <div class="form-group"><label>Employee</label><select id="reportEmployeeFilter" style="padding:12px;border-radius:8px;border:1px solid var(--border);min-width:220px;"><option value="">All employees</option></select></div>
               <div class="form-group"><label>Month</label><input type="number" id="reportMonthFilter" min="1" max="12" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100px;" /></div>
@@ -668,10 +636,7 @@
               <button type="button" class="btn btn-outline" id="exportSelectedReportPdfBtn">Export PDF</button>
             </div>
           </div>
-          <div class="chart-wrap"><canvas id="adminAnalyticsChart"></canvas></div>
         </div>
-        <div id="reportsSummaryCards" class="stat-grid"></div>
-        <div id="adminReportsContainer"></div>
       </section>
 
       <section id="view-biometric" class="view-section">
@@ -743,10 +708,6 @@
 
       <section id="view-system" class="view-section">
         <div class="panel">
-          <h2 class="panel-title">System</h2>
-          <p class="stat-sub">JWT and biometric keys are configured via server environment. Contact DevOps for production secrets rotation.</p>
-        </div>
-        <div class="panel" style="margin-top:16px;">
           <h2 class="panel-title">Change password</h2>
           <form id="adminSettingsPasswordForm" class="form-row" style="align-items:flex-end;max-width:640px;">
             <div class="form-group" style="flex:1;min-width:160px;">
@@ -931,122 +892,71 @@
         </div>
       </section>
 
-      <section id="view-employee-documents" class="view-section">
-        <div class="panel">
-          <h2 class="panel-title">Employee documents</h2>
-          <p class="stat-sub">View documents uploaded by employees and upload pay slips, Form 16, or appraisal letters.</p>
-          <div class="table-wrap table-wrap--scroll" style="margin-top:16px;">
-            <table class="data-table data-table--people">
-              <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>Name</th>
-                  <th>Department</th>
-                  <th>Designation</th>
-                  <th>Documents</th>
-                </tr>
-              </thead>
-              <tbody id="empDocEmployeeListBody">
-                <tr><td colspan="5" class="stat-sub">Open this section to load employees…</td></tr>
-              </tbody>
-            </table>
+      <section id="view-employee-documents" class="view-section employee-documents-viewport">
+        <div class="employee-documents-layout">
+          <div class="panel panel--people-fit panel--employee-docs-list">
+            <h2 class="panel-title">Employee documents</h2>
+            <p class="stat-sub admin-people-meta">View documents uploaded by employees and upload pay slips, Form 16, or appraisal letters.</p>
+            <div class="table-wrap table-wrap--people-scroll">
+              <table class="data-table data-table--people">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Designation</th>
+                    <th>Documents</th>
+                  </tr>
+                </thead>
+                <tbody id="empDocEmployeeListBody">
+                  <tr><td colspan="5" class="stat-sub">Open this section to load employees…</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-        <div class="panel" style="margin-top:16px;">
-          <h3 class="panel-title" style="font-size:1.05rem;" id="empDocDetailTitle">Employee documents</h3>
-          <form id="empDocAdminUploadForm" class="form-row" style="margin-top:12px;align-items:flex-end;">
-            <div class="form-group">
-              <label>Employee</label>
-              <select id="empDocEmployeeSelect" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;min-width:220px;">
-                <option value="">Select employee…</option>
-              </select>
+          <div class="panel panel--people-fit panel--employee-docs-detail">
+            <h3 class="panel-title panel-title--sub" id="empDocDetailTitle">Employee documents</h3>
+            <form id="empDocAdminUploadForm" class="form-row employee-doc-upload-form">
+              <div class="form-group">
+                <label>Employee</label>
+                <select id="empDocEmployeeSelect">
+                  <option value="">Select employee…</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Document type</label>
+                <select id="empDocAdminCategory"></select>
+              </div>
+              <div class="form-group">
+                <label>File (PDF, JPG, PNG, DOC)</label>
+                <input type="file" id="empDocAdminFile" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required />
+              </div>
+              <div class="form-group form-group--action">
+                <button type="submit" class="btn btn-primary">Upload for employee</button>
+              </div>
+            </form>
+            <div class="table-wrap table-wrap--people-scroll">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>File</th>
+                    <th>Category</th>
+                    <th>Source</th>
+                    <th>Uploaded</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="empDocDetailBody">
+                  <tr><td colspan="5" class="stat-sub">Select an employee to view documents.</td></tr>
+                </tbody>
+              </table>
             </div>
-            <div class="form-group">
-              <label>Document type</label>
-              <select id="empDocAdminCategory" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;min-width:180px;"></select>
-            </div>
-            <div class="form-group">
-              <label>File (PDF, JPG, PNG, DOC)</label>
-              <input type="file" id="empDocAdminFile" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required />
-            </div>
-            <div class="form-group" style="align-self:flex-end;">
-              <button type="submit" class="btn btn-primary">Upload for employee</button>
-            </div>
-          </form>
-          <div class="table-wrap table-wrap--scroll" style="margin-top:16px;">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>File</th>
-                  <th>Category</th>
-                  <th>Source</th>
-                  <th>Uploaded</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody id="empDocDetailBody">
-                <tr><td colspan="5" class="stat-sub">Select an employee to view documents.</td></tr>
-              </tbody>
-            </table>
           </div>
         </div>
       </section>
 
-      <section id="view-profile" class="view-section">
-        <div class="panel">
-          <h2 class="panel-title" id="adminProfileHeading">Profile</h2>
-          <p class="stat-sub" style="margin-bottom:16px;">Update your details. Email is managed by your administrator.</p>
-          <form id="adminProfileForm" class="form-row" style="align-items:flex-start;">
-            <div class="form-group" style="max-width:200px;">
-              <label>Photo</label>
-              <div style="width:120px;height:120px;border-radius:var(--radius-md);border:1px solid var(--border);overflow:hidden;background:var(--surface);display:flex;align-items:center;justify-content:center;">
-                <img id="profilePhotoPreview" class="hidden" alt="" style="width:100%;height:100%;object-fit:cover;" />
-                <span id="profilePhotoInitial" style="font-size:2rem;font-weight:700;color:var(--text-muted);">—</span>
-              </div>
-              <input type="file" id="adminProfilePhoto" accept="image/*" style="margin-top:10px;font-size:13px;" />
-              <p id="adminProfilePhotoErr" class="message" style="margin-top:6px;"></p>
-            </div>
-            <div style="flex:1;min-width:260px;">
-              <div class="form-group"><label>Name</label><input id="adminProfileName" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-              <div class="form-group"><label>Email</label><input id="adminProfileEmail" readonly style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;background:var(--surface);color:var(--text-muted);" /></div>
-              <div class="form-group"><label>Phone</label><input id="adminProfilePhone" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-              <div class="form-group"><label>Location</label><input id="adminProfileLocation" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-              <div class="form-group"><label>Date of birth</label><input type="date" id="adminProfileDob" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-              <div class="form-group"><label>Bio</label><textarea id="adminProfileBio" rows="3" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea></div>
-              <button type="submit" class="btn btn-primary">Save profile</button>
-              <p id="adminProfileMessage" class="message"></p>
-            </div>
-          </form>
-          <div class="tile-grid" style="margin-top:16px;">
-            <div class="tile"><strong>Employee Name</strong><span id="profileNameTile">—</span></div>
-            <div class="tile"><strong>Designation</strong><span id="profileDesignation">—</span></div>
-            <div class="tile"><strong>Department</strong><span id="profileDept">—</span></div>
-            <div class="tile"><strong>Employee code</strong><span id="profileCode">—</span></div>
-          </div>
-        </div>
-        <div class="panel" style="margin-top:20px;">
-          <h3 class="panel-title" style="font-size:1.05rem;">Security</h3>
-          <p class="stat-sub" style="margin-bottom:16px;">Change your sign-in password. Applies to your admin account and linked employee login.</p>
-          <form id="adminProfilePasswordForm" class="form-row" style="align-items:flex-end;max-width:640px;">
-            <div class="form-group" style="flex:1;min-width:160px;">
-              <label for="profileCurrentPassword">Current password</label>
-              <input id="profileCurrentPassword" type="password" required autocomplete="current-password" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" />
-            </div>
-            <div class="form-group" style="flex:1;min-width:160px;">
-              <label for="profileNewPassword">New password</label>
-              <input id="profileNewPassword" type="password" required autocomplete="new-password" minlength="8" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" />
-            </div>
-            <div class="form-group" style="flex:1;min-width:160px;">
-              <label for="profileConfirmPassword">Confirm new password</label>
-              <input id="profileConfirmPassword" type="password" required autocomplete="new-password" minlength="8" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" />
-            </div>
-            <div class="form-group">
-              <button type="submit" class="btn btn-primary">Update password</button>
-            </div>
-          </form>
-          <p class="stat-sub" style="margin:8px 0 0;font-size:12px;">At least 8 characters with letters and numbers.</p>
-          <p id="adminProfilePasswordMessage" class="message"></p>
-        </div>
+      <section id="view-profile" class="view-section profile-viewport">
+        <div id="adminProfileReactRoot"></div>
       </section>
     </main>
   </div>

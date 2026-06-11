@@ -14,9 +14,9 @@ function mondayIndex(jsDay: number) {
 }
 
 function dotColor(status: string) {
-  if (status === 'present') return '#22c55e';
-  if (status === 'halfday') return '#eab308';
-  if (status === 'leave') return '#60a5fa';
+  if (status === 'present') return '#697279';
+  if (status === 'halfday') return '#ebebec';
+  if (status === 'leave') return '#ed1d24';
   if (status === 'absent') return '#ed1d24';
   return 'transparent';
 }

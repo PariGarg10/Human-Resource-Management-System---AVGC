@@ -4,7 +4,7 @@
 (function () {
   window.HRMS = window.HRMS || {};
 
-  const COLORS = ['#ed1d24', '#0d9488', '#4f46e5', '#f59e0b', '#22c55e', '#ffffff', '#697279'];
+  const COLORS = ['#ed1d24', '#697279', '#ebebec', '#ffffff'];
 
   HRMS.fireConfettiBurst = function fireConfettiBurst(origin) {
     const canvas = document.createElement('canvas');

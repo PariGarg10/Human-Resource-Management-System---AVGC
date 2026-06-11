@@ -121,7 +121,7 @@ export function GamingArena({ isAdminUser = false, feedSlot }: GamingArenaProps)
   const gameMeta = activeGame ? getGame(activeGame) : null;
 
   return (
-    <div className="space-y-6">
+    <div className="avgc-gaming-portal space-y-6">
       {toast && (
         <div className="animate-pulse rounded-xl border border-violet-300 bg-gradient-to-r from-violet-100 to-fuchsia-100 px-4 py-3 text-sm font-bold text-violet-900">
           {toast}

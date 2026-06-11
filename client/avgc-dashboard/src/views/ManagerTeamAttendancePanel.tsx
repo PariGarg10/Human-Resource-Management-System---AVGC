@@ -113,30 +113,30 @@ export function ManagerTeamAttendancePanel() {
         <p className="stat-sub">Loading team attendance…</p>
       ) : (
         <>
-          <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', marginBottom: 20 }}>
+          <div className="stat-grid manager-team-stat-grid">
             <div className="stat-card">
-              <span className="stat-label">Team size</span>
-              <strong className="stat-value">{summary?.totalemployees ?? 0}</strong>
+              <div className="stat-label">Team size</div>
+              <div className="stat-value">{summary?.totalemployees ?? 0}</div>
             </div>
             <div className="stat-card">
-              <span className="stat-label">Present today</span>
-              <strong className="stat-value">{todayStats?.present ?? 0}</strong>
+              <div className="stat-label">Present today</div>
+              <div className="stat-value">{todayStats?.present ?? 0}</div>
             </div>
             <div className="stat-card">
-              <span className="stat-label">Half day</span>
-              <strong className="stat-value">{todayStats?.halfday ?? 0}</strong>
+              <div className="stat-label">Half day</div>
+              <div className="stat-value">{todayStats?.halfday ?? 0}</div>
             </div>
             <div className="stat-card">
-              <span className="stat-label">On leave</span>
-              <strong className="stat-value">{todayStats?.leave ?? 0}</strong>
+              <div className="stat-label">On leave</div>
+              <div className="stat-value">{todayStats?.leave ?? 0}</div>
             </div>
             <div className="stat-card">
-              <span className="stat-label">Absent</span>
-              <strong className="stat-value">{todayStats?.absent ?? 0}</strong>
+              <div className="stat-label">Absent</div>
+              <div className="stat-value">{todayStats?.absent ?? 0}</div>
             </div>
             <div className="stat-card">
-              <span className="stat-label">Pending leaves</span>
-              <strong className="stat-value">{summary?.pendingleaves ?? 0}</strong>
+              <div className="stat-label">Pending leaves</div>
+              <div className="stat-value">{summary?.pendingleaves ?? 0}</div>
             </div>
           </div>
 

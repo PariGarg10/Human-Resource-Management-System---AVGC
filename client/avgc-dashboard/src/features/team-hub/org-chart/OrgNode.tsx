@@ -3,6 +3,8 @@ import { ChevronDown, ChevronUp, User } from 'lucide-react';
 import { ProfilePhotoImg } from '@/components/ui/ProfilePhotoImg';
 import type { OrgPerson } from './types';
 
+export type OrgNodeFocusRole = 'self' | 'manager' | null;
+
 type Props = {
   person: OrgPerson;
   x: number;
@@ -13,6 +15,8 @@ type Props = {
   isExpandedCard: boolean;
   isRootCard?: boolean;
   isHighlighted: boolean;
+  focusRole?: OrgNodeFocusRole;
+  department?: string | null;
   reportCount: number;
   canToggle: boolean;
   isBranchCollapsed: boolean;
@@ -37,6 +41,8 @@ export function OrgNode({
   isExpandedCard,
   isRootCard,
   isHighlighted,
+  focusRole = null,
+  department = null,
   reportCount,
   canToggle,
   isBranchCollapsed,
@@ -47,12 +53,14 @@ export function OrgNode({
   const nodeRef = useRef<HTMLDivElement>(null);
   const iconSize = Math.round(circleSize * 0.42);
   const designation = person.title?.trim() || '—';
+  const focusBadge =
+    focusRole === 'self' ? 'You' : focusRole === 'manager' ? 'Reports To' : null;
 
   return (
     <div
       ref={nodeRef}
       data-org-id={person.id}
-      className={`org-node${isHighlighted ? ' is-highlight' : ''}${canToggle ? ' can-toggle' : ''}${isExpandedCard ? ' is-expanded-card' : ''}${isRootCard ? ' is-root-card' : ''}`}
+      className={`org-node${isHighlighted ? ' is-highlight' : ''}${focusRole === 'self' ? ' is-self-node' : ''}${focusRole === 'manager' ? ' is-manager-above' : ''}${canToggle ? ' can-toggle' : ''}${isExpandedCard ? ' is-expanded-card' : ''}${isRootCard ? ' is-root-card' : ''}`}
       style={{ left: x - width / 2, top: y, width, height }}
     >
       <div className="org-node__row">
@@ -111,8 +119,14 @@ export function OrgNode({
         </div>
 
         <div className="org-node__labels">
+          {focusBadge ? (
+            <span className={`org-node__focus-badge${focusRole === 'manager' ? ' is-manager' : ''}`}>
+              {focusBadge}
+            </span>
+          ) : null}
           <p className="org-node__name">{person.name}</p>
           <p className="org-node__designation">{designation}</p>
+          {department ? <p className="org-node__department">{department}</p> : null}
         </div>
       </div>
 

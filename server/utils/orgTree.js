@@ -216,93 +216,103 @@ function isOrgPersonNode(node) {
 
 function sortTreeAlphabetically(node) {
   if (!node || !Array.isArray(node.children)) return node;
-  node.children = node.children
-    .filter(isOrgPersonNode)
-    .sort(sortByName)
-    .map((child) => sortTreeAlphabetically(child));
+  const people = node.children.filter(isOrgPersonNode).sort(sortByName).map((child) => sortTreeAlphabetically(child));
+  const coparents = node.children.filter(isCoparentNode);
+  node.children = [...people, ...coparents];
   return node;
 }
 
-function clonePersonSubtree(person) {
-  return {
-    ...person,
-    children: (person.children || [])
-      .filter(isOrgPersonNode)
-      .map((child) => clonePersonSubtree(child)),
-  };
+function buildManagerTeamsMap(assignmentRows) {
+  const managerTeams = new Map();
+  for (const link of assignmentRows || []) {
+    const managerId = Number(link.managerid);
+    const employeeId = Number(link.employeeid);
+    if (!Number.isFinite(managerId) || !Number.isFinite(employeeId)) continue;
+    const list = managerTeams.get(managerId) || [];
+    list.push(employeeId);
+    managerTeams.set(managerId, list);
+  }
+  return managerTeams;
 }
 
-function findPersonWithParent(node, targetId, parent = null) {
-  if (String(node.id) === String(targetId)) {
-    return { person: node, parent };
+function getDirectReportIds(personId, rows, managerTeams) {
+  const ids = new Set();
+  for (const row of rows) {
+    if (row.reporting_to_id === personId) ids.add(row.id);
   }
-  for (const child of node.children || []) {
-    if (!isOrgPersonNode(child)) continue;
-    const found = findPersonWithParent(child, targetId, node);
-    if (found) return found;
+  for (const empId of managerTeams.get(personId) || []) {
+    ids.add(empId);
+  }
+  return [...ids];
+}
+
+function getDirectManagerRow(viewer, rows, managerTeams) {
+  if (viewer.reporting_to_id) {
+    const manager = rows.find((row) => row.id === Number(viewer.reporting_to_id));
+    if (manager) return manager;
+  }
+  for (const [managerId, employeeIds] of managerTeams.entries()) {
+    if (employeeIds.includes(viewer.id)) {
+      const manager = rows.find((row) => row.id === managerId);
+      if (manager) return manager;
+    }
   }
   return null;
 }
 
-function buildScopedFromReporting(rows, viewerId, rootId) {
-  const byId = new Map(rows.map((row) => [row.id, row]));
-  const viewer = byId.get(Number(viewerId));
-  if (!viewer) return null;
+function buildPersonSubtree(row, rows, managerTeams, rootId, visiting = new Set()) {
+  if (!row || visiting.has(row.id)) return null;
+  visiting.add(row.id);
 
-  const selfNode = toOrgPerson(viewer, rootId);
+  const node = toOrgPerson(row, rootId);
+  const childRows = getDirectReportIds(row.id, rows, managerTeams)
+    .map((id) => rows.find((r) => r.id === id))
+    .filter(Boolean)
+    .sort(sortByName);
 
-  function attachDescendants(parentId, node) {
-    const children = rows
-      .filter((row) => row.reporting_to_id === parentId)
-      .sort(sortByName);
-    for (const row of children) {
-      const child = toOrgPerson(row, rootId);
-      attachDescendants(row.id, child);
-      node.children.push(child);
-    }
-  }
+  node.children = childRows
+    .map((child) => buildPersonSubtree(child, rows, managerTeams, rootId, visiting))
+    .filter(Boolean);
 
-  attachDescendants(viewer.id, selfNode);
-
-  const managerRow = viewer.reporting_to_id ? byId.get(viewer.reporting_to_id) : null;
-  if (!managerRow) return selfNode;
-
-  const managerNode = toOrgPerson(managerRow, rootId);
-  managerNode.children = [selfNode];
-  return managerNode;
+  return node;
 }
 
 /**
  * Show only: direct manager (one up), self, and full subtree below self.
- * Hides peers and unrelated branches.
+ * Uses reporting_to_id and manager assignment links. Hides peers and unrelated branches.
  */
-function scopeOrgTreeForViewer(fullTree, employeeRows, viewerEmployeeId) {
+function scopeOrgTreeForViewer(fullTree, employeeRows, viewerEmployeeId, assignmentRows = []) {
   const viewerId = Number(viewerEmployeeId);
-  if (!Number.isFinite(viewerId) || !fullTree) return fullTree;
+  if (!Number.isFinite(viewerId) || !employeeRows?.length) return fullTree;
 
-  const rootId = Number(fullTree.employeeId || fullTree.id) || viewerId;
-  const located = findPersonWithParent(fullTree, viewerId);
-  let scoped = null;
+  const rows = employeeRows;
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const viewer = byId.get(viewerId);
+  if (!viewer) return fullTree;
 
-  if (located) {
-    const selfSubtree = clonePersonSubtree(located.person);
-    if (located.parent) {
-      scoped = {
-        ...located.parent,
-        children: [selfSubtree],
-      };
-    } else {
-      scoped = selfSubtree;
-    }
-  } else {
-    scoped = buildScopedFromReporting(employeeRows, viewerId, rootId);
+  const rootId = Number(fullTree?.employeeId || fullTree?.id) || viewerId;
+  const managerTeams = buildManagerTeamsMap(assignmentRows);
+
+  const selfNode = buildPersonSubtree(viewer, rows, managerTeams, rootId);
+  if (!selfNode) return fullTree;
+
+  const managerRow = getDirectManagerRow(viewer, rows, managerTeams);
+  if (!managerRow) {
+    return sortTreeAlphabetically(selfNode);
   }
 
-  return scoped ? sortTreeAlphabetically(scoped) : fullTree;
+  const managerNode = toOrgPerson(managerRow, rootId);
+  managerNode.children = [selfNode];
+  return sortTreeAlphabetically(managerNode);
 }
 
 module.exports = {
   buildOrgTree,
   scopeOrgTreeForViewer,
   sortTreeAlphabetically,
+  buildManagerTeamsMap,
+  getDirectReportIds,
+  getDirectManagerRow,
+  buildPersonSubtree,
+  toOrgPerson,
 };

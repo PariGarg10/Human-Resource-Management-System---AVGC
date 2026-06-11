@@ -18,12 +18,6 @@ if (user.role !== 'admin' && !isFounderProfile(user)) {
 document.getElementById('sidebarUserName').textContent = user.name || 'Admin';
 document.getElementById('sidebarAvatar').textContent = (user.name || 'A').charAt(0).toUpperCase();
 document.getElementById('navProfileEmail').textContent = user.email || '';
-const profileNameTile = document.getElementById('profileNameTile');
-if (profileNameTile) profileNameTile.textContent = user.name || '—';
-const profileDesignation = document.getElementById('profileDesignation');
-if (profileDesignation) profileDesignation.textContent = user.designation || user.role || '—';
-document.getElementById('profileDept').textContent = user.department || '—';
-document.getElementById('profileCode').textContent = user.employeecode || '—';
 document.getElementById('dailyDate').value = new Date().toISOString().slice(0, 10);
 const attendanceImportDateEl = document.getElementById('attendanceImportDate');
 if (attendanceImportDateEl) attendanceImportDateEl.value = new Date().toISOString().slice(0, 10);
@@ -39,11 +33,9 @@ if (reportFromEl && reportToEl) {
   if (reportMonthFilter) reportMonthFilter.value = String(now.getMonth() + 1);
   if (reportYearFilter) reportYearFilter.value = String(HRMS.currentPortalYear());
 }
-const ROLE_OPTIONS = [
+const PORTAL_ROLE_OPTIONS = [
   { value: 'employee', label: 'Employee' },
   { value: 'manager', label: 'Manager' },
-  { value: 'admin', label: 'Admin' },
-  { value: 'it_head', label: 'IT Head' },
 ];
 
 function logout() {
@@ -188,11 +180,19 @@ async function loadAdminStats() {
       data: {
         labels,
         datasets: [
-          { label: 'Imported OK', data: success, borderColor: '#cc0000', tension: 0.3 },
-          { label: 'Failed rows', data: failed, borderColor: '#ef4444', tension: 0.3 }
+          { label: 'Imported OK', data: success, borderColor: '#697279', tension: 0.3 },
+          { label: 'Failed rows', data: failed, borderColor: '#ed1d24', tension: 0.3 }
         ]
       },
-      options: { responsive: true, maintainAspectRatio: false }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { font: { family: 'Verdana' } } } },
+        scales: {
+          x: { ticks: { font: { family: 'Verdana' } } },
+          y: { ticks: { font: { family: 'Verdana' } } },
+        },
+      }
     });
   }
 
@@ -205,11 +205,19 @@ async function loadAdminStats() {
       data: {
         labels: ['Last import'],
         datasets: [
-          { label: 'Success', data: [last.successfulrows], backgroundColor: '#10b981' },
-          { label: 'Failed', data: [last.failedrows], backgroundColor: '#ef4444' }
+          { label: 'Success', data: [last.successfulrows], backgroundColor: '#697279' },
+          { label: 'Failed', data: [last.failedrows], backgroundColor: '#ed1d24' }
         ]
       },
-      options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { labels: { font: { family: 'Verdana' } } } },
+        scales: {
+          y: { beginAtZero: true, ticks: { font: { family: 'Verdana' } } },
+          x: { ticks: { font: { family: 'Verdana' } } },
+        },
+      }
     });
   }
 }
@@ -468,7 +476,7 @@ function exportReportToPdf(def, rows, suffix) {
       <head>
         <title>${escapeHtml(def.title)} ${escapeHtml(suffix)}</title>
         <style>
-          body{font-family:Verdana,Geneva,sans-serif;padding:24px;color:#111827;}
+          body{font-family:Verdana,Geneva,sans-serif;padding:24px;color:#000000;}
           h1{font-size:20px;margin:0 0 6px;}
           p{margin:0 0 16px;color:#6b7280;}
           table{width:100%;border-collapse:collapse;font-size:11px;}
@@ -510,29 +518,13 @@ function reportQueryFromFilters() {
   return query.toString();
 }
 
-async function loadAdminReports() {
-  const container = document.getElementById('adminReportsContainer');
-  const cards = document.getElementById('reportsSummaryCards');
-  if (!container || !cards) return;
-  container.innerHTML = '<div class="panel"><p class="stat-sub">Loading reports…</p></div>';
+async function loadAdminReports(options = {}) {
+  const notify = options.notify === true;
   const data = await api(`/api/admin/reports?${reportQueryFromFilters()}`);
   currentReports = data;
-  const reports = data.reports || {};
-  cards.innerHTML = `
-    <div class="stat-card"><div class="stat-label">Attendance rows</div><div class="stat-value">${(reports.attendanceByEmployee || []).length}</div></div>
-    <div class="stat-card stat-success"><div class="stat-label">Employees</div><div class="stat-value">${(reports.employeeDirectory || []).length}</div></div>
-    <div class="stat-card stat-warning"><div class="stat-label">Requests</div><div class="stat-value">${(reports.requestStatus || []).length}</div></div>
-    <div class="stat-card stat-info"><div class="stat-label">OD Requests</div><div class="stat-value">${(reports.odApproval || []).length}</div></div>
-  `;
-  container.innerHTML = REPORT_DEFS.map((def) => renderReportTable(def, reports[def.key] || [])).join('');
-  container.querySelectorAll('[data-report-export]').forEach((btn) => {
-    btn.addEventListener('click', () => {
-      const key = btn.getAttribute('data-report-export');
-      const def = REPORT_DEFS.find((r) => r.key === key);
-      if (!def) return;
-      exportReportToExcel(def, reports[key] || [], `${data.range.from}-to-${data.range.to}`);
-    });
-  });
+  if (notify) {
+    HRMS.toast('Report data ready — use Export Excel or Export PDF', 'success');
+  }
 }
 
 async function loadReportEmployeeFilter() {
@@ -704,10 +696,15 @@ async function loadRoleManagement() {
             <button type="button" class="btn btn-outline btn-sm" data-designation-save-role="${emp.id}">Save</button>
           </div>
         </td>
-        <td>${escapeHtml(emp.role || 'employee')}</td>
+        <td>${escapeHtml(portalRoleSelectValue(emp.role) === 'manager' ? 'manager' : 'employee')}</td>
         <td>
           <div class="table-cell-stack">
-            <input data-role-input="${emp.id}" value="${escapeHtml(emp.role || 'employee')}" placeholder="Portal role" />
+            <select data-role-select-role="${emp.id}">
+              ${PORTAL_ROLE_OPTIONS.map(
+                (opt) =>
+                  `<option value="${opt.value}"${portalRoleSelectValue(emp.role) === opt.value ? ' selected' : ''}>${opt.label}</option>`
+              ).join('')}
+            </select>
             <button type="button" class="btn btn-primary btn-sm" data-role-save="${emp.id}">Save</button>
           </div>
         </td>
@@ -738,13 +735,13 @@ async function loadRoleManagement() {
     body.querySelectorAll('button[data-role-save]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         const id = btn.getAttribute('data-role-save');
-        const input = body.querySelector(`input[data-role-input="${id}"]`);
-        if (!id || !input) return;
+        const select = body.querySelector(`select[data-role-select-role="${id}"]`);
+        if (!id || !select) return;
         try {
           await api(`/api/admin/employees/${id}/role`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: input.value.trim() }),
+            body: JSON.stringify({ role: select.value }),
           });
           HRMS.toast('Role updated', 'success');
           window.HRMS?.refreshTeamHubPanels?.();
@@ -789,8 +786,6 @@ document.getElementById('addEmployeeForm').addEventListener('submit', async (e) 
 });
 document.getElementById('loadEmployeesBtn').addEventListener('click', () => loadEmployees().catch((e) => HRMS.toast(e.message, 'error')));
 document.getElementById('loadRolesBtn')?.addEventListener('click', () => loadRoleManagement().catch((e) => HRMS.toast(e.message, 'error')));
-document.getElementById('loadReportsBtn')?.addEventListener('click', () => loadAdminReports().catch((e) => HRMS.toast(e.message, 'error')));
-document.getElementById('exportAllReportsBtn')?.addEventListener('click', exportAllReportsToExcel);
 document.getElementById('liveLinksRefreshBtn')?.addEventListener('click', () => loadLiveActivityLinks().catch((e) => HRMS.toast(e.message, 'error')));
 document.getElementById('liveLinkForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -814,7 +809,9 @@ document.getElementById('liveLinkForm')?.addEventListener('submit', async (e) =>
     HRMS.toast(error.message || 'Could not send link', 'error');
   }
 });
-document.getElementById('generateReportBtn')?.addEventListener('click', () => loadAdminReports().catch((e) => HRMS.toast(e.message, 'error')));
+document.getElementById('generateReportBtn')?.addEventListener('click', () =>
+  loadAdminReports({ notify: true }).catch((e) => HRMS.toast(e.message, 'error'))
+);
 document.getElementById('exportSelectedReportExcelBtn')?.addEventListener('click', () => {
   const selected = selectedReportRows();
   if (!selected) return HRMS.toast('Generate reports first', 'error');
@@ -826,7 +823,7 @@ document.getElementById('exportSelectedReportPdfBtn')?.addEventListener('click',
   exportReportToPdf(selected.def, selected.rows, `${currentReports.range.from}-to-${currentReports.range.to}`);
 });
 
-document.getElementById('newManagerForm').addEventListener('submit', async (e) => {
+document.getElementById('newManagerForm')?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const msg = document.getElementById('mgrMessage');
   try {
@@ -1286,8 +1283,8 @@ document.getElementById('broadcastForm')?.addEventListener('submit', async (e) =
       body: JSON.stringify({ message })
     });
     input.value = '';
-    if (msg) msg.textContent = `Broadcast sent to ${data.count || 0} recipient(s).`;
-    HRMS.toast('Broadcast sent', 'success');
+    if (msg) msg.textContent = `Announcement sent to ${data.count || 0} recipient(s).`;
+    HRMS.toast('Announcement sent', 'success');
   } catch (error) {
     if (msg) msg.textContent = error.message;
     HRMS.toast(error.message, 'error');
@@ -1550,38 +1547,9 @@ function setupDropzone(zoneId, inputId, onFileSelected) {
 setupDropzone('employeeDropzone', 'employeeImportFile');
 setupDropzone('attendanceDropzone', 'attendanceFile', updateAttendanceFilePreview);
 
-function applyAdminProfileToForm(profile) {
-  if (!profile) return;
-  const set = (id, v) => {
-    const el = document.getElementById(id);
-    if (el) el.value = v != null ? String(v) : '';
-  };
-  set('adminProfileName', profile.name || '');
-  set('adminProfileEmail', profile.email || '');
-  set('adminProfilePhone', profile.phone || '');
-  set('adminProfileLocation', profile.location || '');
-  set('adminProfileBio', profile.bio || '');
-  set('adminProfileDob', profile.dateOfBirth || '');
-  const initEl = document.getElementById('profilePhotoInitial');
-  const img = document.getElementById('profilePhotoPreview');
-  if (img && initEl) {
-    if (profile.profilePhotoUrl) {
-      img.src = HRMS.profilePhotoSrc(profile.profilePhotoUrl);
-      img.classList.remove('hidden');
-      initEl.classList.add('hidden');
-    } else {
-      img.removeAttribute('src');
-      img.classList.add('hidden');
-      initEl.classList.remove('hidden');
-      initEl.textContent = (profile.name || '?').charAt(0).toUpperCase();
-    }
-  }
-}
-
 async function loadAdminProfileFromServer() {
   try {
     const { profile } = await api('/api/users/me');
-    applyAdminProfileToForm(profile);
     const prev = JSON.parse(localStorage.getItem('employee') || '{}');
     const merged = {
       ...prev,
@@ -1597,9 +1565,8 @@ async function loadAdminProfileFromServer() {
     if (chip) chip.setAttribute('title', profile.email || '');
     const navLabel = document.getElementById('navProfileEmail');
     if (navLabel) navLabel.textContent = profile.name || profile.email || '—';
-    document.getElementById('sidebarUserName').textContent = profile.name || 'Admin';
-    const aph = document.getElementById('adminProfileHeading');
-    if (aph) aph.textContent = profile.name || 'Profile';
+    const sidebarUserName = document.getElementById('sidebarUserName');
+    if (sidebarUserName) sidebarUserName.textContent = profile.name || 'Admin';
     if (profile.profilePhotoUrl) {
       HRMS.updateAvatarEverywhere(profile.profilePhotoUrl, profile.name);
     } else {
@@ -1607,12 +1574,6 @@ async function loadAdminProfileFromServer() {
       if (side) side.textContent = (profile.name || 'A').charAt(0).toUpperCase();
       document.getElementById('navAvatar')?.classList.add('hidden');
     }
-    document.getElementById('profileDept').textContent = profile.department || '—';
-    document.getElementById('profileCode').textContent = profile.employeecode || '—';
-    const nameTile = document.getElementById('profileNameTile');
-    if (nameTile) nameTile.textContent = profile.name || '—';
-    const designationTile = document.getElementById('profileDesignation');
-    if (designationTile) designationTile.textContent = profile.designation || profile.role || '—';
   } catch (_e) {}
 }
 
@@ -1633,68 +1594,6 @@ async function refreshBirthdayBanner() {
     document.getElementById('birthdayBanner')?.classList.add('hidden');
   }
 }
-
-document.getElementById('adminProfilePhoto')?.addEventListener('change', (e) => {
-  const err = document.getElementById('adminProfilePhotoErr');
-  if (err) err.textContent = '';
-  const f = e.target.files?.[0];
-  if (!f) return;
-  if (!/^image\/(jpeg|png|gif|webp)$/i.test(f.type)) {
-    if (err) err.textContent = 'Please choose a JPEG, PNG, GIF, or WebP image.';
-    e.target.value = '';
-    return;
-  }
-  if (f.size > 3 * 1024 * 1024) {
-    if (err) err.textContent = 'Image must be 3MB or smaller.';
-    e.target.value = '';
-    return;
-  }
-  const url = URL.createObjectURL(f);
-  const img = document.getElementById('profilePhotoPreview');
-  const initEl = document.getElementById('profilePhotoInitial');
-  if (img && initEl) {
-    img.src = url;
-    img.classList.remove('hidden');
-    initEl.classList.add('hidden');
-  }
-});
-
-document.getElementById('adminProfileForm')?.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const msg = document.getElementById('adminProfileMessage');
-  if (msg) msg.textContent = '';
-  try {
-    const fd = new FormData();
-    fd.append('name', document.getElementById('adminProfileName').value.trim());
-    fd.append('phone', document.getElementById('adminProfilePhone').value.trim());
-    fd.append('location', document.getElementById('adminProfileLocation').value.trim());
-    fd.append('bio', document.getElementById('adminProfileBio').value.trim());
-    fd.append('dateOfBirth', document.getElementById('adminProfileDob').value.trim());
-    const file = document.getElementById('adminProfilePhoto').files[0];
-    if (file) fd.append('profilePhoto', file);
-    const res = await fetch('/api/users/me', {
-      method: 'PATCH',
-      headers: { Authorization: `Bearer ${token}` },
-      body: fd,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'Save failed');
-    HRMS.toast('Profile saved successfully ✓', 'success');
-    const photoInput = document.getElementById('adminProfilePhoto');
-    if (photoInput) photoInput.value = '';
-    if (data.profile?.profilePhotoUrl) {
-      HRMS.updateAvatarEverywhere(data.profile.profilePhotoUrl, data.profile.name);
-    }
-    HRMS.syncNavProfileName(
-      data.profile?.name || document.getElementById('adminProfileName').value.trim(),
-      data.profile?.email || ''
-    );
-    await loadAdminProfileFromServer();
-  } catch (err) {
-    if (msg) msg.textContent = err.message;
-    HRMS.toast(err.message, 'error');
-  }
-});
 
 let employeeImportReady = false;
 
@@ -2042,7 +1941,7 @@ function renderSatMonthGrid(year, month, map) {
       const st = map.get(dateStr) || 'off';
       cell.style.cursor = 'pointer';
       cell.style.background = st === 'working' ? 'rgba(34,197,94,0.18)' : 'rgba(120,120,120,0.1)';
-      cell.style.borderColor = st === 'working' ? '#22c55e' : 'var(--border)';
+      cell.style.borderColor = st === 'working' ? '#697279' : 'var(--border)';
       cell.title = `Saturday — ${st === 'working' ? 'Working' : 'Off'} (click to toggle)`;
       cell.innerHTML = `<strong>${day}</strong><span style="font-size:10px;margin-top:2px;">${st === 'working' ? 'Work' : 'Off'}</span>`;
       cell.addEventListener('click', async () => {
@@ -2086,7 +1985,7 @@ function renderSatYearList(entries) {
     btn.style.cursor = 'pointer';
     const st = e.status || 'off';
     btn.style.background = st === 'working' ? 'rgba(34,197,94,0.18)' : 'var(--surface)';
-    btn.style.borderColor = st === 'working' ? '#22c55e' : 'var(--border)';
+    btn.style.borderColor = st === 'working' ? '#697279' : 'var(--border)';
     btn.textContent = `${e.date} · ${st === 'working' ? 'Working' : 'Off'}`;
     btn.addEventListener('click', async () => {
       try {
@@ -2434,6 +2333,7 @@ function mountTeamHubWhenReady(section) {
     'holiday-calendar': () => window.HRMS?.mountHolidayCalendar?.('#adminPublicHolidayRoot'),
     calendar: () => window.HRMS?.mountAttendanceCalendar?.('#adminCalendarRoot'),
     'company-social': () => window.HRMS?.mountSocialPortal?.('#adminSocialPortalRoot'),
+    profile: () => window.HRMS?.mountAdminProfile?.('#adminProfileReactRoot'),
   };
   const mountFn = mounts[section];
   if (!mountFn) return;
@@ -2443,7 +2343,8 @@ function mountTeamHubWhenReady(section) {
       (section === 'teams' && window.HRMS?.mountTeamHubOrgTree) ||
       (section === 'holiday-calendar' && window.HRMS?.mountHolidayCalendar) ||
       (section === 'calendar' && window.HRMS?.mountAttendanceCalendar) ||
-      (section === 'company-social' && window.HRMS?.mountSocialPortal);
+      (section === 'company-social' && window.HRMS?.mountSocialPortal) ||
+      (section === 'profile' && window.HRMS?.mountAdminProfile);
     if (ready) {
       mountFn();
       return;
@@ -2512,7 +2413,9 @@ HRMS.initSidebar({
     }
     if (section === 'reports') {
       loadReportEmployeeFilter().catch(() => {});
-      loadAdminReports().catch((e) => HRMS.toast(e.message, 'error'));
+    }
+    if (section === 'profile') {
+      mountTeamHubWhenReady('profile');
     }
     if (section === 'live-activity-links') {
       loadLiveActivityLinks().catch((e) => HRMS.toast(e.message, 'error'));
@@ -2606,9 +2509,7 @@ function scheduleDataLoads() {
   }
   if (!PERMS || hasPerm(M.EMPLOYEE_MANAGEMENT)) tasks.push(loadEmployees());
   if (!PERMS || hasPerm(M.ROLE_MANAGEMENT)) tasks.push(loadRoleManagement());
-  if (!PERMS || hasPerm(M.REPORTS_EXPORT)) {
-    tasks.push(loadAdminReports(), loadReportEmployeeFilter());
-  }
+  /* Reports load on demand when opening Reports or clicking Generate — not on every page load */
   if (!PERMS || hasPerm(M.ATTENDANCE)) tasks.push(loadAdminDailyAttendance());
   if (!PERMS || hasPerm(M.IMPORT_DATA)) tasks.push(loadImportHistory());
   if (!PERMS || hasPerm(M.LEAVE_MANAGEMENT)) {

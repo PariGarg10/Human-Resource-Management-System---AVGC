@@ -144,13 +144,56 @@
   color: var(--primary);
 }
 
-/* Admin Employees / Roles — fit viewport, no horizontal scroll */
-.admin-people-viewport.is-active {
+/* Admin Employees / Roles / Documents — fit viewport, no page scroll */
+.admin-people-viewport.is-active,
+.employee-documents-viewport.is-active {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+}
+
+.employee-documents-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.panel--employee-docs-list {
+  flex: 1 1 42%;
+  min-height: 0;
+}
+
+.panel--employee-docs-detail {
+  flex: 1 1 58%;
+  min-height: 0;
+}
+
+.panel-title--sub {
+  font-size: 1.05rem;
+  flex-shrink: 0;
+}
+
+.employee-doc-upload-form {
+  flex-shrink: 0;
+  margin-top: 12px;
+  align-items: flex-end;
+}
+
+.employee-doc-upload-form select {
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  width: 100%;
+  min-width: 180px;
+}
+
+.employee-doc-upload-form #empDocEmployeeSelect {
+  min-width: 220px;
 }
 
 .panel--people-fit {

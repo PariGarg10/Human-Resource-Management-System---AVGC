@@ -68,6 +68,8 @@ function personFromRow(row) {
     employeecode: row.employeecode || null,
     phone: row.phone || null,
     location: row.location || null,
+    dateOfBirth: row.dateofbirth || null,
+    bio: row.bio || null,
     profilePhotoUrl: resolveEmployeePhotoUrl(row),
   };
 }

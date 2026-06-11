@@ -1,4 +1,5 @@
 import type { OrgDirectoryResponse } from '@/features/team-hub/orgDirectory';
+import { formatDisplayDate } from '@/lib/formatDate';
 import type { OrgPerson } from './types';
 
 export type DirectoryPerson = {
@@ -11,6 +12,8 @@ export type DirectoryPerson = {
   employeecode?: string | null;
   phone?: string | null;
   location?: string | null;
+  dateOfBirth?: string | null;
+  bio?: string | null;
   profilePhotoUrl?: string | null;
 };
 
@@ -38,6 +41,8 @@ function mapDirectoryPerson(person: OrgDirectoryResponse['sections'][0]['people'
     employeecode: person.employeecode ?? null,
     phone: person.phone ?? null,
     location: person.location ?? null,
+    dateOfBirth: person.dateOfBirth ?? null,
+    bio: person.bio ?? null,
     profilePhotoUrl: person.profilePhotoUrl ?? null,
   };
 }
@@ -148,6 +153,45 @@ export function getPersonDisplayTitle(
   if (linked?.designation?.trim()) return linked.designation.trim();
   if (linked?.title?.trim()) return linked.title.trim();
   return person.title?.trim() || '—';
+}
+
+export function getPersonDisplayDepartment(
+  person: Pick<OrgPerson, 'employeeId' | 'name'> & { tags?: OrgPerson['tags'] },
+  directory: DirectoryPerson[]
+): string | null {
+  const linked = resolveDirectoryPerson(person, directory);
+  const department = linked?.department?.trim();
+  return department || null;
+}
+
+/** Live name from HRMS employee profile. */
+export function getPersonDisplayName(
+  person: Pick<OrgPerson, 'employeeId' | 'name'> & { tags?: OrgPerson['tags'] },
+  directory: DirectoryPerson[]
+): string {
+  const linked = resolveDirectoryPerson(person, directory);
+  return linked?.name?.trim() || person.name?.trim() || '—';
+}
+
+export type PersonProfileDetails = {
+  name: string;
+  phone: string;
+  dateOfBirth: string;
+  about: string;
+};
+
+/** Name, phone, date of birth, and about — sourced from the employee profile. */
+export function getPersonProfileDetails(
+  person: Pick<OrgPerson, 'employeeId' | 'name'> & { tags?: OrgPerson['tags'] },
+  directory: DirectoryPerson[]
+): PersonProfileDetails {
+  const linked = resolveDirectoryPerson(person, directory);
+  return {
+    name: linked?.name?.trim() || person.name?.trim() || '—',
+    phone: linked?.phone?.trim() || '—',
+    dateOfBirth: formatDisplayDate(linked?.dateOfBirth),
+    about: linked?.bio?.trim() || '—',
+  };
 }
 
 function photoFromDirectoryEntry(entry: DirectoryPerson | null | undefined): string | null {

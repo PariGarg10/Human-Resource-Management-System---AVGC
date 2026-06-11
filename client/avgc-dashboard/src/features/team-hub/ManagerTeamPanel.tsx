@@ -73,7 +73,7 @@ export function ManagerTeamPanel() {
           <tbody>
             {members.map((m) => (
               <tr key={m.id} className="border-t border-[var(--border)]">
-                <td className="px-4 py-3 font-mono text-xs">{m.employeecode}</td>
+                <td className="px-4 py-3 text-xs">{m.employeecode}</td>
                 <td className="px-4 py-3 font-semibold text-[var(--text-primary)]">{m.name}</td>
                 <td className="px-4 py-3 text-[var(--text-muted)]">{m.email}</td>
                 <td className="px-4 py-3">{m.department || '—'}</td>

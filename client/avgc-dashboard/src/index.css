@@ -3,7 +3,12 @@
 @theme {
   --color-avgc-brand: #ed1d24;
   --color-avgc-brand-hover: #ed1d24;
+  --color-avgc-grey1: #697279;
+  --color-avgc-grey2: #ebebec;
+  --color-avgc-white: #ffffff;
   --font-sans: Verdana, Geneva, sans-serif;
+  --font-serif: Verdana, Geneva, sans-serif;
+  --font-mono: Verdana, Geneva, sans-serif;
 }
 
 :root {
@@ -24,25 +29,26 @@
   --red-soft: rgba(237, 29, 36, 0.1);
   --white-soft: rgba(255, 255, 255, 0.08);
   --black-soft: rgba(0, 0, 0, 0.6);
-  --status-present: #22c55e;
+  --status-present: var(--color-grey1);
+  --status-leave: var(--color-primary);
 }
 
 [data-theme='light'] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f5f5f5;
-  --bg-card: #ffffff;
-  --text-primary: #000000;
-  --text-muted: rgba(0, 0, 0, 0.5);
-  --border: rgba(0, 0, 0, 0.08);
+  --bg-primary: var(--color-grey2);
+  --bg-secondary: var(--color-grey2);
+  --bg-card: var(--color-bg);
+  --text-primary: var(--color-text);
+  --text-muted: var(--color-grey1);
+  --border: rgba(105, 114, 121, 0.28);
 }
 
 [data-theme='dark'] {
   --bg-primary: #000000;
-  --bg-secondary: #111111;
-  --bg-card: #111111;
+  --bg-secondary: #141414;
+  --bg-card: #1a1a1a;
   --text-primary: #ffffff;
-  --text-muted: rgba(255, 255, 255, 0.5);
-  --border: rgba(255, 255, 255, 0.08);
+  --text-muted: var(--color-grey1);
+  --border: rgba(105, 114, 121, 0.4);
 }
 
 html {
@@ -646,15 +652,16 @@ body.has-floating-sidebar.sidebar-collapsed #root .app-main {
 }
 
 .dashboard-home-stat--present::before {
-  background: #22c55e;
+  background: var(--color-grey1);
 }
 
 .dashboard-home-stat--half::before {
-  background: #eab308;
+  background: var(--color-grey1);
+  opacity: 0.65;
 }
 
 .dashboard-home-stat--leave::before {
-  background: #60a5fa;
+  background: var(--color-primary);
 }
 
 .dashboard-home-stat-label {
@@ -870,15 +877,16 @@ body.has-floating-sidebar.sidebar-collapsed #root .app-main {
 }
 
 .dashboard-mini-cal-day.is-present {
-  background: rgba(34, 197, 94, 0.12);
+  background: rgba(105, 114, 121, 0.14);
 }
 
 .dashboard-mini-cal-day.is-halfday {
-  background: rgba(234, 179, 8, 0.14);
+  background: rgba(235, 235, 236, 0.9);
+  box-shadow: inset 0 0 0 1px rgba(105, 114, 121, 0.35);
 }
 
 .dashboard-mini-cal-day.is-leave {
-  background: rgba(96, 165, 250, 0.14);
+  background: rgba(237, 29, 36, 0.1);
 }
 
 .dashboard-mini-cal-day.is-absent {
@@ -948,23 +956,25 @@ body.has-floating-sidebar.sidebar-collapsed #root .app-main {
 }
 
 .dashboard-mini-cal-legend .dot-present {
-  background: #22c55e;
+  background: var(--color-grey1);
 }
 
 .dashboard-mini-cal-legend .dot-halfday {
-  background: #eab308;
+  background: var(--color-grey2);
+  box-shadow: inset 0 0 0 1px var(--color-grey1);
 }
 
 .dashboard-mini-cal-legend .dot-leave {
-  background: #60a5fa;
+  background: var(--color-primary);
 }
 
 .dashboard-mini-cal-legend .dot-absent {
-  background: #ed1d24;
+  background: var(--color-primary);
 }
 
 .dashboard-mini-cal-legend .dot-holiday {
-  background: #2563eb;
+  background: var(--color-grey2);
+  box-shadow: inset 0 0 0 1px var(--color-grey1);
 }
 
 .attendance-calendar-legend--toolbar {
@@ -1321,7 +1331,51 @@ body.has-floating-sidebar.sidebar-collapsed #root .app-main {
 }
 
 .settings-card-icon {
-  font-size: 1.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 10px;
+  background: var(--primary-soft, rgba(237, 29, 36, 0.08));
+  color: var(--primary, #ed1d24);
+}
+
+.manager-team-stat-grid {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  margin-bottom: 20px;
+}
+
+.manager-team-stat-grid .stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.manager-team-stat-grid .stat-label {
+  display: block;
+  margin-bottom: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.manager-team-stat-grid .stat-value {
+  display: block;
+  line-height: 1.1;
+}
+
+@media (max-width: 1100px) {
+  .manager-team-stat-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .manager-team-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .settings-card-field {
@@ -1627,4 +1681,83 @@ body.has-floating-sidebar.sidebar-collapsed #root .app-main {
   .dashboard-home-action-grid {
     grid-template-columns: 1fr;
   }
+}
+
+/* =========================================================
+   AVGC Social & Gaming — brand font + palette overrides
+========================================================= */
+.avgc-social-portal,
+.avgc-social-portal *,
+.avgc-gaming-portal,
+.avgc-gaming-portal * {
+  font-family: Verdana, Geneva, sans-serif !important;
+}
+
+.avgc-social-portal [class*='text-stone-900'],
+.avgc-social-portal [class*='text-stone-800'],
+.avgc-gaming-portal [class*='text-stone-900'] {
+  color: #000000 !important;
+}
+
+.avgc-social-portal [class*='text-stone-700'],
+.avgc-social-portal [class*='text-stone-600'],
+.avgc-social-portal [class*='text-stone-500'],
+.avgc-social-portal [class*='text-stone-400'],
+.avgc-gaming-portal [class*='text-stone-600'],
+.avgc-gaming-portal [class*='text-stone-500'] {
+  color: #697279 !important;
+}
+
+.avgc-social-portal [class*='border-stone'],
+.avgc-gaming-portal [class*='border-stone'],
+.avgc-gaming-portal [class*='ring-stone'] {
+  border-color: rgba(105, 114, 121, 0.28) !important;
+  --tw-ring-color: rgba(105, 114, 121, 0.28) !important;
+}
+
+.avgc-social-portal [class*='bg-stone-'],
+.avgc-gaming-portal [class*='bg-stone-'] {
+  background-color: #ebebec !important;
+}
+
+.avgc-social-portal [class*='bg-white'],
+.avgc-gaming-portal [class*='bg-white'] {
+  background-color: #ffffff !important;
+}
+
+.avgc-social-portal [class*='hover:text-teal'],
+.avgc-social-portal [class*='hover:text-indigo'],
+.avgc-social-portal [class*='text-teal'],
+.avgc-social-portal [class*='text-indigo'],
+.avgc-social-portal [class*='bg-teal'],
+.avgc-social-portal [class*='bg-indigo'],
+.avgc-social-portal [class*='border-teal'],
+.avgc-social-portal [class*='focus:border-teal'],
+.avgc-social-portal [class*='hover:bg-teal'],
+.avgc-gaming-portal [class*='bg-violet'],
+.avgc-gaming-portal [class*='text-violet'],
+.avgc-gaming-portal [class*='border-violet'],
+.avgc-gaming-portal [class*='hover:bg-violet'],
+.avgc-gaming-portal [class*='from-violet'],
+.avgc-gaming-portal [class*='to-fuchsia'],
+.avgc-gaming-portal [class*='border-amber'],
+.avgc-gaming-portal [class*='from-amber'],
+.avgc-gaming-portal [class*='text-amber'] {
+  color: #ed1d24 !important;
+  background-color: #ffffff !important;
+  border-color: rgba(237, 29, 36, 0.35) !important;
+}
+
+.avgc-social-portal .bg-red-500,
+.avgc-social-portal .bg-red-600,
+.avgc-gaming-portal .bg-red-500,
+.avgc-gaming-portal .bg-red-600 {
+  background-color: #ed1d24 !important;
+  color: #ffffff !important;
+}
+
+.avgc-gaming-portal [class*='bg-green'],
+.avgc-gaming-portal [class*='text-green'] {
+  background-color: #ebebec !important;
+  color: #697279 !important;
 }

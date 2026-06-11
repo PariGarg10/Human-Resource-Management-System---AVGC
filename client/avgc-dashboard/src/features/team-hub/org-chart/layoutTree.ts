@@ -294,6 +294,46 @@ function layoutPerson(
   return { bottomY };
 }
 
+export type ContentBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+  width: number;
+  height: number;
+};
+
+/** Tight box around visible person nodes — used to center the chart in the viewport. */
+export function computeContentBounds(nodes: LayoutNode[]): ContentBounds | null {
+  const personNodes = nodes.filter((node) => node.kind === 'person' && node.height > 0);
+  if (!personNodes.length) return null;
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const node of personNodes) {
+    const left = node.x - node.width / 2;
+    const right = node.x + node.width / 2;
+    const top = node.y;
+    const bottom = node.y + node.height;
+    minX = Math.min(minX, left);
+    maxX = Math.max(maxX, right);
+    minY = Math.min(minY, top);
+    maxY = Math.max(maxY, bottom);
+  }
+
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    width: maxX - minX,
+    height: maxY - minY,
+  };
+}
+
 export function computeLayout(root: OrgPerson, collapsed: Set<string>): LayoutResult {
   const nodes: LayoutNode[] = [];
   const edges: LayoutEdge[] = [];

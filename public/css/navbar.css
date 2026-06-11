@@ -7,7 +7,7 @@
   align-items: center;
   gap: 16px;
   padding: 0 24px;
-  background: #111111;
+  background: var(--bg-card);
   border-bottom: 1px solid var(--border);
   box-shadow: none;
   box-sizing: border-box;
@@ -163,7 +163,7 @@ body.has-floating-sidebar .navbar-logo {
   font-weight: 600;
   text-transform: capitalize;
   background: rgba(230, 57, 70, 0.16);
-  color: #E63946;
+  color: #ed1d24;
 }
 
 .theme-toggle-btn {
@@ -361,7 +361,7 @@ body.has-floating-sidebar .navbar-logo {
   display: flex !important;
   align-items: center;
   gap: 10px;
-  color: #e63946 !important;
+  color: #ed1d24 !important;
   font-weight: 600;
 }
 
@@ -373,7 +373,7 @@ body.has-floating-sidebar .navbar-logo {
 
 .profile-dropdown-logout:hover {
   background: rgba(230, 57, 70, 0.12) !important;
-  color: #e63946 !important;
+  color: #ed1d24 !important;
 }
 
 @media (max-width: 1024px) {

@@ -275,7 +275,7 @@ a.btn-primary:visited,
 .filters-inline input:focus,
 .filters-inline select:focus {
   outline: none;
-  border-color: #E63946;
+  border-color: #ed1d24;
   box-shadow: 0 0 0 2px rgba(230, 57, 70, 0.3);
 }
 

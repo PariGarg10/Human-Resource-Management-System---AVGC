@@ -45,17 +45,25 @@ body:has(#root .app-main) {
 .content-area:has(> .dashboard-home-viewport),
 .content-area:has(> .dashboard-react-viewport),
 .content-area:has(> .profile-viewport),
+.content-area:has(> .view-section.profile-viewport.is-active),
 .content-area:has(> .org-teams-viewport),
 .content-area:has(> .panel.attendance-calendar-panel),
 .content-area:has(> .view-section.holiday-calendar-viewport.is-active),
 .content-area:has(> .view-section.org-teams-viewport.is-active),
 .content-area:has(> .view-section.dashboard-react-viewport.is-active),
-.content-area:has(> .view-section.admin-people-viewport.is-active) {
+.content-area:has(> .view-section.admin-people-viewport.is-active),
+.content-area:has(> .view-section.employee-documents-viewport.is-active),
+.content-area:has(> .view-section.manager-assignment-viewport.is-active),
+.content-area:has(> .view-section.asset-management-viewport.is-active),
+.content-area:has(> .view-section.import-attendance-viewport.is-active),
+.content-area:has(> .view-section.reports-viewport.is-active),
+.content-area:has(> .view-section.social-portal-viewport.is-active),
+.content-area:has(> .view-section.live-activity-viewport.is-active) {
   overflow: hidden;
 }
 
 /* Scrollable admin / portal sections */
-.view-section.is-active:not(.org-teams-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport) {
+.view-section.is-active:not(.org-teams-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport):not(.employee-documents-viewport):not(.manager-assignment-viewport):not(.asset-management-viewport):not(.import-attendance-viewport):not(.reports-viewport):not(.social-portal-viewport):not(.live-activity-viewport):not(.profile-viewport) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -65,7 +73,15 @@ body:has(#root .app-main) {
 .view-section.holiday-calendar-viewport.is-active,
 .view-section.org-teams-viewport.is-active,
 .view-section.dashboard-react-viewport.is-active,
-.view-section.admin-people-viewport.is-active {
+.view-section.admin-people-viewport.is-active,
+.view-section.employee-documents-viewport.is-active,
+.view-section.manager-assignment-viewport.is-active,
+.view-section.asset-management-viewport.is-active,
+.view-section.import-attendance-viewport.is-active,
+.view-section.reports-viewport.is-active,
+.view-section.social-portal-viewport.is-active,
+.view-section.live-activity-viewport.is-active,
+.view-section.profile-viewport.is-active {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -142,8 +158,63 @@ body:has(#root .app-main) {
   max-height: min(58vh, 560px);
 }
 
-.manager-assignment-page.is-active {
-  overflow-y: auto;
+.manager-assignment-layout,
+.asset-management-layout,
+.import-attendance-layout,
+.live-activity-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.panel--ma-quick,
+.panel--ma-bulk,
+.panel--asset-form,
+.panel--asset-allocate,
+.panel--import-form,
+.panel--live-links,
+.panel--announcements {
+  flex-shrink: 0;
+}
+
+.panel--ma-mapping,
+.panel--asset-inventory,
+.panel--asset-allocations,
+.panel--import-history {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel--ma-mapping .table-wrap--scroll,
+.panel--asset-inventory .table-wrap--scroll,
+.panel--asset-allocations .table-wrap--scroll,
+.panel--import-history .table-wrap--scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+}
+
+.social-portal-root {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+#adminProfileReactRoot {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .org-info-panel {

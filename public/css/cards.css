@@ -30,7 +30,7 @@
   right: 0;
   height: 3px;
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  background: #E63946;
+  background: #ed1d24;
 }
 
 .stat-card.stat-success::before {
@@ -46,7 +46,7 @@
 }
 
 .stat-card.stat-info::before {
-  background: linear-gradient(90deg, var(--info), #60a5fa);
+  background: var(--color-grey1);
 }
 
 .stat-label {

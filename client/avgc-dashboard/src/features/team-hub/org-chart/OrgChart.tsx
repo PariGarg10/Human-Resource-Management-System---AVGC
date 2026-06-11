@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  getPersonDisplayDepartment,
+  getPersonDisplayName,
   getPersonDisplayPhoto,
   getPersonDisplayTitle,
   getPersonEmployeeId,
 } from './syncOrgProfiles';
 import { OrgChartIntro } from './OrgChartIntro';
-import { computeLayout } from './layoutTree';
+import { computeContentBounds, computeLayout } from './layoutTree';
 import { MobileOrgList } from './MobileOrgList';
 import { OrgConnectors } from './OrgConnectors';
 import { OrgNode } from './OrgNode';
@@ -17,20 +19,39 @@ import {
   personHasToggle,
 } from './orgUtils';
 import { useOrgData } from './useOrgData';
-import { useOrgRole } from './useOrgRole';
+import { useOrgRole, type OrgViewMode } from './useOrgRole';
 import './org-chart.css';
 
 type PanelState = { personId: string; mode: 'details' | 'reports' } | null;
 type Phase = 'intro' | 'chart';
 
+function resolveNodeFocusRole(
+  personId: string,
+  employeeId: number | null | undefined,
+  focusMeta: { selfId: string | null; managerId: string | null }
+): 'self' | 'manager' | null {
+  const id = String(personId);
+  const empId = employeeId != null ? String(employeeId) : null;
+  if (focusMeta.selfId && (id === focusMeta.selfId || empId === focusMeta.selfId)) {
+    return 'self';
+  }
+  if (focusMeta.managerId && (id === focusMeta.managerId || empId === focusMeta.managerId)) {
+    return 'manager';
+  }
+  return null;
+}
+
 export function OrgChart() {
-  const { isAdmin } = useOrgRole();
-  const { data, directory, highlightId, loading, loadError, reset } = useOrgData();
+  const { isAdmin, canToggleFullView, ready: roleReady } = useOrgRole();
+  const [viewMode, setViewMode] = useState<OrgViewMode>('focused');
+  const showFullTree = isAdmin || (canToggleFullView && viewMode === 'full');
+  const showFocusLabels = !showFullTree;
+  const { data, directory, highlightId, focusMeta, loading, loadError, reset } = useOrgData(viewMode);
   const [phase, setPhase] = useState<Phase>('chart');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [panel, setPanel] = useState<PanelState>(null);
   const [panelOpen, setPanelOpen] = useState(false);
-  const [transform, setTransform] = useState({ x: 40, y: 20, scale: 1 });
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [panning, setPanning] = useState(false);
   const panStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -43,36 +64,43 @@ export function OrgChart() {
 
   const fitToScreen = useCallback(() => {
     const vp = viewportRef.current;
-    if (!vp) return;
-    const pad = 56;
-    const sx = (vp.clientWidth - pad * 2) / layout.width;
-    const sy = (vp.clientHeight - pad * 2) / layout.height;
+    if (!vp || vp.clientWidth < 1 || vp.clientHeight < 1) return;
+
+    const pad = 48;
+    const bounds = computeContentBounds(layout.nodes);
+    const contentW = bounds?.width ?? layout.width;
+    const contentH = bounds?.height ?? layout.height;
+    const minX = bounds?.minX ?? 0;
+    const minY = bounds?.minY ?? 0;
+
+    if (contentW <= 0 || contentH <= 0) return;
+
+    const sx = (vp.clientWidth - pad * 2) / contentW;
+    const sy = (vp.clientHeight - pad * 2) / contentH;
     const raw = Math.min(sx, sy);
     const scale = raw < 1 ? Math.max(0.38, raw) : Math.min(1.35, raw);
-    const x = (vp.clientWidth - layout.width * scale) / 2;
-    const y = (vp.clientHeight - layout.height * scale) / 2;
+    const x = (vp.clientWidth - contentW * scale) / 2 - minX * scale;
+    const y = (vp.clientHeight - contentH * scale) / 2 - minY * scale;
+
     setTransform({ x, y, scale });
-  }, [layout.width, layout.height]);
+  }, [layout.nodes, layout.width, layout.height]);
 
   useEffect(() => {
     if (phase !== 'chart') return;
     fitToScreen();
-  }, [fitToScreen, data, collapsed, panel, phase, layout.width, layout.height]);
+  }, [fitToScreen, data, collapsed, panel, phase, layout.width, layout.height, viewMode]);
 
   useEffect(() => {
-    if (!highlightId || !worldRef.current || !viewportRef.current) return;
-    const el = worldRef.current.querySelector(`[data-org-id="${highlightId}"]`);
-    if (!el || !(el instanceof HTMLElement)) return;
-    const vp = viewportRef.current.getBoundingClientRect();
-    const rect = el.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2 - vp.left;
-    const cy = rect.top + rect.height / 2 - vp.top;
-    setTransform((t) => ({
-      ...t,
-      x: t.x + (vp.width / 2 - cx),
-      y: t.y + (vp.height / 2 - cy),
-    }));
-  }, [highlightId, layout]);
+    if (phase !== 'chart') return;
+    const vp = viewportRef.current;
+    if (!vp || typeof ResizeObserver === 'undefined') return;
+
+    const observer = new ResizeObserver(() => {
+      fitToScreen();
+    });
+    observer.observe(vp);
+    return () => observer.disconnect();
+  }, [fitToScreen, phase]);
 
   const toggleBranch = useCallback(
     (personId: string) => {
@@ -139,7 +167,7 @@ export function OrgChart() {
     void reset();
   };
 
-  if (loading || !data) {
+  if (!roleReady || loading || !data) {
     return (
       <div className="org-chart-shell org-chart-shell--loading">
         <p className="org-chart-loading" role="status" aria-live="polite">
@@ -182,11 +210,24 @@ export function OrgChart() {
 
           {loadError ? <p className="org-chart-load-error">{loadError}</p> : null}
 
-          {isAdmin ? (
-            <button type="button" className="org-chart__reset" onClick={handleRefresh} disabled={loading}>
-              {loading ? 'Loading…' : 'Refresh chart'}
-            </button>
-          ) : null}
+          <div className="org-chart__toolbar">
+            {canToggleFullView ? (
+              <button
+                type="button"
+                className="org-chart__view-toggle"
+                onClick={() => setViewMode((mode) => (mode === 'focused' ? 'full' : 'focused'))}
+                disabled={loading}
+                aria-pressed={viewMode === 'full'}
+              >
+                {viewMode === 'focused' ? 'Full Org Chart' : 'My View'}
+              </button>
+            ) : null}
+            {isAdmin ? (
+              <button type="button" className="org-chart__reset" onClick={handleRefresh} disabled={loading}>
+                {loading ? 'Loading…' : 'Refresh chart'}
+              </button>
+            ) : null}
+          </div>
 
           <div
             ref={viewportRef}
@@ -209,10 +250,16 @@ export function OrgChart() {
               {personNodes.map((ln) => {
                 const person = ln.person!;
                 const resolvedPhoto = getPersonDisplayPhoto(person, directory);
+                const resolvedName = getPersonDisplayName(person, directory);
                 const resolvedTitle = getPersonDisplayTitle(person, directory);
+                const resolvedDepartment = getPersonDisplayDepartment(person, directory);
                 const resolvedEmployeeId = getPersonEmployeeId(person, directory);
+                const focusRole = showFocusLabels
+                  ? resolveNodeFocusRole(person.id, resolvedEmployeeId, focusMeta)
+                  : null;
                 const displayPerson = {
                   ...person,
+                  name: resolvedName,
                   photo: resolvedPhoto,
                   title: resolvedTitle,
                   employeeId: resolvedEmployeeId,
@@ -230,7 +277,9 @@ export function OrgChart() {
                     circleSize={ln.circleSize}
                     isExpandedCard={ln.isExpandedCard}
                     isRootCard={ln.isRootCard}
-                    isHighlighted={highlightId === ln.id}
+                    isHighlighted={!showFullTree && (highlightId === ln.id || focusRole === 'self')}
+                    focusRole={focusRole}
+                    department={resolvedDepartment}
                     reportCount={reportCount}
                     canToggle={personHasToggle(data, person.id)}
                     isBranchCollapsed={branchId ? collapsed.has(branchId) : false}

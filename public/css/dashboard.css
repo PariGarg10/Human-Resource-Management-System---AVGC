@@ -187,6 +187,12 @@
   max-width: 36rem;
 }
 
+.import-excel-hint--center {
+  text-align: center;
+  margin-left: auto;
+  margin-right: auto;
+}
+
 .import-confirm-bar {
   margin-top: 20px;
   padding: 16px 18px;

@@ -11,7 +11,7 @@ const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { buildOrgSections, personFromRow } = require('../utils/orgDirectory');
 const { buildOrgTree, scopeOrgTreeForViewer, sortTreeAlphabetically } = require('../utils/orgTree');
-const { isAdminRole } = require('../constants/roles');
+const { isAdminRole, isManagerRole } = require('../constants/roles');
 const { ensurePersonalTasksTable, rowToTask, PRIORITIES, parseDueDateInput } = require('../utils/personalTasks');
 const { logAudit } = require('../utils/audit');
 const { ageFromDateOfBirth } = require('../utils/birthdays');
@@ -231,7 +231,7 @@ router.get('/org-directory', authMiddleware, enforcePasswordChange, async (_req,
     const { rows } = await pool.query(
       `
       SELECT id, employeecode, name, email, department, designation, role, profilephotourl,
-             phone, location,
+             phone, location, dateofbirth, bio,
              (profile_photo IS NOT NULL) AS has_profile_photo
       FROM employees
       WHERE COALESCE(isregistered, TRUE) = TRUE
@@ -275,11 +275,24 @@ router.get('/org-tree', authMiddleware, enforcePasswordChange, async (req, res) 
       return res.status(404).json({ message: 'No employees found to build org chart' });
     }
 
-    const viewerRole = String(req.user?.role || '').toLowerCase().trim();
-    const isAdminViewer = Boolean(req.user?.adminId) || isAdminRole(viewerRole);
-    const result = isAdminViewer
-      ? sortTreeAlphabetically(tree)
-      : scopeOrgTreeForViewer(tree, employeesResult.rows, req.user.id);
+    const viewerRow = employeesResult.rows.find((row) => row.id === req.user.id);
+    const tokenRole = String(req.user.role || '').toLowerCase().trim();
+    const viewerRole = viewerRow?.role || tokenRole || 'employee';
+    const wantFull = req.query.full === 'true' || req.query.full === '1';
+
+    let result = tree;
+    if (isAdminRole(viewerRole) || isAdminRole(tokenRole)) {
+      result = sortTreeAlphabetically(tree);
+    } else if (wantFull && isManagerRole(viewerRole)) {
+      result = sortTreeAlphabetically(tree);
+    } else {
+      result = scopeOrgTreeForViewer(
+        tree,
+        employeesResult.rows,
+        req.user.id,
+        assignmentsResult.rows
+      );
+    }
 
     return res.json({ tree: result });
   } catch (err) {

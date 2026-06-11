@@ -2,8 +2,8 @@ const express = require('express');
 const path = require('path');
 const multer = require('multer');
 const { pool } = require('../db');
-const { authMiddleware, enforceForcePasswordChange, requireRoles } = require('../middleware/auth');
-const { ROLES, isAdminRole } = require('../constants/roles');
+const { authMiddleware, enforceForcePasswordChange, requirePortalAdmin, isFounderUser } = require('../middleware/auth');
+const { isAdminRole } = require('../constants/roles');
 const { getUploadsRoot, getPublicDir } = require('../utils/storagePaths');
 const { formatDisplayDate } = require('../utils/formatDate');
 
@@ -69,7 +69,7 @@ async function queryPolicies(visibleOnly) {
 /** GET policies — admin sees all; others see visible only */
 router.get('/', async (req, res) => {
   try {
-    const admin = isAdminRole(req.user?.role);
+    const admin = Boolean(req.user?.adminId) || isAdminRole(req.user?.role) || isFounderUser(req.user);
     const policies = await queryPolicies(!admin);
     return res.json({ policies });
   } catch (err) {
@@ -81,7 +81,7 @@ router.get('/', async (req, res) => {
 /** POST policy document upload — admin only */
 router.post(
   '/upload',
-  requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT_HEAD),
+  requirePortalAdmin,
   upload.single('file'),
   async (req, res) => {
     try {
@@ -108,7 +108,7 @@ router.post(
 );
 
 /** POST external link — admin only */
-router.post('/link', requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT_HEAD), async (req, res) => {
+router.post('/link', requirePortalAdmin, async (req, res) => {
   try {
     const title = String(req.body?.title || '').trim();
     const description = req.body?.description ? String(req.body.description).trim() : null;
@@ -142,7 +142,7 @@ router.post('/link', requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT_HEAD), as
 });
 
 /** PATCH policy — admin only */
-router.patch('/:id', requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT_HEAD), async (req, res) => {
+router.patch('/:id', requirePortalAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) return res.status(400).json({ message: 'Invalid id' });
@@ -187,7 +187,7 @@ router.patch('/:id', requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT_HEAD), as
 });
 
 /** DELETE policy — admin only */
-router.delete('/:id', requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT_HEAD), async (req, res) => {
+router.delete('/:id', requirePortalAdmin, async (req, res) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isFinite(id)) return res.status(400).json({ message: 'Invalid id' });

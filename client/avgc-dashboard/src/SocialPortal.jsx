@@ -491,12 +491,12 @@ function ChannelLanding({ onEnter }) {
   ];
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10">
+    <div className="mx-auto flex h-full max-w-5xl flex-col justify-center overflow-hidden px-4 py-4">
       <p className="font-mono text-xs uppercase tracking-widest text-stone-400">// 01 — Active channels</p>
-      <h1 className="mt-2 font-serif text-4xl font-bold tracking-tight text-stone-900 md:text-5xl">
+      <h1 className="mt-1 font-serif text-3xl font-bold tracking-tight text-stone-900 md:text-4xl">
         STEP INTO A ROOM.
       </h1>
-      <div className="mt-10 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {cards.map((card, index) => (
           <button
             key={card.id}
@@ -732,8 +732,8 @@ export default function SocialPortal({ currentUserName = 'You', isAdminUser = fa
   }, []);
 
   return (
-    <div className="min-h-full bg-[#f9f9f7] font-sans text-stone-900">
-      <header className="sticky top-0 z-40 border-b border-stone-200 bg-[#f9f9f7]/95 backdrop-blur">
+    <div className="avgc-social-portal flex h-full min-h-0 flex-col overflow-hidden bg-[#ebebec] font-sans text-[#000000]">
+      <header className="z-40 shrink-0 border-b border-stone-200 bg-[#f9f9f7]/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <button
             type="button"
@@ -797,7 +797,11 @@ export default function SocialPortal({ currentUserName = 'You', isAdminUser = fa
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 pb-16 pt-6">
+      <main
+        className={`mx-auto w-full max-w-6xl flex-1 min-h-0 px-4 ${
+          screen === 'landing' ? 'overflow-hidden py-2' : 'overflow-y-auto pb-16 pt-6'
+        }`}
+      >
         {loadError && (
           <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             {loadError}

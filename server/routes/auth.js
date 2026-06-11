@@ -390,56 +390,6 @@ router.post('/it-head/login', async (req, res) => {
   }
 });
 
-router.post('/register', async (req, res) => {
-  try {
-    const email = normalizeEmail(req.body?.email);
-    const password = String(req.body?.password || '');
-    const name = String(req.body?.name || '').trim();
-
-    if (!email || !password) return res.status(400).json({ message: 'email and password are required' });
-
-    const existingResult = await pool.query(
-      'SELECT id, isregistered, role, name FROM employees WHERE lower(trim(email)) = $1 LIMIT 1',
-      [email]
-    );
-    const existingEmployee = existingResult.rows[0];
-
-    if (!existingEmployee) {
-      return res.status(404).json({ message: 'No pre-onboarded employee account found for this email' });
-    }
-    if (existingEmployee.role !== 'employee') {
-      return res.status(403).json({ message: 'Only employee accounts can self-register' });
-    }
-    if (existingEmployee.isregistered) {
-      return res.status(409).json({ message: 'Employee is already registered' });
-    }
-
-    const passwordhash = await bcrypt.hash(password, 10);
-    await pool.query(
-      `
-        UPDATE employees
-        SET name = $1,
-            passwordhash = $2,
-            isregistered = TRUE,
-            mustchangepassword = FALSE,
-            force_password_change = FALSE,
-            temp_password_hash = NULL,
-            temp_password_expiry = NULL,
-            failed_login_attempts = 0,
-            account_locked_until = NULL
-        WHERE id = $3
-      `,
-      [name || existingEmployee.name, passwordhash, existingEmployee.id]
-    );
-
-    await logAudit(existingEmployee.id, 'REGISTER', 'auth', { email });
-    return res.status(201).json({ message: 'Registration successful' });
-  } catch (err) {
-    console.error('POST /auth/register:', err.message);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
-});
-
 router.post('/forgot-password', async (req, res) => {
   try {
     const email = normalizeEmail(req.body?.email);

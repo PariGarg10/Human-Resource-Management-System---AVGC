@@ -199,14 +199,18 @@ HRMS.initNotificationBell = function initNotificationBell(apiFn) {
       list.querySelectorAll('.notif-row').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const id = Number(btn.getAttribute('data-notif-id'));
-          const read = btn.getAttribute('data-read') === '1';
-          if (!read) {
-            try {
-              await apiFn(`/api/notifications/${id}/read`, { method: 'PATCH' });
-              btn.setAttribute('data-read', '1');
-            } catch (_e) {}
-            await refresh();
+          btn.remove();
+          if (!list.querySelector('.notif-row')) {
+            list.innerHTML = '<p class="notif-empty">No notifications</p>';
           }
+          const unreadLeft = list.querySelectorAll('.notif-row[data-read="0"]').length;
+          if (badge) {
+            badge.textContent = unreadLeft > 9 ? '9+' : String(unreadLeft);
+            badge.classList.toggle('hidden', unreadLeft === 0);
+          }
+          try {
+            await apiFn(`/api/notifications/${id}/read`, { method: 'PATCH' });
+          } catch (_e) {}
         });
       });
     } catch (_e) {

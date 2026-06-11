@@ -2,10 +2,11 @@ import { ChevronLeft, Pencil, Trash2, User, UserPlus, X } from 'lucide-react';
 import { ProfilePhotoImg } from '@/components/ui/ProfilePhotoImg';
 import { getReportingChain, type ReportingChainLink } from './orgUtils';
 import {
+  getPersonDisplayName,
   getPersonDisplayPhoto,
   getPersonDisplayTitle,
   getPersonEmployeeId,
-  resolveDirectoryPerson,
+  getPersonProfileDetails,
   type DirectoryPerson,
 } from './syncOrgProfiles';
 import type { OrgPerson, OrgTreeRoot } from './types';
@@ -28,12 +29,6 @@ type Props = {
   onRemovePerson: () => void;
 };
 
-function managerName(root: OrgTreeRoot, person: OrgPerson): string {
-  const chain = getReportingChain(root, person.id);
-  if (chain.length < 2) return '—';
-  return chain[chain.length - 2]?.name || '—';
-}
-
 function ProfileSquare({
   person,
   directory,
@@ -43,6 +38,7 @@ function ProfileSquare({
 }) {
   const photo = getPersonDisplayPhoto(person, directory);
   const employeeId = getPersonEmployeeId(person, directory);
+  const displayName = getPersonDisplayName(person, directory);
 
   return (
     <div className="org-identity-panel__hero">
@@ -56,7 +52,7 @@ function ProfileSquare({
         />
       </div>
       <div className="org-identity-panel__caption">
-        <h2 className="org-identity-panel__name">{person.name}</h2>
+        <h2 className="org-identity-panel__name">{displayName}</h2>
         <p className="org-identity-panel__title">{getPersonDisplayTitle(person, directory)}</p>
       </div>
     </div>
@@ -114,7 +110,7 @@ export function OrgSidePanel({
   onEditPerson,
   onRemovePerson,
 }: Props) {
-  const linked = resolveDirectoryPerson(person, directory);
+  const profile = getPersonProfileDetails(person, directory);
   const reportingChain = mode === 'details' ? getReportingChain(root, person.id) : [];
 
   return (
@@ -169,38 +165,24 @@ export function OrgSidePanel({
               <HierarchyChart chain={reportingChain} currentId={person.id} onSelectPerson={onSelectPerson} />
 
               <section className="org-info-panel__section">
-                <h3 className="org-info-panel__section-label">Contact &amp; profile</h3>
+                <h3 className="org-info-panel__section-label">Profile</h3>
                 <dl className="org-info-panel__fields">
                   <div>
-                    <dt>Email</dt>
-                    <dd>{linked?.email || '—'}</dd>
+                    <dt>Name</dt>
+                    <dd>{profile.name}</dd>
                   </div>
                   <div>
                     <dt>Phone</dt>
-                    <dd>{linked?.phone || '—'}</dd>
+                    <dd>{profile.phone}</dd>
                   </div>
                   <div>
-                    <dt>Department</dt>
-                    <dd>{linked?.department || '—'}</dd>
+                    <dt>Date of birth</dt>
+                    <dd>{profile.dateOfBirth}</dd>
                   </div>
-                  <div>
-                    <dt>Location</dt>
-                    <dd>{linked?.location || '—'}</dd>
+                  <div className="org-info-panel__field--about">
+                    <dt>About</dt>
+                    <dd>{profile.about}</dd>
                   </div>
-                  <div>
-                    <dt>Manager</dt>
-                    <dd>{managerName(root, person)}</dd>
-                  </div>
-                  <div>
-                    <dt>Status</dt>
-                    <dd className="org-info-panel__capitalize">{person.status}</dd>
-                  </div>
-                  {person.skills.length > 0 ? (
-                    <div>
-                      <dt>Skills</dt>
-                      <dd>{person.skills.join(', ')}</dd>
-                    </div>
-                  ) : null}
                 </dl>
               </section>
 

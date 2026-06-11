@@ -11,8 +11,9 @@
 }
 
 body {
-  background: #fff;
-  color: #000;
+  background: var(--color-bg, #ffffff);
+  color: var(--color-text, #000000);
+  font-family: var(--font-body, Verdana, Geneva, sans-serif);
 }
 
 a:hover,
@@ -40,7 +41,7 @@ a:hover,
 }
 
 .role-pill--success-manager {
-  color: #22c55e;
+  color: var(--color-grey1);
   font-weight: 500;
 }
 

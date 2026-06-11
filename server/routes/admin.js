@@ -46,7 +46,7 @@ router.use(authMiddleware);
 router.use(enforcePasswordChange);
 router.use(requireAdminAccess);
 
-const ROLE_OPTIONS = new Set(['employee', 'manager', 'admin', 'it_head']);
+const EMPLOYEE_PORTAL_ROLES = new Set(['employee', 'manager']);
 
 router.get('/session', (req, res) => {
   return res.json({
@@ -70,11 +70,11 @@ router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEME
       return res.status(400).json({ message: 'name and email are required' });
     }
 
-    const normalizedRole = ROLE_OPTIONS.has(String(role || '').toLowerCase().trim())
+    const normalizedRole = EMPLOYEE_PORTAL_ROLES.has(String(role || '').toLowerCase().trim())
       ? String(role).toLowerCase().trim()
       : 'employee';
-    if (normalizedRole !== 'employee' && !password) {
-      return res.status(400).json({ message: 'Password is required for manager, admin, and IT Head roles' });
+    if (normalizedRole === 'manager' && !password) {
+      return res.status(400).json({ message: 'Password is required for manager role' });
     }
 
     let code = String(employeecode || '')
@@ -87,8 +87,7 @@ router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEME
     }
 
     const designationValue = designation != null ? String(designation).trim() || null : null;
-    const isEmployee = normalizedRole === 'employee';
-    const isRegistered = !isEmployee;
+    const isRegistered = true;
     const passwordhash = bcrypt.hashSync(password || `Temp@${Date.now()}_${code}`, 10);
 
     const result = await pool.query(
@@ -228,24 +227,22 @@ router.patch('/employees/:id/role', requirePermission(PERMISSION_MODULES.ROLE_MA
     if (!Number.isFinite(employeeId) || employeeId <= 0) {
       return res.status(400).json({ message: 'Valid employee id is required' });
     }
-    if (!role || role.length > 60) {
-      return res.status(400).json({ message: 'Role is required and must be 60 characters or fewer' });
-    }
-    if (/[\r\n\t]/.test(role)) {
-      return res.status(400).json({ message: 'Role cannot contain control characters' });
+    const normalizedRole = String(role || '').toLowerCase().trim();
+    if (!EMPLOYEE_PORTAL_ROLES.has(normalizedRole)) {
+      return res.status(400).json({ message: 'Portal role must be employee or manager' });
     }
 
     const targetResult = await pool.query('SELECT id, name, role FROM employees WHERE id = $1', [employeeId]);
     const target = targetResult.rows[0];
     if (!target) return res.status(404).json({ message: 'Employee not found' });
 
-    await pool.query('UPDATE employees SET role = $1 WHERE id = $2', [role, employeeId]);
+    await pool.query('UPDATE employees SET role = $1 WHERE id = $2', [normalizedRole, employeeId]);
     await logAudit(req.user.id, 'EMPLOYEE_ROLE_UPDATED', 'employees', {
       employeeId,
       previousRole: target.role,
-      role,
+      role: normalizedRole,
     });
-    return res.json({ message: 'Role updated', employee: { ...target, role } });
+    return res.json({ message: 'Role updated', employee: { ...target, role: normalizedRole } });
   } catch (err) {
     console.error('PATCH /admin/employees/:id/role:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
@@ -1349,7 +1346,7 @@ router.post('/import-employees', requirePermission(PERMISSION_MODULES.IMPORT_DAT
           INSERT INTO employees (employeecode, name, email, passwordhash, department, role, isregistered, mustchangepassword)
           VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE)
         `,
-          [employeecode, name, email, pwd, department, role, role === 'employee' ? false : true]
+          [employeecode, name, email, pwd, department, role, true]
         );
 
         summary.successfulimports += 1;

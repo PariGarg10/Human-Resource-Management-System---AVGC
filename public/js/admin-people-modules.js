@@ -23,21 +23,6 @@
 
     const el = (id) => panel.querySelector(`#${id}`);
 
-    function syncAssignmentSummary(assignments, managers) {
-      const total = assignments.length;
-      const assigned = assignments.filter((row) => row.managerid).length;
-      const metrics = {
-        maAssignmentTotalEmployees: total,
-        maAssignmentAssignedCount: assigned,
-        maAssignmentUnassignedCount: total - assigned,
-        maAssignmentManagerCount: managers.length,
-      };
-      Object.entries(metrics).forEach(([id, value]) => {
-        const node = el(id);
-        if (node) node.textContent = String(value);
-      });
-    }
-
     function syncManagerSelects(managers) {
       const options = managers.length
         ? managers.map(managerOption).join('')
@@ -57,12 +42,7 @@
     }
 
     async function loadAssignments() {
-      const department = el('maDepartmentFilter')?.value.trim() || '';
-      const search = el('maSearchFilter')?.value.trim() || '';
-      const query = new URLSearchParams();
-      if (department) query.set('department', department);
-      if (search) query.set('search', search);
-      const url = `/api/admin/manager-assignments${query.toString() ? `?${query.toString()}` : ''}`;
+      const url = '/api/admin/manager-assignments';
 
       const loading = el('maAssignmentsLoading');
       const empty = el('maAssignmentsEmpty');
@@ -74,7 +54,6 @@
         const data = await apiFn(url);
         const managers = data.managers || [];
         const assignments = data.assignments || [];
-        syncAssignmentSummary(assignments, managers);
         syncManagerSelects(managers);
         syncEmployeeSelect(assignments);
         if (loading) loading.classList.add('hidden');
@@ -127,7 +106,6 @@
 
     if (panel.dataset.maBound !== '1') {
       panel.dataset.maBound = '1';
-      el('maLoadAssignmentsBtn')?.addEventListener('click', () => loadAssignments().catch(console.error));
       el('maAssignForm')?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const managerid = Number(el('maManagerSelect')?.value);

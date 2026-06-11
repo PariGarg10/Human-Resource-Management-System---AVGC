@@ -19,6 +19,7 @@ const socialTournamentsRoutes = require('./routes/socialTournaments');
 const leaveRoutes = require('./routes/leaves');
 const managerRoutes = require('./routes/manager');
 const usersRoutes = require('./routes/users');
+const orgChartRoutes = require('./routes/orgChart');
 const managersDirectoryRoutes = require('./routes/managersDirectory');
 const notificationsRoutes = require('./routes/notifications');
 const saturdayConfigRoutes = require('./routes/saturdayConfig');
@@ -71,7 +72,7 @@ app.use((req, res, next) => {
 // HTML pages — register BEFORE express.static so routes are never shadowed
 app.get('/', (_req, res) => sendPublicHtml(res, 'index.html'));
 app.get('/login', (_req, res) => sendPublicHtml(res, 'login.html'));
-app.get('/register', (_req, res) => sendPublicHtml(res, 'register.html'));
+app.get('/register', (_req, res) => res.redirect(301, '/login'));
 app.get('/forgot-password', (_req, res) => sendPublicHtml(res, 'forgot-password.html'));
 app.get('/reset-password', (_req, res) => sendPublicHtml(res, 'reset-password.html'));
 app.get('/pricing', (_req, res) => res.redirect(301, '/'));
@@ -140,6 +141,7 @@ app.use('/api/leaves', leaveRoutes);
 app.use('/leave', leaveRoutes);
 app.use('/api/manager', managerRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/org-chart', orgChartRoutes);
 app.use('/api/managers', managersDirectoryRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/saturday-config', saturdayConfigRoutes);
