@@ -1,0 +1,1 @@
+var e=2026,t=2100;function n(n){let r=Number(n);return Number.isFinite(r)?Math.min(t,Math.max(e,Math.floor(r))):Math.max(new Date().getFullYear(),e)}function r(){return Math.max(new Date().getFullYear(),e)}export{r as i,e as n,n as r,t};

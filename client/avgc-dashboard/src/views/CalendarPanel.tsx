@@ -4,6 +4,7 @@ import { api } from '@/lib/api';
 import { calendarDayAbbrev } from '@/lib/attendanceLabels';
 import { toast } from '@/lib/toast';
 import { formatTime } from '@/lib/datetime';
+import { CALENDAR_COLORS as C } from '@/lib/calendarColors';
 type HistoryRecord = {
   date: string;
   status?: string;
@@ -154,25 +155,20 @@ export function CalendarPanel() {
     if (c.kind === 'holiday_optional') {
       return 'attendance-calendar-day border-l-[3px] border-l-[#697279] bg-[rgba(235,235,236,0.9)]';
     }
-    if (c.kind === 'present') {
-      return 'attendance-calendar-day border-l-[3px] border-l-[#697279] bg-[rgba(105,114,121,0.14)]';
-    }
-    if (c.kind === 'halfday') {
-      return 'attendance-calendar-day border-l-[3px] border-l-[#697279] bg-[rgba(235,235,236,0.95)]';
-    }
-    if (c.kind === 'leave') {
-      return 'attendance-calendar-day border-l-[3px] border-l-[#ed1d24] bg-[rgba(237,29,36,0.1)]';
-    }
-    return 'attendance-calendar-day border-l-[3px] border-l-[#ed1d24] bg-[rgba(237,29,36,0.12)]';
+    if (c.kind === 'present') return 'attendance-calendar-day cal-day-present';
+    if (c.kind === 'halfday') return 'attendance-calendar-day cal-day-halfday';
+    if (c.kind === 'leave') return 'attendance-calendar-day cal-day-leave';
+    return 'attendance-calendar-day cal-day-absent';
   }
 
   function dotColor(c: Cell) {
     if (c.kind === 'holiday_national' || c.kind === 'holiday_festival' || c.kind === 'holiday_optional') {
       return '#697279';
     }
-    if (c.kind === 'present') return '#697279';
-    if (c.kind === 'halfday') return '#ebebec';
-    if (c.kind === 'leave' || c.kind === 'absent') return '#ed1d24';
+    if (c.kind === 'present') return C.present;
+    if (c.kind === 'halfday') return C.halfday;
+    if (c.kind === 'leave') return C.leave;
+    if (c.kind === 'absent') return C.absent;
     return 'transparent';
   }
 
@@ -237,19 +233,19 @@ export function CalendarPanel() {
         </div>
         <div className="attendance-calendar-legend attendance-calendar-legend--toolbar">
           <span>
-            <span className="legend-dot" style={{ background: '#697279' }} /> Present
+            <span className="legend-dot" style={{ background: C.present }} /> Present
           </span>
           <span>
-            <span className="legend-dot" style={{ background: '#ed1d24' }} /> Absent
+            <span className="legend-dot" style={{ background: C.absent }} /> Absent
           </span>
           <span>
-            <span className="legend-dot" style={{ background: '#ebebec', boxShadow: 'inset 0 0 0 1px #697279' }} /> Half Day
+            <span className="legend-dot" style={{ background: C.halfday, boxShadow: `inset 0 0 0 1px ${C.halfdayBorder}` }} /> Half Day
           </span>
           <span>
             <span className="legend-dot" style={{ background: '#697279', opacity: 0.45 }} /> Holiday
           </span>
           <span>
-            <span className="legend-dot" style={{ background: '#ed1d24' }} /> Leave
+            <span className="legend-dot" style={{ background: C.leave }} /> Leave
           </span>
         </div>
       </div>

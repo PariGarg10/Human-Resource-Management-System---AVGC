@@ -1,0 +1,1 @@
+import{t as e}from"./vendor-react.js";var t=e();function n({title:e}){return(0,t.jsxs)(`div`,{className:`panel`,children:[(0,t.jsx)(`h2`,{className:`panel-title`,children:e}),(0,t.jsx)(`p`,{className:`stat-sub`,style:{marginTop:8},children:`Manager-specific module — configuration coming soon.`})]})}export{n as PlaceholderPanel};

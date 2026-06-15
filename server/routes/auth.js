@@ -3,7 +3,7 @@ const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
-const { authMiddleware } = require('../middleware/auth');
+const { authMiddleware, invalidateAuthUserCache } = require('../middleware/auth');
 const { logAudit } = require('../utils/audit');
 const { loadAdminPermissions, ALL_MODULES } = require('../utils/adminPermissions');
 const { generateEmployeeCode } = require('../utils/employeeCode');
@@ -204,6 +204,8 @@ async function issueEmployeeLogin(res, employee, allowedRole) {
     role,
     employeecode: employee.employeecode,
     force_password_change: forcePasswordChange,
+    isFirstLogin: employee.is_first_login === true,
+    onboardingCompleted: employee.onboarding_completed === true,
   };
 
   return issueAuthResponse(res, payload, safeEmployee, forcePasswordChange);
@@ -214,7 +216,8 @@ async function handleEmployeeCredentialLogin(res, loginId, password, allowedRole
     `
       SELECT id, employeecode, name, email, passwordhash, role, department, designation, reporting_to_id,
              mustchangepassword, force_password_change, temp_password_hash,
-             temp_password_expiry, failed_login_attempts, account_locked_until
+             temp_password_expiry, failed_login_attempts, account_locked_until,
+             isregistered, is_active, is_first_login, onboarding_completed
       FROM employees
       WHERE lower(trim(email)) = lower($1)
          OR upper(trim(employeecode)) = upper($1)
@@ -254,6 +257,26 @@ async function handleEmployeeCredentialLogin(res, loginId, password, allowedRole
       return res.status(401).json({ message: 'Temporary password expired. Please request a new one.' });
     }
     employee.force_password_change = true;
+  }
+
+  if (employee.isregistered === false || employee.is_active === false) {
+    return res.status(403).json({ message: 'Your account is inactive. Please contact HR.' });
+  }
+
+  const exitBlock = await pool.query(
+    `
+      SELECT last_working_day FROM exit_requests
+      WHERE employee_id = $1 AND status = 'completed'
+      ORDER BY id DESC LIMIT 1
+    `,
+    [employee.id]
+  );
+  const lwd = exitBlock.rows[0]?.last_working_day;
+  if (lwd) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (String(lwd).slice(0, 10) < today) {
+      return res.status(403).json({ message: 'Your access has ended. Please contact HR if you need assistance.' });
+    }
   }
 
   return issueEmployeeLogin(res, employee, allowedRole);
@@ -528,6 +551,7 @@ router.post('/change-password', authMiddleware, async (req, res) => {
     }
 
     await logAudit(req.user.id, 'PASSWORD_CHANGED', 'auth', null);
+    invalidateAuthUserCache(req.user.id, req.user.adminId);
 
     const refreshedRes = await pool.query(
       `

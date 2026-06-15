@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { PortalUserIdentity } from '@/components/PortalUserIdentity';
 import { usePortalShell } from '@/hooks/usePortalShell';
 import { useUser } from '@/context/UserContext';
 import { EMPLOYEE_NAV_SECTIONS, type NavSection, type PortalNavId } from '@/lib/portalNav';
@@ -21,7 +22,6 @@ export function PortalAppShell({
   children,
   portalLabel = 'Employee',
   rolePill = 'Employee',
-  sidebarRoleClass = 'employee',
   navSections = EMPLOYEE_NAV_SECTIONS,
   onNavigate,
 }: Props) {
@@ -31,8 +31,6 @@ export function PortalAppShell({
   const displayName = user?.name || user?.email || 'Employee';
   const initial = (displayName.trim()[0] || 'E').toUpperCase();
   const photo = avatarOverride || user?.profilePhotoUrl || null;
-  const designation = user?.designation?.trim() || '';
-  const isSuccessManager = designation.toLowerCase().includes('success manager');
 
   useEffect(() => {
     const lucide = (window as unknown as { lucide?: { createIcons?: () => void } }).lucide;
@@ -69,18 +67,10 @@ export function PortalAppShell({
             </div>
           )}
           <div className="sidebar-user-meta">
-            <div className="sidebar-user-name" id="sidebarUserName">
+            <PortalUserIdentity user={user} variant="sidebar" />
+            <div className="sidebar-user-name" id="sidebarUserName" hidden>
               {displayName}
             </div>
-            {isSuccessManager ? (
-              <span className="badge role-pill--success-manager" style={{ fontSize: 11 }}>
-                Success Manager
-              </span>
-            ) : (
-              <span className={`badge ${sidebarRoleClass}`} style={{ fontSize: 11 }}>
-                {rolePill}
-              </span>
-            )}
           </div>
         </div>
         <nav className="sidebar-nav">

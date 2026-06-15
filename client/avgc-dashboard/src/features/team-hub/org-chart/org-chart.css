@@ -1,3 +1,12 @@
+#teamHubOrgTreeRoot,
+#teamHubOrgTreeRoot .org-chart-shell,
+.org-teams-viewport .org-chart-shell,
+.portal-view-root--teams .org-chart-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
 /* Teams page: no page scroll — chart fills viewport */
 .org-teams-viewport {
   flex: 1 1 auto;
@@ -8,13 +17,20 @@
   overflow: hidden;
 }
 
-.app-main:has(.org-teams-viewport) {
+.app-main:has(.view-section.org-teams-viewport.is-active),
+.app-main:has(.org-teams-viewport.is-active) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-height: 100dvh;
   overflow: hidden;
 }
 
-.app-main:has(.org-teams-viewport) .content-area,
+.app-main:has(.view-section.org-teams-viewport.is-active) .content-area,
+.app-main:has(.org-teams-viewport.is-active) .content-area,
 .content-area:has(.org-teams-viewport),
-.content-area:has(.org-chart-shell) {
+.content-area:has(.org-chart-shell),
+.content-area:has(.portal-view-root--teams) {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -24,12 +40,26 @@
   width: 100%;
 }
 
-.view-section.org-teams-viewport {
+.view-section.org-teams-viewport.is-active {
   flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+}
+
+.view-section.org-teams-viewport.is-active #teamHubOrgTreeRoot {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+#teamHubOrgTreeRoot.org-teams-viewport,
+.portal-view-root--teams > .org-teams-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
 }
 
 .org-chart-shell {
@@ -67,9 +97,43 @@
   overflow: hidden;
 }
 
+[data-theme='dark'] .org-chart-shell {
+  --oc-bg: var(--bg-primary, #000000);
+  --oc-text: var(--text-primary, #ffffff);
+  --oc-muted: var(--text-muted, #b4bcc4);
+  --oc-grey1: #a8b0b8;
+  --oc-grey2: #2a2a2a;
+  --oc-connector: #8e98a2;
+  --oc-photo-bg: #2a2a2a;
+  --oc-online: #b8c4ce;
+  --oc-glass: rgba(26, 26, 26, 0.94);
+  --oc-pill: rgba(255, 255, 255, 0.1);
+  --oc-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
 .org-chart-shell.has-panel {
   flex-direction: row;
   position: relative;
+  align-items: stretch;
+}
+
+.org-chart-shell.has-panel.is-panel-open .org-panel-stage {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  height: auto;
+  min-height: 100%;
+  flex: none;
+  width: var(--oc-side-panel-width);
+  z-index: 20;
+}
+
+.org-chart-shell.has-panel.is-panel-open .org-panel-stage .org-detail-split,
+.org-chart-shell.has-panel.is-panel-open .org-panel-stage .org-identity-panel,
+.org-chart-shell.has-panel.is-panel-open .org-panel-stage .org-info-panel {
+  height: 100%;
+  min-height: 100%;
 }
 
 .org-chart-backdrop {
@@ -115,6 +179,21 @@
 .org-chart-shell.has-panel .org-panel-stage {
   flex: 0 0 var(--oc-side-panel-width);
   width: var(--oc-side-panel-width);
+  align-self: stretch;
+  height: 100%;
+  min-height: 100%;
+}
+
+.org-panel-stage .org-detail-split {
+  height: 100%;
+  min-height: 100%;
+  align-items: stretch;
+}
+
+.org-panel-stage .org-identity-panel,
+.org-panel-stage .org-info-panel {
+  min-height: 100%;
+  height: 100%;
 }
 
 /* Tablet: right drawer overlay — tree stays full width */
@@ -535,7 +614,7 @@
 
 .org-node__name {
   margin: 0;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1.25;
   color: var(--oc-text);
@@ -546,7 +625,7 @@
 
 .org-node__designation {
   margin: 0;
-  font-size: 11px;
+  font-size: 13px;
   line-height: 1.3;
   color: var(--oc-muted);
   overflow: hidden;
@@ -671,7 +750,7 @@
 .org-identity-panel__photo {
   width: 100%;
   flex: 1 1 auto;
-  min-height: 380px;
+  min-height: 0;
   overflow: hidden;
   background: #ebebec;
   display: flex;

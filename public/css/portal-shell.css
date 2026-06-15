@@ -216,10 +216,15 @@
   }
 
   .data-table--people td.table-cell-actions {
-    justify-content: flex-end;
+    justify-content: flex-start;
     padding-top: 10px;
     border-top: 1px solid var(--border);
     margin-top: 4px;
+  }
+
+  .data-table--people td.table-cell-actions .table-actions-wrap {
+    width: 100%;
+    justify-content: flex-start;
   }
 
   .data-table--people td.table-cell-actions::before {

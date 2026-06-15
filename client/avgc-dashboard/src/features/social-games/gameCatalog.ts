@@ -13,7 +13,7 @@ export type GameDef = {
 export const GAME_CATALOG: GameDef[] = [
   {
     id: 'minesweeper',
-    emoji: '💣',
+    emoji: '🧩',
     title: 'Minesweeper',
     tagline: 'Perfect 5-min break',
     gradient: 'from-slate-500 to-stone-700',
@@ -22,7 +22,7 @@ export const GAME_CATALOG: GameDef[] = [
   },
   {
     id: 'hangman',
-    emoji: '💀',
+    emoji: '🔤',
     title: 'Hangman',
     tagline: 'Word guesses, easy rounds',
     gradient: 'from-zinc-500 to-neutral-700',
@@ -31,7 +31,7 @@ export const GAME_CATALOG: GameDef[] = [
   },
   {
     id: 'whack',
-    emoji: '🎯',
+    emoji: '🔨',
     title: 'Whack-a-Mole',
     tagline: 'Stress relief after meetings',
     gradient: 'from-yellow-400 to-amber-600',

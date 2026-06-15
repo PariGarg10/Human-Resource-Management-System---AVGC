@@ -198,9 +198,11 @@ export function LiveActivitiesPanel({ portalRole, mode }: Props) {
             placeholder="Why should this AVGCian be nominated?"
           />
         </label>
-        <button type="submit" className="btn btn-primary">
-          Submit nomination
-        </button>
+        <div className="form-actions">
+          <button type="submit" className="btn btn-primary">
+            Submit nomination
+          </button>
+        </div>
       </form>
     </div>
   );

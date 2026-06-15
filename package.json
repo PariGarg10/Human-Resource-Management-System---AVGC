@@ -14,7 +14,8 @@
     "essl:test": "node server/scripts/essl-test.js",
     "essl:sync": "node server/scripts/essl-sync-once.js",
     "postinstall": "node server/scripts/patch-zklib.js",
-    "build:dashboard": "cd client/avgc-dashboard && npm install --include=dev && npm run build"
+    "build:dashboard": "cd client/avgc-dashboard && npm run build && cd ../.. && node scripts/bundle-portal-css.mjs",
+    "install:dashboard": "cd client/avgc-dashboard && npm install --include=dev"
   },
   "keywords": [
     "hrms",
@@ -25,15 +26,20 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
     "bcrypt": "^6.0.0",
+    "compression": "^1.8.1",
     "cors": "^2.8.6",
     "date-fns": "^4.1.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "mammoth": "^1.12.0",
     "multer": "^2.1.1",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.8",
+    "pdf-parse": "^2.4.5",
+    "pdfkit": "^0.19.1",
     "pg": "^8.20.0",
     "pg-pool": "^3.10.0",
     "xlsx": "^0.18.5",

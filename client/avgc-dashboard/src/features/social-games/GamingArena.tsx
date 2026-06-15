@@ -160,16 +160,20 @@ export function GamingArena({ isAdminUser = false, feedSlot }: GamingArenaProps)
               tab === t ? 'bg-violet-600 text-white shadow-lg' : 'bg-white text-stone-600 ring-1 ring-stone-200 hover:bg-violet-50'
             }`}
           >
-            {t === 'arcade' ? '🎮 Arcade' : '📸 Feed'}
+            {t === 'arcade' ? '🕹️ Arcade' : '📰 Feed'}
           </button>
         ))}
         {isAdminUser && (
           <button
             type="button"
             onClick={() => setShowAdmin((v) => !v)}
-            className={`ml-auto rounded-full px-4 py-2 text-sm font-bold ${showAdmin ? 'bg-red-600 text-white' : 'bg-stone-900 text-white hover:bg-stone-700'}`}
+            className={`ml-auto rounded-full px-4 py-2 text-sm font-bold ${
+              showAdmin
+                ? 'bg-red-600 text-white'
+                : 'bg-white text-black ring-1 ring-stone-300 hover:bg-stone-50'
+            }`}
           >
-            ⚙️ Tournaments
+            🏆 Tournaments
           </button>
         )}
       </div>

@@ -1,5 +1,9 @@
 # Node modules
 node_modules/
+client/avgc-dashboard/node_modules/
+
+# Build artifacts
+client/avgc-dashboard/node_modules/.tmp/
 
 # Environment files
 .env

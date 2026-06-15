@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, enforceForcePasswordChange, requireRoles } = require('../middleware/auth');
+const { authMiddleware, enforceForcePasswordChange, requireRoles, isFounderUser } = require('../middleware/auth');
 const { ROLES, isAdminRole, isManagerRole, normalizeRole } = require('../constants/roles');
 const { formatDisplayDate } = require('../utils/formatDate');
 
@@ -60,7 +60,14 @@ function canViewAssetInventory(user) {
   if (!user) return false;
   if (user.adminId) return true;
   const role = normalizeRole(user.role);
-  return isAdminRole(role) || isManagerRole(role);
+  return isAdminRole(role) || isManagerRole(role) || isFounderUser(user);
+}
+
+function canManageAssets(user) {
+  if (!user) return false;
+  if (user.adminId) return true;
+  const role = normalizeRole(user.role);
+  return isAdminRole(role) || isFounderUser(user);
 }
 
 /** GET inventory — admin & manager read; employee forbidden */
@@ -294,9 +301,12 @@ router.patch('/allocations/:id/revoke', requireRoles(ROLES.ADMIN, ROLES.FOUNDER,
   }
 });
 
-/** Employee list for allocate dropdown — admin */
-router.get('/employees-options', requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT_HEAD), async (_req, res) => {
+/** Employee list for allocate dropdown — admin / founder */
+router.get('/employees-options', async (req, res) => {
   try {
+    if (!canManageAssets(req.user)) {
+      return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
+    }
     const result = await pool.query(
       `SELECT id, name, employeecode, department FROM employees WHERE isregistered = TRUE ORDER BY name ASC`
     );

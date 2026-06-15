@@ -41,6 +41,7 @@ body:has(#root .app-main) {
 }
 
 /* Fit viewports — no scroll in the main content column */
+.content-area:has(.dashboard-home-viewport),
 .content-area:has(> .holiday-calendar-viewport),
 .content-area:has(> .dashboard-home-viewport),
 .content-area:has(> .dashboard-react-viewport),
@@ -50,6 +51,7 @@ body:has(#root .app-main) {
 .content-area:has(> .panel.attendance-calendar-panel),
 .content-area:has(> .view-section.holiday-calendar-viewport.is-active),
 .content-area:has(> .view-section.org-teams-viewport.is-active),
+.content-area:has(> .view-section.attendance-calendar-viewport.is-active),
 .content-area:has(> .view-section.dashboard-react-viewport.is-active),
 .content-area:has(> .view-section.admin-people-viewport.is-active),
 .content-area:has(> .view-section.employee-documents-viewport.is-active),
@@ -63,7 +65,7 @@ body:has(#root .app-main) {
 }
 
 /* Scrollable admin / portal sections */
-.view-section.is-active:not(.org-teams-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport):not(.employee-documents-viewport):not(.manager-assignment-viewport):not(.asset-management-viewport):not(.import-attendance-viewport):not(.reports-viewport):not(.social-portal-viewport):not(.live-activity-viewport):not(.profile-viewport) {
+.view-section.is-active:not(.org-teams-viewport):not(.attendance-calendar-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport):not(.employee-documents-viewport):not(.manager-assignment-viewport):not(.asset-management-viewport):not(.import-attendance-viewport):not(.reports-viewport):not(.social-portal-viewport):not(.live-activity-viewport):not(.profile-viewport) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -72,6 +74,7 @@ body:has(#root .app-main) {
 
 .view-section.holiday-calendar-viewport.is-active,
 .view-section.org-teams-viewport.is-active,
+.view-section.attendance-calendar-viewport.is-active,
 .view-section.dashboard-react-viewport.is-active,
 .view-section.admin-people-viewport.is-active,
 .view-section.employee-documents-viewport.is-active,
@@ -159,9 +162,7 @@ body:has(#root .app-main) {
 }
 
 .manager-assignment-layout,
-.asset-management-layout,
-.import-attendance-layout,
-.live-activity-layout {
+.import-attendance-layout {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -170,21 +171,136 @@ body:has(#root .app-main) {
   overflow: hidden;
 }
 
+.live-activity-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+.asset-management-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+}
+
+.reports-analytics-layout {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 12px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.panel--reports-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.monthly-attendance-preview {
+  max-height: min(52vh, 520px);
+  overflow: auto;
+}
+
 .panel--ma-quick,
 .panel--ma-bulk,
 .panel--asset-form,
 .panel--asset-allocate,
-.panel--import-form,
-.panel--live-links,
-.panel--announcements {
+.panel--import-form {
   flex-shrink: 0;
 }
 
+.panel--live-links,
+.panel--announcements {
+  flex-shrink: 0;
+  margin-bottom: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.live-link-form {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 4px;
+}
+
+.live-link-form .form-group--action .btn,
+.announcement-form-actions .btn {
+  width: auto;
+}
+
+.panel--live-links .live-admin-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  max-height: min(40vh, 380px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.panel--announcements {
+  padding-bottom: clamp(20px, 3vh, 28px);
+}
+
+.announcement-form {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.announcement-textarea {
+  width: 100%;
+  min-height: 96px;
+  max-height: min(28vh, 200px);
+  resize: vertical;
+}
+
+.announcement-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-bottom: 4px;
+}
+
+.app-main:has(.live-activity-viewport.is-active) .content-area {
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 16px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .panel--ma-mapping,
-.panel--asset-inventory,
-.panel--asset-allocations,
 .panel--import-history {
   flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel--asset-inventory,
+.panel--asset-allocations {
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -194,10 +310,41 @@ body:has(#root .app-main) {
 .panel--ma-mapping .table-wrap--scroll,
 .panel--asset-inventory .table-wrap--scroll,
 .panel--asset-allocations .table-wrap--scroll,
+.panel--asset-inventory .asset-table-scroll,
+.panel--asset-allocations .asset-table-scroll,
 .panel--import-history .table-wrap--scroll {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.app-main:has(.asset-management-viewport.is-active) .content-area {
+  padding-top: 16px;
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 16px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.panel--asset-form,
+.panel--asset-allocate,
+.panel--asset-inventory,
+.panel--asset-allocations {
+  margin-bottom: 0;
+}
+
+.app-main:has(.employee-documents-viewport.is-active) .content-area {
+  padding-top: 16px;
+  padding-bottom: 16px;
+  overflow: hidden;
+}
+
+.panel--employee-docs-list,
+.panel--employee-docs-detail {
+  margin-bottom: 0;
 }
 
 .social-portal-root {

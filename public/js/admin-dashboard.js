@@ -15,7 +15,7 @@ if (user.role !== 'admin' && !isFounderProfile(user)) {
   window.location.href = '/login';
 }
 
-document.getElementById('sidebarUserName').textContent = user.name || 'Admin';
+HRMS.loadPortalUserIdentity(api).catch(() => HRMS.syncPortalUserIdentity(user, '—', '—'));
 document.getElementById('sidebarAvatar').textContent = (user.name || 'A').charAt(0).toUpperCase();
 document.getElementById('navProfileEmail').textContent = user.email || '';
 document.getElementById('dailyDate').value = new Date().toISOString().slice(0, 10);
@@ -595,6 +595,9 @@ async function loadEmployees() {
     ? employees
         .map((emp) => {
           const isSelf = Number(emp.id) === Number(user.id);
+          const exitBtn = isSelf
+            ? ''
+            : `<button type="button" class="btn btn-outline btn-sm" data-initiate-exit="${emp.id}" data-exit-name="${escapeHtml(emp.name)}">Initiate Exit</button>`;
           const removeBtn = isSelf
             ? '<span class="stat-sub">—</span>'
             : `<button type="button" class="btn btn-outline btn-sm" data-remove-employee="${emp.id}">Remove</button>`;
@@ -610,13 +613,19 @@ async function loadEmployees() {
               <input data-designation-emp="${emp.id}" value="${escapeHtml(emp.designation || '')}" placeholder="e.g. Team Lead" />
               <button type="button" class="btn btn-outline btn-sm" data-designation-save-emp="${emp.id}">Save</button>
             </div>`;
+          const actionsCell = `<td class="table-cell-actions" data-label="Actions">
+              <div class="table-actions-wrap">
+                ${exitBtn}
+                ${removeBtn}
+              </div>
+            </td>`;
           return `<tr>
             <td data-label="Code">${escapeHtml(emp.employeecode)}</td>
             <td data-label="Name">${escapeHtml(emp.name)}</td>
             <td data-label="Email" class="col-hide-mobile">${escapeHtml(emp.email)}</td>
             <td data-label="Designation">${designationCell}</td>
             <td data-label="Portal role">${roleCell}</td>
-            <td class="table-cell-actions" data-label="Actions">${removeBtn}</td>
+            ${actionsCell}
           </tr>`;
         })
         .join('')
@@ -655,6 +664,15 @@ async function loadEmployees() {
         await loadRoleManagement();
       } catch (e) {
         HRMS.toast(e.message || 'Could not update role', 'error');
+      }
+    });
+  });
+  body.querySelectorAll('[data-initiate-exit]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-initiate-exit');
+      const name = btn.getAttribute('data-exit-name');
+      if (id && window.HRMS?.openExitInitiateModal) {
+        window.HRMS.openExitInitiateModal(Number(id), name);
       }
     });
   });
@@ -821,6 +839,165 @@ document.getElementById('exportSelectedReportPdfBtn')?.addEventListener('click',
   const selected = selectedReportRows();
   if (!selected) return HRMS.toast('Generate reports first', 'error');
   exportReportToPdf(selected.def, selected.rows, `${currentReports.range.from}-to-${currentReports.range.to}`);
+});
+
+let monthlyAttendanceSelectedFile = null;
+
+function updateMonthlyAttendanceFilePreview(file) {
+  monthlyAttendanceSelectedFile = file || null;
+  const preview = document.getElementById('monthlyAttendanceFilePreview');
+  const btn = document.getElementById('generateMonthlyAttendanceBtn');
+  const msg = document.getElementById('monthlyAttendanceMessage');
+  const tableWrap = document.getElementById('monthlyAttendancePreview');
+  if (msg) msg.textContent = '';
+  if (tableWrap) {
+    tableWrap.classList.add('hidden');
+    tableWrap.innerHTML = '';
+  }
+  if (!preview || !btn) return;
+  if (!file) {
+    preview.classList.add('hidden');
+    preview.textContent = '';
+    btn.disabled = true;
+    return;
+  }
+  preview.classList.remove('hidden');
+  preview.textContent = `${file.name} (${Math.round(file.size / 1024)} KB)`;
+  btn.disabled = false;
+}
+
+function buildMonthlyAttendanceFormData(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  const lateAfter = document.getElementById('monthlyLateAfter')?.value;
+  const earlyBefore = document.getElementById('monthlyEarlyBefore')?.value;
+  if (lateAfter) formData.append('lateAfter', lateAfter);
+  if (earlyBefore) formData.append('earlyBefore', earlyBefore);
+  return formData;
+}
+
+function renderMonthlyAttendancePreview(summary, meta) {
+  const wrap = document.getElementById('monthlyAttendancePreview');
+  if (!wrap) return;
+  if (!summary?.length) {
+    wrap.classList.add('hidden');
+    wrap.innerHTML = '';
+    return;
+  }
+  const note = meta?.period
+    ? `<p class="stat-sub" style="margin:0 0 8px;">${escapeHtml(meta.period)} · ${meta.daysParsed || 0} day(s) · ${summary.length} employee(s)</p>`
+    : `<p class="stat-sub" style="margin:0 0 8px;">${meta?.daysParsed || 0} day(s) · ${summary.length} employee(s)</p>`;
+  wrap.innerHTML = `${note}
+    <table class="data-table">
+      <thead><tr>
+        <th>Emp Code</th><th>Name</th><th>Present</th><th>Absent</th><th>Leave</th><th>Late</th><th>Early (&lt; 6:30)</th>
+      </tr></thead>
+      <tbody>
+        ${summary
+          .map(
+            (row) => `<tr>
+              <td>${escapeHtml(row.employeecode || '—')}</td>
+              <td>${escapeHtml(row.name || '—')}</td>
+              <td>${row.present}</td>
+              <td>${row.absent}</td>
+              <td>${row.leave}</td>
+              <td>${row.late}</td>
+              <td>${row.earlyLeave}</td>
+            </tr>`
+          )
+          .join('')}
+      </tbody>
+    </table>`;
+  wrap.classList.remove('hidden');
+}
+
+function downloadBase64Excel(base64, filename) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  const blob = new Blob([bytes], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename || `monthly-attendance-summary-${Date.now()}.xlsx`;
+  document.body.appendChild(a);
+  a.click();
+  URL.revokeObjectURL(a.href);
+  a.remove();
+}
+
+async function uploadMonthlyAttendanceAnalytics() {
+  if (!monthlyAttendanceSelectedFile) {
+    throw new Error('Choose a monthly attendance file first');
+  }
+  const formData = buildMonthlyAttendanceFormData(monthlyAttendanceSelectedFile);
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let response;
+  try {
+    response = await fetch('/api/admin/analytics/monthly-attendance-summary', {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+  } catch {
+    throw new Error('Cannot reach the server. Restart with npm run dev and try again.');
+  }
+
+  if (response.status === 401) {
+    logout();
+    throw new Error('Unauthorized — please sign in again');
+  }
+
+  const raw = await response.text();
+  let data = {};
+  try {
+    data = raw ? JSON.parse(raw) : {};
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok) {
+    const message =
+      data.message ||
+      (raw && !raw.startsWith('{') ? raw.slice(0, 240) : '') ||
+      `Request failed (${response.status})`;
+    if (data.requiresPasswordChange) show('passwordChangeSection');
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+document.getElementById('generateMonthlyAttendanceBtn')?.addEventListener('click', async () => {
+  const btn = document.getElementById('generateMonthlyAttendanceBtn');
+  const msg = document.getElementById('monthlyAttendanceMessage');
+  if (!monthlyAttendanceSelectedFile) {
+    HRMS.toast('Choose a monthly attendance file first', 'error');
+    return;
+  }
+  if (btn) btn.disabled = true;
+  if (msg) msg.textContent = 'Processing monthly attendance…';
+  try {
+    const result = await uploadMonthlyAttendanceAnalytics();
+    renderMonthlyAttendancePreview(result.summary || [], result.meta || {});
+    if (result.excelBase64) {
+      downloadBase64Excel(result.excelBase64, result.filename);
+    }
+    const employees = result.summary?.length || 0;
+    const days = result.meta?.daysParsed || 0;
+    if (msg) {
+      msg.textContent = `Excel downloaded — ${employees} employee(s), ${days} working day(s) in file.`;
+    }
+    HRMS.toast('Monthly attendance summary downloaded', 'success');
+  } catch (error) {
+    if (msg) msg.textContent = error.message || 'Could not process file';
+    HRMS.toast(error.message || 'Could not process file', 'error');
+  } finally {
+    if (btn) btn.disabled = !monthlyAttendanceSelectedFile;
+  }
 });
 
 document.getElementById('newManagerForm')?.addEventListener('submit', async (e) => {
@@ -1546,6 +1723,7 @@ function setupDropzone(zoneId, inputId, onFileSelected) {
 }
 setupDropzone('employeeDropzone', 'employeeImportFile');
 setupDropzone('attendanceDropzone', 'attendanceFile', updateAttendanceFilePreview);
+setupDropzone('monthlyAttendanceDropzone', 'monthlyAttendanceFile', updateMonthlyAttendanceFilePreview);
 
 async function loadAdminProfileFromServer() {
   try {
@@ -1556,17 +1734,17 @@ async function loadAdminProfileFromServer() {
       name: profile.name,
       email: profile.email,
       department: profile.department,
+      designation: profile.designation,
       employeecode: profile.employeecode,
       profilePhotoUrl: profile.profilePhotoUrl,
       avatar_url: profile.profilePhotoUrl || prev.avatar_url,
     };
     localStorage.setItem('employee', JSON.stringify(merged));
+    await HRMS.loadPortalUserIdentity(api);
     const chip = document.querySelector('.profile-chip');
     if (chip) chip.setAttribute('title', profile.email || '');
     const navLabel = document.getElementById('navProfileEmail');
     if (navLabel) navLabel.textContent = profile.name || profile.email || '—';
-    const sidebarUserName = document.getElementById('sidebarUserName');
-    if (sidebarUserName) sidebarUserName.textContent = profile.name || 'Admin';
     if (profile.profilePhotoUrl) {
       HRMS.updateAvatarEverywhere(profile.profilePhotoUrl, profile.name);
     } else {
@@ -2332,8 +2510,12 @@ function mountTeamHubWhenReady(section) {
     teams: () => window.HRMS?.mountTeamHubOrgTree?.('#teamHubOrgTreeRoot'),
     'holiday-calendar': () => window.HRMS?.mountHolidayCalendar?.('#adminPublicHolidayRoot'),
     calendar: () => window.HRMS?.mountAttendanceCalendar?.('#adminCalendarRoot'),
+    'leave-apply': () => window.HRMS?.mountLeaveApply?.('#adminLeaveApplyRoot'),
     'company-social': () => window.HRMS?.mountSocialPortal?.('#adminSocialPortalRoot'),
     profile: () => window.HRMS?.mountAdminProfile?.('#adminProfileReactRoot'),
+    'exit-clearances': () => window.HRMS?.mountAdminExitClearances?.('#adminExitClearancesRoot'),
+    onboarding: () => window.HRMS?.mountAdminOnboarding?.('#adminOnboardingRoot'),
+    performance: () => window.HRMS?.mountAdminPerformance?.('#adminPerformanceRoot'),
   };
   const mountFn = mounts[section];
   if (!mountFn) return;
@@ -2343,8 +2525,12 @@ function mountTeamHubWhenReady(section) {
       (section === 'teams' && window.HRMS?.mountTeamHubOrgTree) ||
       (section === 'holiday-calendar' && window.HRMS?.mountHolidayCalendar) ||
       (section === 'calendar' && window.HRMS?.mountAttendanceCalendar) ||
+      (section === 'leave-apply' && window.HRMS?.mountLeaveApply) ||
       (section === 'company-social' && window.HRMS?.mountSocialPortal) ||
-      (section === 'profile' && window.HRMS?.mountAdminProfile);
+      (section === 'profile' && window.HRMS?.mountAdminProfile) ||
+      (section === 'exit-clearances' && window.HRMS?.mountAdminExitClearances) ||
+      (section === 'onboarding' && window.HRMS?.mountAdminOnboarding) ||
+      (section === 'performance' && window.HRMS?.mountAdminPerformance);
     if (ready) {
       mountFn();
       return;
@@ -2404,6 +2590,10 @@ HRMS.initSidebar({
     if (section === 'system') {
       initSaturdayAdminPanel();
       initHolidayAdminPanel();
+      if (window.HRMS.initPolicyChatAdmin) window.HRMS.initPolicyChatAdmin(api);
+    }
+    if (section === 'employees' && window.HRMS.initExitAdmin) {
+      window.HRMS.initExitAdmin(api);
     }
     if (section === 'roles') {
       loadRoleManagement().catch((e) => HRMS.toast(e.message, 'error'));
@@ -2516,6 +2706,7 @@ function scheduleDataLoads() {
     tasks.push(loadAdminLeaves(), loadLeaveEntitlements());
   }
   loadAdminProfileFromServer().catch(() => {});
+  if (window.HRMS.initExitAdmin) window.HRMS.initExitAdmin(api);
   Promise.all(tasks).catch(console.error);
 }
 

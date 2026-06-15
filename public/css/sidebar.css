@@ -491,19 +491,22 @@ body.mobile-sidebar-open .sidebar-overlay {
 
 @media (max-width: 1024px) {
   .sidebar {
-    left: 0;
-    top: 0;
-    bottom: 0;
-    transform: translateX(-100%);
-    width: min(var(--sidebar-width), 88vw);
-    max-height: none;
-    border-radius: 0;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    transform: translateX(-100%) !important;
+    width: min(var(--sidebar-width), 88vw) !important;
+    max-width: 88vw !important;
+    max-height: none !important;
+    height: 100dvh !important;
+    border-radius: 0 !important;
     border-left: none;
-    background: var(--sidebar-bg);
-    backdrop-filter: none;
-    box-shadow: none;
+    background: var(--sidebar-bg) !important;
+    backdrop-filter: none !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18) !important;
     overflow: hidden;
-    z-index: 1001;
+    overflow-y: auto;
+    z-index: 1001 !important;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
@@ -606,5 +609,115 @@ body.mobile-sidebar-open .sidebar-overlay {
 
   body.sidebar-collapsed .sidebar {
     width: var(--sidebar-width);
+  }
+
+  /* Mobile drawer — never use desktop flyout / sticky :hover */
+  .sidebar-nav-section.is-hover-open:not(.is-expanded) .sidebar-accordion-body {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .sidebar-accordion-body {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    transform: none !important;
+    visibility: visible !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    border: none !important;
+    border-left: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    background: transparent !important;
+    padding: 4px 0 8px 8px !important;
+  }
+
+  .sidebar-nav-section.is-expanded .sidebar-accordion-body {
+    display: block !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .sidebar-accordion-head,
+  .sidebar-nav-section.is-hover-open .sidebar-accordion-head,
+  .sidebar-nav-section.is-pinned .sidebar-accordion-head,
+  .sidebar-nav-section:not(.is-expanded) .sidebar-accordion-head {
+    background: var(--bg-secondary) !important;
+    color: var(--sidebar-text) !important;
+    border-color: var(--sidebar-border) !important;
+    box-shadow: none !important;
+  }
+
+  .sidebar-accordion-head:hover,
+  .sidebar-nav-section:not(.is-expanded) .sidebar-accordion-head:hover {
+    background: var(--bg-secondary) !important;
+    color: var(--sidebar-text) !important;
+    transform: none;
+  }
+
+  .sidebar-nav-section.is-expanded .sidebar-accordion-head {
+    background: #ed1d24 !important;
+    color: #ffffff !important;
+    border-color: #ed1d24 !important;
+  }
+
+  .sidebar-nav-section:not(.is-expanded) .sidebar-accordion-head .nav-icon,
+  .sidebar-nav-section:not(.is-expanded) .sidebar-accordion-head .nav-label {
+    color: var(--sidebar-text) !important;
+    opacity: 1 !important;
+  }
+
+  .sidebar-nav-section:not(.is-expanded) .sidebar-accordion-head .nav-icon svg {
+    stroke: var(--sidebar-muted) !important;
+    color: var(--sidebar-muted) !important;
+  }
+
+  .sidebar-nav-section.is-expanded .sidebar-accordion-head .nav-icon,
+  .sidebar-nav-section.is-expanded .sidebar-accordion-head .nav-label,
+  .sidebar-nav-section.is-expanded .sidebar-accordion-head .nav-icon svg {
+    color: #ffffff !important;
+    stroke: #ffffff !important;
+    opacity: 1 !important;
+  }
+
+  .sidebar-nav button,
+  .sidebar-nav a {
+    color: var(--sidebar-text) !important;
+    opacity: 1 !important;
+  }
+
+  .sidebar-nav button span:not(.nav-icon) {
+    color: inherit !important;
+  }
+
+  .sidebar-nav .nav-icon svg {
+    stroke: currentColor !important;
+  }
+
+  .sidebar-toggle,
+  .sidebar-logout-btn {
+    width: 100%;
+    height: auto;
+    color: var(--sidebar-text) !important;
+    background: var(--bg-secondary) !important;
+    border-color: var(--sidebar-border) !important;
+  }
+
+  body:not(.mobile-sidebar-open) .sidebar {
+    transform: translateX(-100%) !important;
+    pointer-events: none;
+  }
+
+  body.mobile-sidebar-open .sidebar {
+    transform: translateX(0) !important;
+    pointer-events: auto;
+  }
+
+  body.mobile-sidebar-open .sidebar-overlay {
+    display: block;
+    z-index: 1000;
   }
 }

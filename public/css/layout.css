@@ -77,21 +77,82 @@ body.has-floating-sidebar.sidebar-collapsed .app-main {
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
+  height: 100%;
   overflow: hidden;
   flex-direction: column;
 }
 
-.app-main:has(.org-teams-viewport.is-active) {
+#teamHubOrgTreeRoot,
+#adminCalendarRoot,
+#managerCalendarRoot,
+.attendance-calendar-mount {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.view-section.attendance-calendar-viewport.is-active {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+.app-main:has(.org-teams-viewport.is-active),
+.app-main:has(.view-section.org-teams-viewport.is-active) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-height: 100dvh;
   overflow: hidden;
 }
 
-.app-main:has(.org-teams-viewport.is-active) .content-area {
+.app-main:has(.org-teams-viewport.is-active) .content-area,
+.app-main:has(.view-section.org-teams-viewport.is-active) .content-area,
+.app-main:has(.attendance-calendar-viewport.is-active) .content-area,
+.app-main:has(.view-section.attendance-calendar-viewport.is-active) .content-area {
   overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
   max-width: none;
 }
+
+.view-section.attendance-calendar-viewport .attendance-calendar-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+}
+
+#adminCalendarRoot .attendance-calendar-viewport,
+#managerCalendarRoot .attendance-calendar-viewport,
+.attendance-calendar-mount .attendance-calendar-viewport {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+.attendance-calendar-mount {
+  padding: 14px 18px;
+  box-sizing: border-box;
+}
+
+.attendance-calendar-mount .attendance-calendar-mount-inner,
+.attendance-calendar-mount .attendance-calendar-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0;
+  overflow: hidden;
+}
+
 
 .hidden {
   display: none !important;

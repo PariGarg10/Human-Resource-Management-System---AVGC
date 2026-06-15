@@ -17,7 +17,12 @@ export type PortalNavId =
   | 'leave-approval'
   | 'reports'
   | 'helpdesk'
-  | 'social-portal';
+  | 'social-portal'
+  | 'onboarding'
+  | 'exit'
+  | 'exit-clearances'
+  | 'performance'
+  | 'performance-team';
 
 export type PortalRole = 'employee' | 'manager';
 
@@ -71,7 +76,22 @@ const SHARED_ACCOUNT: NavItem[] = [
 const MANAGER_ONLY_CONTROLS: NavItem[] = [
   { id: 'team-attendance', label: 'Team attendance', icon: 'users-round' },
   { id: 'leave-approval', label: 'Leave approval', icon: 'clipboard-check' },
+  { id: 'exit-clearances', label: 'Exit clearances', icon: 'log-out' },
 ];
+
+const EMPLOYEE_PERFORMANCE: NavSection = {
+  key: 'performance',
+  label: 'Performance',
+  icon: 'target',
+  items: [{ id: 'performance', label: 'Performance', icon: 'target' }],
+};
+
+const MANAGER_PERFORMANCE: NavSection = {
+  key: 'performance',
+  label: 'Performance',
+  icon: 'target',
+  items: [{ id: 'performance', label: 'Performance', icon: 'target' }],
+};
 
 const SHARED_LIVE_ACTIVITIES: NavSection = {
   key: 'live-activities',
@@ -114,6 +134,7 @@ export const MANAGER_NAV_SECTIONS: NavSection[] = [
   },
   SHARED_ASSETS,
   SHARED_POLICIES,
+  MANAGER_PERFORMANCE,
   SHARED_LIVE_ACTIVITIES,
   SHARED_SOCIAL,
   {
@@ -145,13 +166,14 @@ export const EMPLOYEE_NAV_SECTIONS: NavSection[] = [
   },
   SHARED_ASSETS,
   SHARED_POLICIES,
+  EMPLOYEE_PERFORMANCE,
   SHARED_LIVE_ACTIVITIES,
   SHARED_SOCIAL,
   {
     key: 'account',
     label: 'Account',
     icon: 'circle-user',
-    items: SHARED_ACCOUNT,
+    items: [...SHARED_ACCOUNT, { id: 'exit', label: 'Exit / Resignation', icon: 'log-out' }],
   },
 ];
 
@@ -173,6 +195,11 @@ export const PORTAL_PAGE_TITLES: Record<PortalNavId, string> = {
   reports: 'Reports',
   helpdesk: 'Helpdesk',
   'social-portal': 'Company social',
+  onboarding: 'Onboarding',
+  exit: 'Exit portal',
+  'exit-clearances': 'Exit clearances',
+  performance: 'Performance',
+  'performance-team': 'Team performance',
 };
 
 export function detectPortalRole(pathname?: string): PortalRole {
@@ -182,4 +209,32 @@ export function detectPortalRole(pathname?: string): PortalRole {
 
 export function navSectionsForRole(role: PortalRole): NavSection[] {
   return role === 'manager' ? MANAGER_NAV_SECTIONS : EMPLOYEE_NAV_SECTIONS;
+}
+
+/** Nav items reachable while onboarding is incomplete (employee portal). */
+export const ONBOARDING_ALLOWED_NAV: PortalNavId[] = ['onboarding', 'profile', 'teams'];
+
+export const ONBOARDING_GATE_NAV_SECTIONS: NavSection[] = [
+  {
+    key: 'onboarding',
+    label: 'Onboarding',
+    icon: 'clipboard-list',
+    items: [{ id: 'onboarding', label: 'Onboarding', icon: 'clipboard-list' }],
+  },
+  {
+    key: 'teams',
+    label: 'Team',
+    icon: 'users',
+    items: [{ id: 'teams', label: 'Organization chart', icon: 'network' }],
+  },
+  {
+    key: 'account',
+    label: 'Account',
+    icon: 'circle-user',
+    items: [{ id: 'profile', label: 'Profile', icon: 'user-circle' }],
+  },
+];
+
+export function isOnboardingNavAllowed(nav: PortalNavId): boolean {
+  return ONBOARDING_ALLOWED_NAV.includes(nav);
 }

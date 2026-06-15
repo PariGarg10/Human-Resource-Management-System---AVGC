@@ -108,6 +108,15 @@ async function runSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS policy_chat_documents (
+      id SERIAL PRIMARY KEY,
+      filename VARCHAR(255) NOT NULL,
+      content TEXT NOT NULL,
+      uploaded_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+      uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
   await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS designation TEXT');
   await pool.query(
     'ALTER TABLE employees ADD COLUMN IF NOT EXISTS reporting_to_id INTEGER REFERENCES employees(id) ON DELETE SET NULL'

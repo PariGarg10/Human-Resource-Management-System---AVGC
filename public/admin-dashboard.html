@@ -14,7 +14,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Admin · AVGC</title>
-  <link rel="stylesheet" href="/css/app-bundle.css" />
+  <link rel="stylesheet" href="/css/app-bundle.built.css" />
 </head>
 <body>
   <div class="sidebar-overlay"></div>
@@ -26,8 +26,8 @@
     <div class="sidebar-profile">
       <div class="sidebar-avatar" id="sidebarAvatar">A</div>
       <div class="sidebar-user-meta">
-        <div class="sidebar-user-name" id="sidebarUserName">Admin</div>
-        <span class="badge admin" style="font-size:11px;">Admin</span>
+        <div id="sidebarUserIdentity" class="portal-user-identity portal-user-identity--sidebar"></div>
+        <div class="sidebar-user-name" id="sidebarUserName" hidden>Admin</div>
       </div>
     </div>
     <nav class="sidebar-nav">
@@ -38,7 +38,8 @@
         </button>
         <div class="sidebar-accordion-body">
           <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon" data-lucide="layout-dashboard"></span><span>Dashboard</span></button>
-          <button type="button" data-nav="calendar"><span class="nav-icon" data-lucide="calendar"></span><span>Calendar</span></button>
+          <button type="button" data-nav="calendar"><span class="nav-icon" data-lucide="calendar"></span><span>My attendance calendar</span></button>
+          <button type="button" data-nav="teams" title="Interactive organization chart"><span class="nav-icon" data-lucide="network"></span><span>Organization chart</span></button>
           <button type="button" data-nav="holiday-calendar"><span class="nav-icon" data-lucide="calendar-days"></span><span>Holiday Calendar</span></button>
         </div>
       </div>
@@ -50,7 +51,20 @@
         <div class="sidebar-accordion-body">
           <button type="button" data-nav="employees"><span class="nav-icon" data-lucide="user"></span><span>Employees</span></button>
           <button type="button" data-nav="employee-documents"><span class="nav-icon" data-lucide="folder-open"></span><span>Employee documents</span></button>
-          <button type="button" data-nav="teams" title="Interactive organization chart"><span class="nav-icon" data-lucide="network"></span><span>Organization chart</span></button>
+          <button type="button" data-nav="exit-clearances"><span class="nav-icon" data-lucide="log-out"></span><span>Exit workflow</span></button>
+          <button type="button" data-nav="onboarding"><span class="nav-icon" data-lucide="clipboard-list"></span><span>Onboarding</span></button>
+        </div>
+      </div>
+      <div class="sidebar-nav-section" data-section="time-attendance">
+        <button type="button" class="sidebar-accordion-head">
+          <span class="nav-icon" data-lucide="clock"></span>
+          <span class="nav-label">Time &amp; attendance</span>
+        </button>
+        <div class="sidebar-accordion-body">
+          <button type="button" data-nav="attendance"><span class="nav-icon" data-lucide="clipboard-check"></span><span>Attendance</span></button>
+          <button type="button" data-nav="leave-apply"><span class="nav-icon" data-lucide="file-plus"></span><span>Apply for leave</span></button>
+          <button type="button" data-nav="leaves"><span class="nav-icon" data-lucide="palmtree"></span><span>Leave Management</span></button>
+          <button type="button" data-nav="leave-entitlements"><span class="nav-icon" data-lucide="ticket"></span><span>Leave allowances</span></button>
         </div>
       </div>
       <div class="sidebar-nav-section" data-section="manager-controls">
@@ -61,17 +75,6 @@
         <div class="sidebar-accordion-body">
           <button type="button" data-nav="manager-assignments"><span class="nav-icon" data-lucide="git-branch"></span><span>Manager assignments</span></button>
           <button type="button" data-nav="manager-directory"><span class="nav-icon" data-lucide="contact"></span><span>Manager directory</span></button>
-        </div>
-      </div>
-      <div class="sidebar-nav-section" data-section="time-attendance">
-        <button type="button" class="sidebar-accordion-head">
-          <span class="nav-icon" data-lucide="clock"></span>
-          <span class="nav-label">Time &amp; attendance</span>
-        </button>
-        <div class="sidebar-accordion-body">
-          <button type="button" data-nav="attendance"><span class="nav-icon" data-lucide="clipboard-check"></span><span>Attendance</span></button>
-          <button type="button" data-nav="leaves"><span class="nav-icon" data-lucide="palmtree"></span><span>Leave Management</span></button>
-          <button type="button" data-nav="leave-entitlements"><span class="nav-icon" data-lucide="ticket"></span><span>Leave allowances</span></button>
         </div>
       </div>
       <div class="sidebar-nav-section sidebar-nav-section--direct" data-section="assets">
@@ -86,16 +89,10 @@
           <span class="nav-label">Policies &amp; important links</span>
         </button>
       </div>
-      <div class="sidebar-nav-section sidebar-nav-section--direct" data-section="homepage">
-        <button type="button" class="sidebar-accordion-head" data-nav="homepage-recognition" title="Homepage Recognition">
-          <span class="nav-icon" data-lucide="award"></span>
-          <span class="nav-label">Homepage Recognition</span>
-        </button>
-      </div>
-      <div class="sidebar-nav-section sidebar-nav-section--direct" data-section="company-social">
-        <button type="button" class="sidebar-accordion-head" data-nav="company-social" title="Company social">
-          <span class="nav-icon" data-lucide="message-circle"></span>
-          <span class="nav-label">Company social</span>
+      <div class="sidebar-nav-section sidebar-nav-section--direct" data-section="performance">
+        <button type="button" class="sidebar-accordion-head" data-nav="performance" title="Performance">
+          <span class="nav-icon" data-lucide="target"></span>
+          <span class="nav-label">Performance</span>
         </button>
       </div>
       <div class="sidebar-nav-section" data-section="live-activities">
@@ -106,6 +103,18 @@
         <div class="sidebar-accordion-body">
           <button type="button" data-nav="live-activity-links"><span class="nav-icon" data-lucide="send"></span><span>Send links</span></button>
         </div>
+      </div>
+      <div class="sidebar-nav-section sidebar-nav-section--direct" data-section="company-social">
+        <button type="button" class="sidebar-accordion-head" data-nav="company-social" title="Company social">
+          <span class="nav-icon" data-lucide="message-circle"></span>
+          <span class="nav-label">Company social</span>
+        </button>
+      </div>
+      <div class="sidebar-nav-section sidebar-nav-section--direct" data-section="homepage">
+        <button type="button" class="sidebar-accordion-head" data-nav="homepage-recognition" title="Homepage Recognition">
+          <span class="nav-icon" data-lucide="award"></span>
+          <span class="nav-label">Homepage Recognition</span>
+        </button>
       </div>
       <div class="sidebar-nav-section" data-section="administration">
         <button type="button" class="sidebar-accordion-head">
@@ -191,44 +200,44 @@
 
       <section id="view-asset-management" class="view-section asset-management-viewport">
         <div class="asset-management-layout">
-        <div class="panel panel--asset-form" data-asset-admin-only>
-          <h2 class="panel-title">Asset Management</h2>
-          <p class="stat-sub">Add inventory items, allocate to employees, edit totals, or remove items when nothing is assigned.</p>
-          <form id="assetAddForm" class="form-row" style="margin-top:16px;">
-            <div class="form-group"><label>Item name</label><input id="assetItemName" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-            <div class="form-group"><label>Category</label><input id="assetItemCategory" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-            <div class="form-group"><label>Total count</label><input id="assetItemTotal" type="number" min="0" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-            <div class="form-group" style="align-self:flex-end;"><button type="submit" class="btn btn-primary">Add item</button></div>
-          </form>
-        </div>
-        <div class="panel panel--asset-inventory">
-          <h3 class="panel-title" style="font-size:1.05rem;">Inventory</h3>
-          <div class="table-wrap table-wrap--scroll">
-            <table class="data-table">
-              <thead><tr><th>Item name</th><th>Category</th><th>Total</th><th>Allocated</th><th>Available</th><th>Actions</th></tr></thead>
-              <tbody id="assetInventoryBody"><tr><td colspan="6" class="stat-sub">Loading…</td></tr></tbody>
-            </table>
+          <div class="panel asset-management-panel panel--asset-form" data-asset-admin-only>
+            <h2 class="panel-title">Asset Management</h2>
+            <p class="stat-sub">Add inventory items, allocate to employees, edit totals, or remove items when nothing is assigned.</p>
+            <form id="assetAddForm" class="asset-management-form asset-management-form--add">
+              <div class="form-group"><label for="assetItemName">Item name</label><input id="assetItemName" required /></div>
+              <div class="form-group"><label for="assetItemCategory">Category</label><input id="assetItemCategory" required /></div>
+              <div class="form-group"><label for="assetItemTotal">Total count</label><input id="assetItemTotal" type="number" min="0" required /></div>
+              <div class="form-group form-group--action"><button type="submit" class="btn btn-primary">Add item</button></div>
+            </form>
           </div>
-        </div>
-        <div class="panel panel--asset-allocate" data-asset-admin-only>
-          <h3 class="panel-title" style="font-size:1.05rem;">Allocate asset</h3>
-          <form id="assetAllocateForm" class="form-row">
-            <div class="form-group"><label>Item</label><select id="assetAllocateItem" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"></select></div>
-            <div class="form-group"><label>Employee</label><select id="assetAllocateEmployee" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"></select></div>
-            <div class="form-group"><label>Allocated on</label><input id="assetAllocateDate" type="date" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-            <div class="form-group"><label>Notes</label><input id="assetAllocateNotes" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-            <div class="form-group" style="align-self:flex-end;"><button type="submit" class="btn btn-primary">Allocate</button></div>
-          </form>
-        </div>
-        <div class="panel panel--asset-allocations">
-          <h3 class="panel-title" style="font-size:1.05rem;">All allocations</h3>
-          <div class="table-wrap table-wrap--scroll">
-            <table class="data-table">
-              <thead><tr><th>Employee</th><th>Item</th><th>Allocated on</th><th>Status</th><th>Notes</th><th>Action</th></tr></thead>
-              <tbody id="assetAllocationsBody"><tr><td colspan="6" class="stat-sub">Loading…</td></tr></tbody>
-            </table>
+          <div class="panel asset-management-panel panel--asset-allocate" data-asset-admin-only>
+            <h3 class="panel-title panel-title--sub">Allocate asset</h3>
+            <form id="assetAllocateForm" class="asset-management-form asset-management-form--allocate">
+              <div class="form-group"><label for="assetAllocateItem">Item</label><select id="assetAllocateItem" required></select></div>
+              <div class="form-group"><label for="assetAllocateEmployee">Employee</label><select id="assetAllocateEmployee" required></select></div>
+              <div class="form-group"><label for="assetAllocateDate">Allocated on</label><input id="assetAllocateDate" type="date" /></div>
+              <div class="form-group"><label for="assetAllocateNotes">Notes</label><input id="assetAllocateNotes" /></div>
+              <div class="form-group form-group--action"><button type="submit" class="btn btn-primary">Allocate</button></div>
+            </form>
           </div>
-        </div>
+          <div class="panel asset-management-panel panel--asset-inventory">
+            <h3 class="panel-title panel-title--sub">Inventory</h3>
+            <div class="table-wrap table-wrap--scroll asset-table-scroll">
+              <table class="data-table">
+                <thead><tr><th>Item name</th><th>Category</th><th>Total</th><th>Allocated</th><th>Available</th><th>Actions</th></tr></thead>
+                <tbody id="assetInventoryBody"><tr><td colspan="6" class="stat-sub">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="panel asset-management-panel panel--asset-allocations">
+            <h3 class="panel-title panel-title--sub">All allocations</h3>
+            <div class="table-wrap table-wrap--scroll asset-table-scroll">
+              <table class="data-table">
+                <thead><tr><th>Employee</th><th>Item</th><th>Allocated on</th><th>Status</th><th>Notes</th><th>Action</th></tr></thead>
+                <tbody id="assetAllocationsBody"><tr><td colspan="6" class="stat-sub">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -309,11 +318,11 @@
               </div>
               <button type="button" class="btn btn-outline btn-sm" id="liveLinksRefreshBtn">Refresh</button>
             </div>
-            <form id="liveLinkForm" class="form-row" style="align-items:flex-end;">
-              <div class="form-group"><label>Title</label><input id="liveLinkTitle" required placeholder="Activity name" /></div>
-              <div class="form-group"><label>URL</label><input id="liveLinkUrl" required type="url" placeholder="https://..." /></div>
-              <div class="form-group"><label>Description</label><input id="liveLinkDescription" placeholder="Short instructions" /></div>
-              <div class="form-group"><button type="submit" class="btn btn-primary">Send link</button></div>
+            <form id="liveLinkForm" class="live-link-form">
+              <div class="form-group"><label for="liveLinkTitle">Title</label><input id="liveLinkTitle" required placeholder="Activity name" /></div>
+              <div class="form-group"><label for="liveLinkUrl">URL</label><input id="liveLinkUrl" required type="url" placeholder="https://..." /></div>
+              <div class="form-group"><label for="liveLinkDescription">Description</label><input id="liveLinkDescription" placeholder="Short instructions" /></div>
+              <div class="form-group form-group--action"><button type="submit" class="btn btn-primary">Send link</button></div>
             </form>
             <p id="liveLinkMessage" class="message"></p>
             <div id="liveLinksList" class="live-admin-grid"></div>
@@ -321,12 +330,14 @@
           <div class="panel panel--announcements">
             <h2 class="panel-title">Important Announcements</h2>
             <p class="stat-sub">Send an announcement to all active employees and managers.</p>
-            <form id="broadcastForm" style="margin-top:16px;">
+            <form id="broadcastForm" class="announcement-form">
               <div class="form-group">
-                <label>Message</label>
-                <textarea id="broadcastMessage" rows="4" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;"></textarea>
+                <label for="broadcastMessage">Message</label>
+                <textarea id="broadcastMessage" class="announcement-textarea" rows="4" required placeholder="Write your announcement…"></textarea>
               </div>
-              <button type="submit" class="btn btn-primary" style="margin-top:12px;">Send announcement</button>
+              <div class="announcement-form-actions">
+                <button type="submit" class="btn btn-primary">Send announcement</button>
+              </div>
             </form>
             <p id="broadcastResult" class="message"></p>
           </div>
@@ -376,9 +387,21 @@
             <button type="button" class="btn btn-outline btn-sm" id="loadEmployeesBtn">Refresh</button>
           </div>
           <div class="table-wrap table-wrap--people-scroll">
-            <table class="data-table data-table--people"><thead><tr><th>Code</th><th>Name</th><th>Email</th><th>Designation</th><th>Portal role</th><th></th></tr></thead><tbody id="employeesBody"></tbody></table>
+            <table class="data-table data-table--people"><thead><tr><th>Code</th><th>Name</th><th>Email</th><th>Designation</th><th>Portal role</th><th>Actions</th></tr></thead><tbody id="employeesBody"></tbody></table>
           </div>
         </div>
+      </section>
+
+      <section id="view-exit-clearances" class="view-section">
+        <div id="adminExitClearancesRoot"></div>
+      </section>
+
+      <section id="view-onboarding" class="view-section">
+        <div id="adminOnboardingRoot"></div>
+      </section>
+
+      <section id="view-performance" class="view-section">
+        <div id="adminPerformanceRoot"></div>
       </section>
 
       <section id="view-teams" class="view-section org-teams-viewport">
@@ -445,11 +468,15 @@
         </div>
       </section>
 
-      <section id="view-calendar" class="view-section">
+      <section id="view-calendar" class="view-section attendance-calendar-viewport">
+        <div id="adminCalendarRoot" class="attendance-calendar-mount"></div>
+      </section>
+
+      <section id="view-leave-apply" class="view-section">
         <div class="panel">
-          <h2 class="panel-title">Attendance calender</h2>
-          <p class="stat-sub" style="margin-bottom:16px;">Your attendance calendar uses the same monthly view as the employee dashboard, including holidays and configured Saturdays.</p>
-          <div id="adminCalendarRoot"></div>
+          <h2 class="panel-title">Apply for leave</h2>
+          <p class="stat-sub" style="margin-bottom:12px;">Submit your own leave request — same flow as employee and manager portals.</p>
+          <div id="adminLeaveApplyRoot"></div>
         </div>
       </section>
 
@@ -619,7 +646,8 @@
       </section>
 
       <section id="view-reports" class="view-section reports-viewport">
-        <div class="panel panel--reports-fit">
+        <div class="reports-analytics-layout">
+        <div class="panel panel--reports-scroll">
           <h2 class="panel-title">Analytics &amp; reports</h2>
           <p class="stat-sub">Generate attendance, leave, employee, and combined reports with date, employee, month, and year filters.</p>
           <div class="panel report-generation-block" style="border:1px dashed var(--border);padding:16px;margin-top:16px;">
@@ -636,6 +664,37 @@
               <button type="button" class="btn btn-outline" id="exportSelectedReportPdfBtn">Export PDF</button>
             </div>
           </div>
+
+          <div class="panel monthly-attendance-analytics-block" style="border:1px dashed var(--border);padding:16px;margin-top:20px;">
+            <h3 class="panel-title" style="font-size:1rem;">Monthly attendance summary</h3>
+            <p class="stat-sub" style="margin:8px 0 12px;">
+              Upload the biometric daily attendance export for a full month (one sheet with an
+              <strong>Attendance Date</strong> section per day). Generates an Excel summary per employee:
+              present, absent, leave, late, and early leave before 6:30 PM.
+            </p>
+            <div class="form-row" style="align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
+              <div class="form-group" style="margin:0;">
+                <label for="monthlyLateAfter">Late after</label>
+                <input type="time" id="monthlyLateAfter" value="09:30" style="padding:10px;border-radius:8px;border:1px solid var(--border);" />
+              </div>
+              <div class="form-group" style="margin:0;">
+                <label for="monthlyEarlyBefore">Early leave before</label>
+                <input type="time" id="monthlyEarlyBefore" value="18:30" style="padding:10px;border-radius:8px;border:1px solid var(--border);" />
+              </div>
+            </div>
+            <div id="monthlyAttendanceDropzone" class="dropzone import-dropzone" tabindex="0" role="button" aria-label="Upload monthly attendance file">
+              <p class="dropzone-title">Drop monthly attendance Excel here</p>
+              <p class="stat-sub">or click to browse (.xls, .xlsx)</p>
+              <input type="file" id="monthlyAttendanceFile" accept=".xls,.xlsx,.csv" class="hidden" />
+            </div>
+            <div id="monthlyAttendanceFilePreview" class="import-file-preview hidden" aria-live="polite"></div>
+            <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+              <button type="button" class="btn btn-primary" id="generateMonthlyAttendanceBtn" disabled>Generate Excel summary</button>
+              <p id="monthlyAttendanceMessage" class="message" style="margin:0;"></p>
+            </div>
+            <div id="monthlyAttendancePreview" class="table-wrap table-wrap--scroll monthly-attendance-preview hidden" style="margin-top:16px;"></div>
+          </div>
+        </div>
         </div>
       </section>
 
@@ -798,7 +857,7 @@
             <h3 class="panel-title" style="font-size:1rem;">Upload holidays via Excel</h3>
             <p class="stat-sub import-excel-hint" style="margin-bottom:12px;">Expected columns: Holiday Name, Date (DD/MM/YYYY or YYYY-MM-DD), Type (National Holiday, Festival, or Optional).</p>
             <label for="holImportFile" class="btn btn-primary import-excel-cta" style="display:inline-flex;align-items:center;justify-content:center;cursor:pointer;">
-              📊 Choose holiday Excel (.xlsx, .xls)
+              📅 Choose holiday Excel (.xlsx, .xls)
             </label>
             <button type="button" class="btn btn-outline import-excel-cta" id="holSampleBtn" style="display:inline-flex;align-items:center;justify-content:center;margin-left:8px;">Download sample format</button>
             <span id="holImportFileName" class="stat-sub" style="display:block;margin-top:10px;font-weight:500;">No file selected.</span>
@@ -826,6 +885,27 @@
             <table class="data-table">
               <thead><tr><th>Date</th><th>Name</th><th>Type</th><th></th></tr></thead>
               <tbody id="holTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel" style="margin-top:16px;">
+          <h2 class="panel-title">Policy documents (chatbot)</h2>
+          <p class="stat-sub" style="margin-bottom:16px;">Upload policy text for the floating Policy Assistant. Supported: PDF, TXT, DOCX. Answers are generated from these documents only.</p>
+          <form id="policyChatUploadForm" class="form-row" style="align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+            <div class="form-group" style="margin:0;min-width:220px;">
+              <label for="policyChatFile">Document</label>
+              <input id="policyChatFile" type="file" accept=".pdf,.txt,.docx,application/pdf,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" required style="padding:10px;border-radius:8px;border:1px solid var(--border);width:100%;" />
+            </div>
+            <div class="form-group" style="margin:0;">
+              <button type="submit" class="btn btn-primary">Upload for chatbot</button>
+            </div>
+          </form>
+          <p id="policyChatMessage" class="message"></p>
+          <div class="table-wrap table-wrap--scroll">
+            <table class="data-table">
+              <thead><tr><th>Filename</th><th>Uploaded</th><th>Action</th></tr></thead>
+              <tbody id="policyChatDocsBody"><tr><td colspan="3" class="stat-sub">Loading…</td></tr></tbody>
             </table>
           </div>
         </div>
@@ -961,7 +1041,29 @@
     </main>
   </div>
 
+  <div id="exitInitiateModal" class="modal-backdrop" aria-hidden="true" role="dialog" aria-labelledby="exitInitiateTitle">
+    <div class="modal" style="max-width:480px;padding:20px 24px;">
+      <h2 id="exitInitiateTitle" class="panel-title">Initiate exit — <span id="exitInitiateEmployeeName">Employee</span></h2>
+      <form id="exitInitiateForm" class="form-row" style="flex-direction:column;align-items:stretch;gap:12px;margin-top:12px;">
+        <div class="form-group" style="margin:0;">
+          <label for="exitInitiateLwd">Last working day</label>
+          <input id="exitInitiateLwd" type="date" required />
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label for="exitInitiateReason">Reason</label>
+          <textarea id="exitInitiateReason" rows="3" required placeholder="Reason for separation"></textarea>
+        </div>
+        <p id="exitInitiateMessage" class="message"></p>
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" class="btn btn-outline" id="exitInitiateCancel">Cancel</button>
+          <button type="submit" class="btn btn-primary">Confirm exit</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <link rel="stylesheet" href="/assets/avgc-dashboard/employee-app.css" />
+  <link rel="stylesheet" href="/assets/avgc-dashboard/employee-app2.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="/js/utils.js"></script>
   <script src="/js/toast.js"></script>
@@ -971,6 +1073,7 @@
   <script src="/js/nav-icons.js"></script>
   <script src="/js/confetti.js"></script>
   <script src="/js/sidebar.js"></script>
+  <script src="/js/notification-nav.js"></script>
   <script src="/js/navbar.js"></script>
   <script src="/js/admin-permissions.js"></script>
   <script src="/js/admin-people-modules.js"></script>
@@ -978,6 +1081,8 @@
   <script type="module" src="/assets/avgc-dashboard/team-hub.js"></script>
   <script src="/js/portal-assets.js"></script>
   <script src="/js/portal-policies.js"></script>
+  <script src="/js/portal-policy-chat-admin.js"></script>
+  <script src="/js/portal-exit-admin.js"></script>
   <script src="/js/portal-employee-documents.js"></script>
   <script src="/js/portal-home-recognition.js"></script>
   <script src="/js/admin-dashboard.js"></script>

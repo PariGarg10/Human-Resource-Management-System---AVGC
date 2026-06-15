@@ -15,6 +15,8 @@ export type EmployeeUser = {
   profilePhotoUrl?: string | null;
   avatar_url?: string | null;
   age?: number | null;
+  isFirstLogin?: boolean;
+  onboardingCompleted?: boolean;
 };
 export type UserProfile = {
   id: number;
@@ -32,4 +34,11 @@ export type UserProfile = {
   profilePhotoUrl?: string | null;
   age?: number | null;
   createdAt?: string;
+  isFirstLogin?: boolean;
+  onboardingCompleted?: boolean;
+  emergencyContactName?: string | null;
+  emergencyContactPhone?: string | null;
+  bankAccountName?: string | null;
+  bankAccountNumber?: string | null;
+  bankIfsc?: string | null;
 };

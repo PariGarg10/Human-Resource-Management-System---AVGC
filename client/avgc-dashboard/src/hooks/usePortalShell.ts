@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { syncPortalUserIdentityDom } from '@/components/PortalUserIdentity';
 import { api, logout } from '@/lib/api';
 import type { PortalNavId } from '@/lib/portalNav';
 import type { EmployeeUser } from '@/types/employee';
@@ -70,6 +71,23 @@ export function usePortalShell(
   }, [user]);
 
   useEffect(() => {
+    if (!user?.id) return;
+    const formatPunch = (value: string | null | undefined) => {
+      if (!value) return '—';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return '—';
+      return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    };
+    api<{ record?: { punchin?: string | null; punchout?: string | null } | null }>('/api/attendance/today')
+      .then((data) => {
+        syncPortalUserIdentityDom(user, formatPunch(data.record?.punchin), formatPunch(data.record?.punchout));
+      })
+      .catch(() => {
+        syncPortalUserIdentityDom(user, '—', '—');
+      });
+  }, [user]);
+
+  useEffect(() => {
     document.querySelectorAll('.sidebar-nav [data-nav]').forEach((btn) => {
       const id = btn.getAttribute('data-nav');
       btn.classList.toggle('is-active', id === activeNav);
@@ -77,7 +95,7 @@ export function usePortalShell(
     const activeBtn = document.querySelector(`.sidebar-nav [data-nav="${activeNav}"]`);
     if (activeBtn) {
       const section = activeBtn.closest('.sidebar-nav-section');
-      const isMobile = window.matchMedia('(max-width: 767px)').matches;
+      const isMobile = window.matchMedia('(max-width: 1024px)').matches;
       if (section && isMobile) section.classList.add('is-expanded');
       else section?.classList.remove('is-expanded');
     }

@@ -137,7 +137,7 @@ export function MinesweeperGame({ onFinish }: { onFinish: GameFinish }) {
   };
 
   return (
-    <GameHud title="💣 Minesweeper" score={`${elapsed}s`} hint="Click to reveal · Right-click to flag">
+    <GameHud title="🧩 Minesweeper" score={`${elapsed}s`} hint="Click to reveal · Right-click to flag">
       <div className="mx-auto grid max-w-xs grid-cols-8 gap-1">
         {Array.from({ length: W * H }, (_, i) => {
           const open = revealed.has(i);
@@ -213,7 +213,7 @@ export function HangmanGame({ onFinish }: { onFinish: GameFinish }) {
   const STAGES = ['😊', '😐', '😬', '😰', '😵', '💀', '☠️'];
 
   return (
-    <GameHud title="💀 Hangman" score={`Cleared ${clearedDisplay}`} hint="Guess the word letter by letter">
+    <GameHud title="🔤 Hangman" score={`Cleared ${clearedDisplay}`} hint="Guess the word letter by letter">
       <p className="mb-2 text-center text-4xl">{STAGES[wrong]}</p>
       <p className="mb-3 text-center font-mono text-2xl font-black tracking-widest">
         {word.split('').map((c, i) => (
@@ -291,7 +291,7 @@ export function WhackGame({ onFinish }: { onFinish: GameFinish }) {
   };
 
   return (
-    <GameHud title="🎯 Whack-a-Mole" score={`${hits} hits · ${timeLeft}s`} hint="Click the mole!">
+    <GameHud title="🔨 Whack-a-Mole" score={`${hits} hits · ${timeLeft}s`} hint="Click the mole!">
       <div className="mx-auto grid max-w-xs grid-cols-3 gap-3">
         {Array.from({ length: 9 }, (_, i) => (
           <button

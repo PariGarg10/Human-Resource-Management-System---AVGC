@@ -25,10 +25,18 @@
   --black-soft: rgba(0, 0, 0, 0.6);
 
   /* Attendance / status — brand palette only */
-  --status-present: var(--color-grey1);
-  --status-leave: var(--color-primary);
-  --status-halfday: var(--color-grey1);
+  --status-present: #22c55e;
+  --status-leave: #4b5563;
+  --status-halfday: #d1d5db;
   --status-absent: var(--color-primary);
+  --cal-present: #22c55e;
+  --cal-present-bg: rgba(34, 197, 94, 0.2);
+  --cal-absent: #ed1d24;
+  --cal-absent-bg: rgba(237, 29, 36, 0.14);
+  --cal-halfday: #d1d5db;
+  --cal-halfday-bg: rgba(209, 213, 219, 0.65);
+  --cal-leave: #4b5563;
+  --cal-leave-bg: rgba(75, 85, 99, 0.38);
 
   --primary: var(--red);
   --primary-hover: var(--red);
@@ -72,7 +80,15 @@ html {
   --bg-card: var(--white);
   --text-primary: var(--color-text);
   --text-muted: var(--color-grey1);
+  --text-subtle: #5c656d;
   --border: rgba(105, 114, 121, 0.28);
+  --table-head-bg: var(--color-grey2);
+  --table-head-text: var(--text-primary);
+  --table-row-alt: var(--bg-card);
+  --table-row-hover: rgba(237, 29, 36, 0.08);
+  --placeholder: #6b7280;
+  --badge-halfday: #b45309;
+  --badge-absent: #c41e24;
 
   --bg: var(--bg-primary);
   --bg-elevated: var(--bg-card);
@@ -104,8 +120,21 @@ html {
   --bg-secondary: #141414;
   --bg-card: #1a1a1a;
   --text-primary: var(--white);
-  --text-muted: var(--color-grey1);
-  --border: rgba(105, 114, 121, 0.4);
+  --text-muted: #b4bcc4;
+  --text-subtle: #8e98a2;
+  --border: rgba(180, 188, 196, 0.42);
+  --table-head-bg: #262626;
+  --table-head-text: #e8eaed;
+  --table-row-alt: #1f1f1f;
+  --table-row-hover: rgba(237, 29, 36, 0.12);
+  --placeholder: #9aa3ad;
+  --badge-halfday: #fbbf24;
+  --badge-absent: #ff8a8a;
+  --success: #b8c4ce;
+  --info: #b8c4ce;
+  --success-soft: rgba(184, 196, 206, 0.18);
+  --info-soft: rgba(184, 196, 206, 0.18);
+  --warning-soft: rgba(237, 29, 36, 0.2);
 
   --bg: var(--bg-primary);
   --bg-elevated: var(--bg-secondary);
@@ -115,11 +144,11 @@ html {
   --text: var(--text-primary);
   --sidebar-bg: rgba(20, 20, 20, 0.55);
   --sidebar-text: var(--white);
-  --sidebar-muted: var(--color-grey1);
+  --sidebar-muted: #b4bcc4;
   --sidebar-hover: var(--red-soft);
   --sidebar-active: rgba(237, 29, 36, 0.24);
-  --sidebar-active-color: var(--red);
-  --sidebar-border: var(--white-soft);
+  --sidebar-active-color: #ff6b72;
+  --sidebar-border: rgba(180, 188, 196, 0.28);
   --sidebar-group-color: var(--red);
   --sidebar-flyout-bg: rgba(8, 8, 8, 0.96);
   --sidebar-flyout-border: rgba(105, 114, 121, 0.35);
@@ -182,7 +211,8 @@ body {
 [data-theme="light"] textarea::placeholder,
 [data-theme="dark"] input::placeholder,
 [data-theme="dark"] textarea::placeholder {
-  color: var(--text-muted);
+  color: var(--placeholder);
+  opacity: 1;
 }
 
 [data-theme="light"] table,
@@ -192,8 +222,8 @@ body {
 
 [data-theme="light"] .data-table thead th,
 [data-theme="dark"] .data-table thead th {
-  background: var(--color-grey2);
-  color: var(--text-primary);
+  background: var(--table-head-bg);
+  color: var(--table-head-text);
 }
 
 [data-theme="light"] .data-table tbody td,
@@ -205,7 +235,7 @@ body {
 
 [data-theme="light"] .data-table tbody tr:nth-child(even) td,
 [data-theme="dark"] .data-table tbody tr:nth-child(even) td {
-  background: var(--bg-card);
+  background: var(--table-row-alt);
 }
 
 [data-theme="light"] a,

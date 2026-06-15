@@ -60,6 +60,8 @@ if (form) {
         isSuperAdmin: Boolean(data.employee?.isSuperAdmin),
         permissions: Array.isArray(data.employee?.permissions) ? data.employee.permissions : [],
         designation: data.employee?.designation || null,
+        isFirstLogin: data.employee?.isFirstLogin === true,
+        onboardingCompleted: data.employee?.onboardingCompleted === true,
       };
       localStorage.setItem('token', data.token);
       localStorage.setItem('employee', JSON.stringify(employee));

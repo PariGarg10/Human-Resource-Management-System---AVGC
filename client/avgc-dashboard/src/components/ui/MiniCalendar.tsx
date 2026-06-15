@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatAttendanceStatus, monthName } from '@/lib/attendanceLabels';
 import { cn } from '@/lib/cn';
+import { CALENDAR_COLORS as C } from '@/lib/calendarColors';
 
 type RecordRow = { date: string; status?: string; reason?: string | null };
 
@@ -14,10 +15,10 @@ function mondayIndex(jsDay: number) {
 }
 
 function dotColor(status: string) {
-  if (status === 'present') return '#697279';
-  if (status === 'halfday') return '#ebebec';
-  if (status === 'leave') return '#ed1d24';
-  if (status === 'absent') return '#ed1d24';
+  if (status === 'present') return C.present;
+  if (status === 'halfday') return C.halfday;
+  if (status === 'leave') return C.leave;
+  if (status === 'absent') return C.absent;
   return 'transparent';
 }
 

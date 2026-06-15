@@ -24,6 +24,11 @@ export function ProfilePanel({
   const [location, setLocation] = useState('');
   const [bio, setBio] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [emergencyContactName, setEmergencyContactName] = useState('');
+  const [emergencyContactPhone, setEmergencyContactPhone] = useState('');
+  const [bankAccountName, setBankAccountName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankIfsc, setBankIfsc] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const blobRef = useRef<string | null>(null);
@@ -44,6 +49,11 @@ export function ProfilePanel({
       setLocation(p.location || '');
       setBio(p.bio || '');
       setDateOfBirth(p.dateOfBirth || '');
+      setEmergencyContactName(p.emergencyContactName || '');
+      setEmergencyContactPhone(p.emergencyContactPhone || '');
+      setBankAccountName(p.bankAccountName || '');
+      setBankAccountNumber(p.bankAccountNumber || '');
+      setBankIfsc(p.bankIfsc || '');
       setPreviewUrl(p.profilePhotoUrl || null);
       setFile(null);
     },
@@ -93,6 +103,11 @@ export function ProfilePanel({
       fd.append('location', location.trim());
       fd.append('bio', bio.trim());
       fd.append('dateOfBirth', dateOfBirth.trim());
+      fd.append('emergencyContactName', emergencyContactName.trim());
+      fd.append('emergencyContactPhone', emergencyContactPhone.trim());
+      fd.append('bankAccountName', bankAccountName.trim());
+      fd.append('bankAccountNumber', bankAccountNumber.trim());
+      fd.append('bankIfsc', bankIfsc.trim());
       if (file) fd.append('profilePhoto', file);
 
       const { profile } = await apiPatchProfile(fd);
@@ -253,6 +268,44 @@ export function ProfilePanel({
                   rows={4}
                   placeholder="A short intro — hobbies, fun facts, what you work on…"
                 />
+              </label>
+
+              <h3 className="profile-section-title profile-field--wide">Emergency contact</h3>
+              <label className="profile-field">
+                <span>Contact name</span>
+                <input
+                  value={emergencyContactName}
+                  onChange={(e) => setEmergencyContactName(e.target.value)}
+                  placeholder="Full name"
+                />
+              </label>
+              <label className="profile-field">
+                <span>Contact phone</span>
+                <input
+                  value={emergencyContactPhone}
+                  onChange={(e) => setEmergencyContactPhone(e.target.value)}
+                  placeholder="Phone number"
+                />
+              </label>
+
+              <h3 className="profile-section-title profile-field--wide">Bank details</h3>
+              <label className="profile-field">
+                <span>Account holder name</span>
+                <input
+                  value={bankAccountName}
+                  onChange={(e) => setBankAccountName(e.target.value)}
+                />
+              </label>
+              <label className="profile-field">
+                <span>Account number</span>
+                <input
+                  value={bankAccountNumber}
+                  onChange={(e) => setBankAccountNumber(e.target.value)}
+                />
+              </label>
+              <label className="profile-field">
+                <span>IFSC code</span>
+                <input value={bankIfsc} onChange={(e) => setBankIfsc(e.target.value)} />
               </label>
 
               <EmployeeDocumentsSection />

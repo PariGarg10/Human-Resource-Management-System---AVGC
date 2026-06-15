@@ -30,10 +30,19 @@ const {
   normalizeImportDate,
   readAttendanceRowsFromFile,
 } = require('../utils/attendanceImport');
+const {
+  parseMonthlyDailyAttendanceBuffer,
+  aggregateMonthlyStats,
+  buildSummaryWorkbook,
+} = require('../utils/monthlyAttendanceAnalytics');
 
 const router = express.Router();
 const uploadDir = getUploadsRoot();
 const upload = multer({ dest: uploadDir });
+const analyticsUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 20 * 1024 * 1024 },
+});
 
 const {
   parseEmployeeImportFile,
@@ -647,6 +656,66 @@ router.get('/reports', requirePermission(PERMISSION_MODULES.REPORTS_EXPORT), asy
     return res.status(500).json({ message: 'Internal server error' });
   }
 });
+
+router.post(
+  '/analytics/monthly-attendance-summary',
+  requirePermission(PERMISSION_MODULES.REPORTS_EXPORT),
+  (req, res, next) => {
+    analyticsUpload.single('file')(req, res, (err) => {
+      if (err) {
+        return res.status(400).json({
+          message: err.message || 'File upload failed. Use .xls or .xlsx under 20 MB.',
+        });
+      }
+      return next();
+    });
+  },
+  async (req, res) => {
+    if (!req.file?.buffer?.length) {
+      return res.status(400).json({ message: 'Attendance file is required' });
+    }
+
+    try {
+      const { dailyRows, meta } = parseMonthlyDailyAttendanceBuffer(req.file.buffer);
+      const summary = aggregateMonthlyStats(dailyRows, {
+        lateAfter: req.body?.lateAfter,
+        earlyBefore: req.body?.earlyBefore,
+      });
+      const workbookBuffer = buildSummaryWorkbook(summary, meta);
+
+      await logAudit(req.user.id, 'MONTHLY_ATTENDANCE_ANALYTICS', 'analytics', {
+        file: req.file.originalname,
+        employees: summary.length,
+        daysParsed: meta.daysParsed,
+      });
+
+      const safeName = String(req.file.originalname || 'upload')
+        .replace(/\.[^.]+$/, '')
+        .replace(/[^\w.-]+/g, '_')
+        .slice(0, 60);
+
+      const filename = `monthly-attendance-summary-${safeName || 'report'}.xlsx`;
+
+      return res.json({
+        meta,
+        filename,
+        summary: summary.map((row) => ({
+          employeecode: row.employeecode,
+          name: row.name,
+          present: row.present,
+          absent: row.absent,
+          leave: row.leave,
+          late: row.late,
+          earlyLeave: row.earlyLeave,
+        })),
+        excelBase64: workbookBuffer.toString('base64'),
+      });
+    } catch (err) {
+      console.error('POST /admin/analytics/monthly-attendance-summary:', err.message, err.stack);
+      return res.status(400).json({ message: err.message || 'Could not process attendance file' });
+    }
+  }
+);
 
 router.post('/managers', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
   try {

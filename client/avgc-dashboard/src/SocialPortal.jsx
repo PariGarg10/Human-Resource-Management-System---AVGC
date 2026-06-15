@@ -482,7 +482,7 @@ function ChannelLanding({ onEnter }) {
     {
       id: 'gaming',
       name: 'Gaming Arena',
-      emoji: '🎮',
+      emoji: '🕹️',
       desc: 'Clips, highlights, and wins — share your best gaming moments.',
       image: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?w=800&q=80',
       serif: false,

@@ -1,40 +1,62 @@
 /**
  * Mounts React panels into the admin HTML dashboard (vanilla shell).
- * Each mount targets one section only — org chart is limited to Teams.
+ * Heavy panels load on demand when their section is opened.
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ComponentType } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { OrgTreePanel } from '@/features/team-hub/OrgTreePanel';
-import SocialPortal from '@/SocialPortal.jsx';
-import { CalendarPanel } from '@/views/CalendarPanel';
-import { HolidayCalendarPanel } from '@/views/HolidayCalendarPanel';
-import { ProfilePanel } from '@/views/ProfileSettingsPanels';
 import { UserProvider } from '@/context/UserContext';
 import { readEmployee } from '@/lib/api';
 import type { EmployeeUser } from '@/types/employee';
+import { schedulePolicyChatbot } from '@/lib/schedulePolicyChatbot';
 import './index.css';
-import './portal-dashboard-entry';
 
 const roots = new WeakMap<HTMLElement, Root>();
 
 type TeamHubPanel = 'org-tree' | 'calendar' | 'holiday';
+
+async function loadOrgTreePanel() {
+  const { OrgTreePanel } = await import('@/features/team-hub/OrgTreePanel');
+  return OrgTreePanel;
+}
+
+async function loadCalendarPanel() {
+  const { CalendarPanel } = await import('@/views/CalendarPanel');
+  return CalendarPanel;
+}
+
+async function loadHolidayCalendarPanel() {
+  const { HolidayCalendarPanel } = await import('@/views/HolidayCalendarPanel');
+  return HolidayCalendarPanel;
+}
 
 function mount(el: HTMLElement, panel: TeamHubPanel) {
   if (!el || el.dataset.teamHubMounted === '1') return;
   const root = createRoot(el);
   roots.set(el, root);
   el.dataset.teamHubMounted = '1';
-  const content =
-    panel === 'org-tree' ? (
-      <OrgTreePanel />
-    ) : panel === 'calendar' ? (
-      <CalendarPanel />
-    ) : (
-      <div className="holiday-calendar-viewport">
-        <HolidayCalendarPanel />
-      </div>
-    );
-  root.render(content);
+
+  void (async () => {
+    let content;
+    if (panel === 'org-tree') {
+      const OrgTreePanel = await loadOrgTreePanel();
+      content = <OrgTreePanel />;
+    } else if (panel === 'calendar') {
+      const CalendarPanel = await loadCalendarPanel();
+      content = (
+        <div className="panel attendance-calendar-panel attendance-calendar-mount-inner">
+          <CalendarPanel />
+        </div>
+      );
+    } else {
+      const HolidayCalendarPanel = await loadHolidayCalendarPanel();
+      content = (
+        <div className="holiday-calendar-viewport">
+          <HolidayCalendarPanel />
+        </div>
+      );
+    }
+    root.render(content);
+  })();
 }
 
 function remount(target: HTMLElement | string, panel: TeamHubPanel) {
@@ -64,7 +86,7 @@ function AdminProfileMount() {
   );
   return (
     <UserProvider value={value}>
-      <ProfilePanel
+      <LazyProfilePanel
         user={user}
         onProfileSaved={(u) => {
           setUser(u);
@@ -82,10 +104,59 @@ function AdminProfileMount() {
   );
 }
 
+function LazyProfilePanel(props: {
+  user: EmployeeUser | null;
+  onProfileSaved: (u: EmployeeUser) => void;
+}) {
+  const [Panel, setPanel] = useState<ComponentType<{
+    user: EmployeeUser | null;
+    onProfileSaved: (u: EmployeeUser) => void;
+  }> | null>(null);
+
+  useEffect(() => {
+    void import('@/views/ProfileSettingsPanels').then((m) => setPanel(() => m.ProfilePanel));
+  }, []);
+
+  if (!Panel) {
+    return <p className="stat-sub">Loading profile…</p>;
+  }
+  return <Panel user={props.user} onProfileSaved={props.onProfileSaved} />;
+}
+
+function AdminLeaveApplyMount() {
+  const [user, setUser] = useState<EmployeeUser | null>(() => readEmployee());
+  const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
+  const value = useMemo(
+    () => ({ user, setUser, avatarOverride, setAvatarOverride }),
+    [user, avatarOverride]
+  );
+  return (
+    <UserProvider value={value}>
+      <LazyLeaveApplyPanel />
+    </UserProvider>
+  );
+}
+
+function LazyLeaveApplyPanel() {
+  const [Panel, setPanel] = useState<ComponentType | null>(null);
+
+  useEffect(() => {
+    void import('@/views/LeavePanels').then((m) => setPanel(() => m.LeaveApplyPanel));
+  }, []);
+
+  if (!Panel) return <p className="stat-sub">Loading…</p>;
+  return <Panel />;
+}
+
 type TeamHubHrms = typeof window.HRMS & {
   mountTeamHubOrgTree?: (target: HTMLElement | string) => void;
   mountSocialPortal?: (target: HTMLElement | string) => void;
   mountAdminProfile?: (target: HTMLElement | string) => void;
+  mountLeaveApply?: (target: HTMLElement | string) => void;
+  mountAdminExitClearances?: (target: HTMLElement | string) => void;
+  mountAdminOnboarding?: (target: HTMLElement | string) => void;
+  mountAdminPerformance?: (target: HTMLElement | string) => void;
+  mountPortalDashboard?: (target: HTMLElement | string) => void;
 };
 
 if (!window.HRMS) {
@@ -94,34 +165,34 @@ if (!window.HRMS) {
 const hrms = window.HRMS as TeamHubHrms;
 
 hrms.mountTeamHubOrgTree = (target: HTMLElement | string) => {
-  const el = resolveEl(target);
-  if (el) mount(el, 'org-tree');
+  remount(target, 'org-tree');
 };
 
 hrms.mountAttendanceCalendar = (target: HTMLElement | string) => {
-  const el = resolveEl(target);
-  if (el) mount(el, 'calendar');
+  remount(target, 'calendar');
 };
 
 hrms.mountHolidayCalendar = (target: HTMLElement | string) => {
-  const el = resolveEl(target);
-  if (el) mount(el, 'holiday');
+  remount(target, 'holiday');
 };
 
 hrms.mountSocialPortal = (target: HTMLElement | string) => {
   const el = resolveEl(target);
   if (!el || el.dataset.socialMounted === '1') return;
-  let userName = 'Admin';
-  try {
-    const stored = JSON.parse(localStorage.getItem('employee') || '{}') as { name?: string };
-    userName = stored.name || 'Admin';
-  } catch {
-    /* use default */
-  }
-  const root = createRoot(el);
-  roots.set(el, root);
-  el.dataset.socialMounted = '1';
-  root.render(<SocialPortal currentUserName={userName} isAdminUser />);
+  void import('@/SocialPortal.jsx').then(({ default: SocialPortal }) => {
+    if (el.dataset.socialMounted === '1') return;
+    let userName = 'Admin';
+    try {
+      const stored = JSON.parse(localStorage.getItem('employee') || '{}') as { name?: string };
+      userName = stored.name || 'Admin';
+    } catch {
+      /* use default */
+    }
+    const root = createRoot(el);
+    roots.set(el, root);
+    el.dataset.socialMounted = '1';
+    root.render(<SocialPortal currentUserName={userName} isAdminUser />);
+  });
 };
 
 hrms.mountAdminProfile = (target: HTMLElement | string) => {
@@ -133,8 +204,58 @@ hrms.mountAdminProfile = (target: HTMLElement | string) => {
   root.render(<AdminProfileMount />);
 };
 
-/** Refresh org chart only when the Teams section is visible. */
+hrms.mountLeaveApply = (target: HTMLElement | string) => {
+  const el = resolveEl(target);
+  if (!el || el.dataset.leaveApplyMounted === '1') return;
+  const root = createRoot(el);
+  roots.set(el, root);
+  el.dataset.leaveApplyMounted = '1';
+  root.render(<AdminLeaveApplyMount />);
+};
+
+hrms.mountAdminExitClearances = (target: HTMLElement | string) => {
+  const el = resolveEl(target);
+  if (!el || el.dataset.exitClearancesMounted === '1') return;
+  void import('@/views/AdminExitClearancesPanel').then(({ AdminExitClearancesPanel }) => {
+    if (el.dataset.exitClearancesMounted === '1') return;
+    const root = createRoot(el);
+    roots.set(el, root);
+    el.dataset.exitClearancesMounted = '1';
+    root.render(<AdminExitClearancesPanel />);
+  });
+};
+
+hrms.mountAdminOnboarding = (target: HTMLElement | string) => {
+  const el = resolveEl(target);
+  if (!el || el.dataset.adminOnboardingMounted === '1') return;
+  void import('@/views/AdminOnboardingPanel').then(({ AdminOnboardingPanel }) => {
+    if (el.dataset.adminOnboardingMounted === '1') return;
+    const root = createRoot(el);
+    roots.set(el, root);
+    el.dataset.adminOnboardingMounted = '1';
+    root.render(<AdminOnboardingPanel />);
+  });
+};
+
+hrms.mountAdminPerformance = (target: HTMLElement | string) => {
+  const el = resolveEl(target);
+  if (!el || el.dataset.adminPerformanceMounted === '1') return;
+  void import('@/views/AdminPerformancePanel').then(({ AdminPerformancePanel }) => {
+    if (el.dataset.adminPerformanceMounted === '1') return;
+    const root = createRoot(el);
+    roots.set(el, root);
+    el.dataset.adminPerformanceMounted = '1';
+    root.render(<AdminPerformancePanel />);
+  });
+};
+
+hrms.mountPortalDashboard = (target: HTMLElement | string) => {
+  void import('./portal-dashboard-entry').then((m) => m.mountPortalDashboard(target));
+};
+
 hrms.refreshTeamHubPanels = () => {
   if (!isTeamsViewActive()) return;
   remount('#teamHubOrgTreeRoot', 'org-tree');
 };
+
+schedulePolicyChatbot();

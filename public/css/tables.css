@@ -38,8 +38,8 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: #141414;
-  color: #999999;
+  background: var(--table-head-bg, var(--bg-secondary));
+  color: var(--table-head-text, var(--text-muted));
   font-weight: 600;
   font-size: 12px;
   text-transform: uppercase;
@@ -61,7 +61,7 @@
 }
 
 .data-table tbody tr:hover {
-  background: rgba(230, 57, 70, 0.08);
+  background: var(--table-row-hover, rgba(230, 57, 70, 0.08));
 }
 
 .data-table tbody tr:last-child td {
@@ -109,12 +109,12 @@
 
 .badge.halfday {
   background: var(--warning-soft);
-  color: #b45309;
+  color: var(--badge-halfday, #b45309);
 }
 
 .badge.absent {
   background: var(--danger-soft);
-  color: #FF2D2D;
+  color: var(--badge-absent, #c41e24);
 }
 
 .badge.leave {
@@ -155,45 +155,78 @@
 }
 
 .employee-documents-layout {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-rows: clamp(148px, 30vh, 260px) minmax(0, 1fr);
   flex: 1 1 auto;
   min-height: 0;
-  gap: 12px;
+  height: 100%;
+  gap: 10px;
   overflow: hidden;
 }
 
-.panel--employee-docs-list {
-  flex: 1 1 42%;
+.panel--employee-docs-list,
+.panel--employee-docs-detail {
+  padding: 16px 18px;
   min-height: 0;
 }
 
+.panel--employee-docs-list .panel-title,
+.panel--employee-docs-detail .panel-title--sub {
+  margin-bottom: 4px;
+}
+
+.panel--employee-docs-list .admin-people-meta {
+  margin: 0 0 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.panel--employee-docs-list {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .panel--employee-docs-detail {
-  flex: 1 1 58%;
-  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .panel-title--sub {
   font-size: 1.05rem;
   flex-shrink: 0;
+  margin: 0 0 8px;
 }
 
 .employee-doc-upload-form {
   flex-shrink: 0;
-  margin-top: 12px;
-  align-items: flex-end;
+  margin: 0 0 10px;
+  display: grid;
+  grid-template-columns: minmax(150px, 1.15fr) minmax(120px, 0.9fr) minmax(150px, 1.15fr) auto;
+  gap: 10px 12px;
+  align-items: end;
 }
 
-.employee-doc-upload-form select {
-  padding: 12px;
+.employee-doc-upload-form select,
+.employee-doc-upload-form input[type='file'] {
+  padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--border);
   width: 100%;
-  min-width: 180px;
+  min-width: 0;
+  font-size: 13px;
 }
 
 .employee-doc-upload-form #empDocEmployeeSelect {
-  min-width: 220px;
+  min-width: 0;
+}
+
+.panel--employee-docs-list .table-wrap--people-scroll,
+.panel--employee-docs-detail .table-wrap--people-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
 }
 
 .panel--people-fit {
@@ -218,7 +251,7 @@
 .table-wrap--people-scroll {
   flex: 1 1 auto;
   min-height: 0;
-  overflow-x: hidden;
+  overflow-x: auto;
   overflow-y: auto;
   max-height: none;
   -webkit-overflow-scrolling: touch;
@@ -298,22 +331,23 @@
 
 .data-table--people th:nth-child(3),
 .data-table--people td:nth-child(3) {
-  width: 26%;
+  width: 22%;
 }
 
 .data-table--people th:nth-child(4),
 .data-table--people td:nth-child(4) {
-  width: 18%;
+  width: 16%;
 }
 
 .data-table--people th:nth-child(5),
 .data-table--people td:nth-child(5) {
-  width: 18%;
+  width: 16%;
 }
 
 .data-table--people th:nth-child(6),
 .data-table--people td:nth-child(6) {
-  width: 14%;
+  width: 20%;
+  min-width: 196px;
 }
 
 .table-cell-stack {
@@ -346,21 +380,24 @@
 }
 
 .table-cell-actions {
-  white-space: nowrap;
   vertical-align: middle;
 }
 
-.table-cell-actions .btn {
-  padding: 6px 10px;
-  font-size: 12px;
+.table-actions-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+  max-width: 100%;
 }
 
-.table-actions-wrap {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  align-items: center;
-  max-width: 100%;
+.table-cell-actions .btn,
+.table-actions-wrap .btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  white-space: nowrap;
+  flex: 0 0 auto;
 }
 
 .data-table--recognition {

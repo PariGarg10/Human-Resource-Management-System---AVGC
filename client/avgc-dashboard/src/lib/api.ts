@@ -3,9 +3,14 @@ import { writeUserProfileSnapshot } from '@/lib/userProfileStorage';
 
 export class ApiError extends Error {
   requiresPasswordChange?: boolean;
-  constructor(message: string, options?: { requiresPasswordChange?: boolean }) {
+  onboardingRequired?: boolean;
+  constructor(
+    message: string,
+    options?: { requiresPasswordChange?: boolean; onboardingRequired?: boolean }
+  ) {
     super(message);
     this.requiresPasswordChange = options?.requiresPasswordChange;
+    this.onboardingRequired = options?.onboardingRequired;
   }
 }
 
@@ -41,8 +46,17 @@ export async function api<T>(path: string, options: RequestInit = {}, withAuth =
       requiresPasswordChange: true,
     });
   }
+  if (response.status === 403 && data.onboardingRequired) {
+    throw new ApiError(String(data.message || 'Complete onboarding first'), {
+      onboardingRequired: true,
+    });
+  }
   if (!response.ok) {
-    throw new ApiError(String(data.message || 'Request failed'));
+    const fallback =
+      response.status === 404
+        ? 'API not found — restart the server (npm run dev) and hard-refresh the page'
+        : 'Request failed';
+    throw new ApiError(String(data.message || fallback));
   }
   return data as T;
 }
@@ -74,6 +88,11 @@ export async function apiPatchProfile(formData: FormData) {
       requiresPasswordChange: true,
     });
   }
+  if (response.status === 403 && data.onboardingRequired) {
+    throw new ApiError(String(data.message || 'Complete onboarding first'), {
+      onboardingRequired: true,
+    });
+  }
   if (!response.ok) {
     throw new ApiError(String(data.message || 'Request failed'));
   }
@@ -96,6 +115,8 @@ export function persistEmployeePatch(profile: UserProfile) {
     bio: profile.bio,
     profilePhotoUrl: profile.profilePhotoUrl,
     age: profile.age,
+    isFirstLogin: profile.isFirstLogin ?? prev.isFirstLogin,
+    onboardingCompleted: profile.onboardingCompleted ?? prev.onboardingCompleted,
   };
   if (profile.profilePhotoUrl) {
     next.avatar_url = profile.profilePhotoUrl;

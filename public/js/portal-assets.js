@@ -66,7 +66,10 @@
             )
             .join('');
       } catch (e) {
-        HRMS.toast(e.message || 'Could not load employees', 'error');
+        const msg = String(e?.message || '');
+        if (!/forbidden|403/i.test(msg)) {
+          HRMS.toast(msg || 'Could not load employees', 'error');
+        }
       }
     }
 

@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { DashboardHome } from '@/components/dashboard/DashboardHome';
+import { syncPortalUserIdentityDom } from '@/components/PortalUserIdentity';
 import { UserProvider } from '@/context/UserContext';
 import { api, readEmployee } from '@/lib/api';
 import type { PortalNavId } from '@/lib/portalNav';
@@ -18,7 +19,7 @@ const ADMIN_NAV_MAP: Partial<Record<PortalNavId, string>> = {
   calendar: 'calendar',
   'holiday-calendar': 'holiday-calendar',
   attendance: 'attendance',
-  'leave-apply': 'leaves',
+  'leave-apply': 'leave-apply',
   'leave-history': 'leaves',
   'leave-approval': 'leaves',
   'team-attendance': 'attendance',
@@ -26,6 +27,9 @@ const ADMIN_NAV_MAP: Partial<Record<PortalNavId, string>> = {
   'policies-and-links': 'policies-and-links',
   teams: 'teams',
   profile: 'profile',
+  'live-activities': 'live-activity-links',
+  'social-portal': 'company-social',
+  helpdesk: 'dashboard',
 };
 
 function jumpAdminNav(nav: PortalNavId) {
@@ -62,6 +66,21 @@ function PortalDashboardIsland() {
         };
         localStorage.setItem('employee', JSON.stringify(merged));
         setUser(merged);
+        api<{ record?: { punchin?: string | null; punchout?: string | null } | null }>('/api/attendance/today')
+          .then((att) => {
+            const formatPunch = (value: string | null | undefined) => {
+              if (!value) return '—';
+              const d = new Date(value);
+              if (Number.isNaN(d.getTime())) return '—';
+              return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+            };
+            syncPortalUserIdentityDom(
+              merged,
+              formatPunch(att.record?.punchin),
+              formatPunch(att.record?.punchout)
+            );
+          })
+          .catch(() => syncPortalUserIdentityDom(merged, '—', '—'));
       })
       .catch(() => undefined);
   }, []);
@@ -109,4 +128,4 @@ if (!window.HRMS) {
   window.HRMS = { toast: () => {} };
 }
 
-window.HRMS.mountPortalDashboard = mountPortalDashboard;
+export { mountPortalDashboard };

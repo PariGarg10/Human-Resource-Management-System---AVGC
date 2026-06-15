@@ -128,6 +128,7 @@ body {
   body.has-floating-sidebar .app-main,
   body.force-desktop-ui .app-main,
   body.has-floating-sidebar.sidebar-collapsed .app-main,
+  body.shell-mobile .app-main,
   .app-main {
     margin-left: 0 !important;
     width: 100% !important;
@@ -136,6 +137,7 @@ body {
 
   body.has-floating-sidebar .top-navbar,
   body.force-desktop-ui .top-navbar,
+  body.shell-mobile .top-navbar,
   .top-navbar {
     width: 100% !important;
     max-width: 100% !important;
@@ -144,9 +146,75 @@ body {
     padding-right: max(16px, env(safe-area-inset-right, 0px)) !important;
   }
 
+  body.has-floating-sidebar .sidebar,
+  body.force-desktop-ui .sidebar,
+  body.shell-mobile .sidebar {
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: min(var(--sidebar-width), 88vw) !important;
+    max-height: none !important;
+    height: 100dvh !important;
+    border-radius: 0 !important;
+    transform: translateX(-100%) !important;
+    z-index: 1001 !important;
+  }
+
+  body.mobile-sidebar-open.has-floating-sidebar .sidebar,
+  body.mobile-sidebar-open.force-desktop-ui .sidebar,
+  body.mobile-sidebar-open.shell-mobile .sidebar,
+  body.mobile-sidebar-open .sidebar {
+    transform: translateX(0) !important;
+    pointer-events: auto !important;
+  }
+
   .content-area {
     padding: clamp(12px, 3vw, 20px);
     max-width: 100%;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
+  .view-section.profile-viewport.is-active,
+  .view-section.asset-management-viewport.is-active,
+  .view-section.live-activity-viewport.is-active {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .profile-viewport .profile-panel-shell,
+  #adminProfileReactRoot {
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 12px));
+  }
+
+  body.mobile-sidebar-open .app-main,
+  body.mobile-sidebar-open .content-area {
+    overflow: hidden;
+  }
+
+  .employee-documents-layout {
+    grid-template-rows: minmax(0, 38vh) minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .asset-table-scroll {
+    max-height: min(50vh, 480px);
+  }
+
+  .employee-doc-upload-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .employee-doc-upload-form .form-group--action {
+    grid-column: 1 / -1;
   }
 
   .panel-header {
@@ -223,6 +291,15 @@ body {
   }
 
   .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-doc-upload-form {
+    grid-template-columns: 1fr;
+  }
+
+  .asset-management-form--add,
+  .asset-management-form--allocate {
     grid-template-columns: 1fr;
   }
 

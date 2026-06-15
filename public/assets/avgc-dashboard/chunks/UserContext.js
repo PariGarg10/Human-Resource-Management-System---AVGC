@@ -1,0 +1,1 @@
+import{h as e}from"./vendor-icons.js";import{t}from"./vendor-react.js";var n=e(),r=t(),i=(0,n.createContext)(null);function a({children:e,value:t}){return(0,r.jsx)(i.Provider,{value:t,children:e})}function o(){let e=(0,n.useContext)(i);if(!e)throw Error(`useUser must be used within UserProvider`);return e}export{o as n,a as t};

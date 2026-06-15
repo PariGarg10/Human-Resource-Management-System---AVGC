@@ -1,0 +1,1 @@
+var e={present:`#22c55e`,presentBg:`rgba(34, 197, 94, 0.2)`,presentBorder:`#16a34a`,absent:`#ed1d24`,absentBg:`rgba(237, 29, 36, 0.14)`,absentBorder:`#ed1d24`,halfday:`#d1d5db`,halfdayBg:`rgba(209, 213, 219, 0.65)`,halfdayBorder:`#9ca3af`,leave:`#4b5563`,leaveBg:`rgba(75, 85, 99, 0.38)`,leaveBorder:`#374151`};export{e as t};

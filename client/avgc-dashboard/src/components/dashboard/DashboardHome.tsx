@@ -3,7 +3,10 @@ import { MiniCalendar } from '@/components/ui/MiniCalendar';
 import { ApiError, api } from '@/lib/api';
 import { toast } from '@/lib/toast';
 import type { EmployeeUser } from '@/types/employee';
-import type { PortalNavId } from '@/lib/portalNav';
+import { resolveNotificationNav } from '@/lib/notificationNav';
+import type { PortalNavId, PortalRole } from '@/lib/portalNav';
+import { PortalUserIdentity } from '@/components/PortalUserIdentity';
+import { ManagerTeamAttendanceWidget } from '@/components/dashboard/ManagerTeamAttendanceWidget';
 
 type LeaveBalanceItem = {
   type: string;
@@ -38,93 +41,170 @@ type AttendanceSummary = {
   holidays?: number;
 };
 
+type ManagerDashboardSummary = {
+  date: string;
+  totalemployees: number;
+  pendingleaves: number;
+  todaysummary: AttendanceSummary;
+};
+
 type Props = {
   user: EmployeeUser | null;
+  portalRole?: PortalRole;
   onNavigate: (id: PortalNavId) => void;
   onPasswordRequired: (msg?: string) => void;
 };
 
-const QUICK_ACTIONS: { label: string; nav: PortalNavId }[] = [
+const EMPLOYEE_QUICK_ACTIONS: { label: string; nav: PortalNavId }[] = [
   { label: 'Apply for leave', nav: 'leave-apply' },
   { label: 'Attendance', nav: 'attendance' },
   { label: 'Asset management', nav: 'asset-management' },
   { label: 'Policies & links', nav: 'policies-and-links' },
 ];
 
-export function DashboardHome({ user, onNavigate, onPasswordRequired }: Props) {
+const MANAGER_QUICK_ACTIONS: { label: string; nav: PortalNavId }[] = [
+  { label: 'Approve leave', nav: 'leave-approval' },
+  { label: 'Team attendance', nav: 'team-attendance' },
+  { label: 'Attendance', nav: 'attendance' },
+  { label: 'Policies & links', nav: 'policies-and-links' },
+];
+
+export function DashboardHome({ user, portalRole = 'employee', onNavigate, onPasswordRequired }: Props) {
+  const isManager = portalRole === 'manager';
   const [leaveBalance, setLeaveBalance] = useState<LeaveBalanceRes | null>(null);
   const [notifications, setNotifications] = useState<NotificationRow[]>([]);
   const [summary, setSummary] = useState<AttendanceSummary | null>(null);
+  const [managerSummary, setManagerSummary] = useState<ManagerDashboardSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const now = new Date();
-      const month = now.getMonth() + 1;
-      const year = now.getFullYear();
-      const tasks: Promise<void>[] = [];
+      const data = await api<{
+        leaveBalance: LeaveBalanceRes | null;
+        notifications: NotificationRow[];
+        attendanceSummary: AttendanceSummary | null;
+        managerSummary: ManagerDashboardSummary | null;
+      }>('/api/dashboard/home');
 
-      if (user?.id) {
-        tasks.push(
-          api<LeaveBalanceRes>(`/api/leave-balance/${user.id}`)
-            .then((balance) => setLeaveBalance(balance))
-            .catch(() => setLeaveBalance(null))
-        );
+      setLeaveBalance(data.leaveBalance);
+      setNotifications(data.notifications || []);
+      if (portalRole === 'manager' && data.managerSummary) {
+        setManagerSummary(data.managerSummary);
+        setSummary(data.managerSummary.todaysummary);
+      } else {
+        setManagerSummary(null);
+        setSummary(data.attendanceSummary);
       }
-      tasks.push(
-        api<{ notifications?: NotificationRow[] }>('/api/notifications')
-          .then((n) => setNotifications(n.notifications || []))
-          .catch(() => setNotifications([]))
-      );
-      tasks.push(
-        api<AttendanceSummary>(`/api/attendance/summary?month=${month}&year=${year}`)
-          .then((s) => setSummary(s))
-          .catch(() => setSummary(null))
-      );
-      await Promise.all(tasks);
     } catch (e) {
       if (e instanceof ApiError && e.requiresPasswordChange) {
         onPasswordRequired(e.message);
         return;
       }
-      toast(e instanceof Error ? e.message : 'Could not load dashboard', 'error');
+      // Fallback: original parallel endpoints if combined route unavailable
+      try {
+        const now = new Date();
+        const month = now.getMonth() + 1;
+        const year = now.getFullYear();
+        const tasks: Promise<void>[] = [];
+
+        if (user?.id) {
+          tasks.push(
+            api<LeaveBalanceRes>(`/api/leave-balance/${user.id}`)
+              .then((balance) => setLeaveBalance(balance))
+              .catch(() => setLeaveBalance(null))
+          );
+        }
+        tasks.push(
+          api<{ notifications?: NotificationRow[] }>('/api/notifications')
+            .then((n) => setNotifications(n.notifications || []))
+            .catch(() => setNotifications([]))
+        );
+        if (portalRole === 'manager') {
+          tasks.push(
+            api<ManagerDashboardSummary>('/api/manager/dashboard-summary')
+              .then((s) => {
+                setManagerSummary(s);
+                setSummary(s.todaysummary);
+              })
+              .catch(() => {
+                setManagerSummary(null);
+                setSummary(null);
+              })
+          );
+        } else {
+          tasks.push(
+            api<AttendanceSummary>(`/api/attendance/summary?month=${month}&year=${year}`)
+              .then((s) => setSummary(s))
+              .catch(() => setSummary(null))
+          );
+        }
+        await Promise.all(tasks);
+      } catch (fallbackErr) {
+        if (fallbackErr instanceof ApiError && fallbackErr.requiresPasswordChange) {
+          onPasswordRequired(fallbackErr.message);
+          return;
+        }
+        toast(fallbackErr instanceof Error ? fallbackErr.message : 'Could not load dashboard', 'error');
+      }
     } finally {
       setLoading(false);
     }
-  }, [onPasswordRequired, user?.id]);
+  }, [onPasswordRequired, portalRole, user?.id]);
 
   useEffect(() => {
     load().catch(() => {});
   }, [load]);
 
-  const designation = user?.designation?.trim() || '—';
-  const department = user?.department?.trim() || '—';
-  const empId = user?.employeecode?.trim() || '—';
   const totals = leaveBalance?.totals;
-  const unread = notifications.filter((n) => !n.isRead).length;
+  const unreadItems = notifications.filter((n) => !n.isRead);
+  const unread = unreadItems.length;
+
+  const handleAnnouncementClick = async (item: NotificationRow) => {
+    try {
+      await api(`/api/notifications/${item.id}/read`, { method: 'PATCH' });
+    } catch {
+      /* still navigate */
+    }
+    setNotifications((prev) => prev.filter((n) => n.id !== item.id));
+    const nav = resolveNotificationNav(item.type, item.message, user?.role);
+    onNavigate(nav);
+  };
   const year = leaveBalance?.year ?? new Date().getFullYear();
 
-  const stats = [
-    { label: 'Present', value: summary?.present ?? 0, tone: 'present' as const },
-    { label: 'Half Day', value: summary?.halfday ?? 0, tone: 'half' as const },
-    { label: 'Leave days', value: summary?.leave ?? 0, tone: 'leave' as const },
-    { label: 'Absent', value: summary?.absent ?? 0, tone: 'absent' as const },
-  ];
+  const stats = isManager
+    ? [
+        { label: 'Team size', value: managerSummary?.totalemployees ?? 0, tone: 'neutral' as const },
+        { label: 'Present today', value: summary?.present ?? 0, tone: 'present' as const },
+        { label: 'On leave today', value: summary?.leave ?? 0, tone: 'leave' as const },
+        {
+          label: 'Pending approvals',
+          value: managerSummary?.pendingleaves ?? 0,
+          tone: 'pending' as const,
+        },
+      ]
+    : [
+        { label: 'Present', value: summary?.present ?? 0, tone: 'present' as const },
+        { label: 'Half Day', value: summary?.halfday ?? 0, tone: 'half' as const },
+        { label: 'Leave days', value: summary?.leave ?? 0, tone: 'leave' as const },
+        { label: 'Absent', value: summary?.absent ?? 0, tone: 'absent' as const },
+      ];
+
+  const quickActions = isManager ? MANAGER_QUICK_ACTIONS : EMPLOYEE_QUICK_ACTIONS;
+  const maxAnnouncements = 4;
 
   return (
-    <div className="dashboard-home-viewport" id="employeeLeaveBalancePanel">
+    <div
+      className={`dashboard-home-viewport${isManager ? ' dashboard-home-viewport--manager' : ''}`}
+      id="employeeLeaveBalancePanel"
+    >
       <section className="dashboard-home-card dashboard-home-hero">
-        <p className="dashboard-home-eyebrow">Welcome back</p>
-        <h2 className="dashboard-home-name">{user?.name?.trim() || 'Employee'}</h2>
-        <p className="dashboard-home-meta">
-          <span>{designation}</span>
-          <span className="dashboard-home-dot" aria-hidden="true" />
-          <span>{department}</span>
-        </p>
-        <span className="dashboard-home-id-pill">ID {empId}</span>
+        <PortalUserIdentity user={user} variant="hero" />
       </section>
 
-      <section className="dashboard-home-stats" aria-label="Attendance this month">
+      <section
+        className="dashboard-home-stats"
+        aria-label={isManager ? 'Team attendance today' : 'Attendance this month'}
+      >
         {stats.map((item) => (
           <div key={item.label} className={`dashboard-home-stat dashboard-home-stat--${item.tone}`}>
             <p className="dashboard-home-stat-label">{item.label}</p>
@@ -143,19 +223,23 @@ export function DashboardHome({ user, onNavigate, onPasswordRequired }: Props) {
           </div>
         </div>
         <div className="dashboard-home-announce-feed">
-          {notifications.length === 0 ? (
-            <p className="dashboard-home-empty">No announcements yet.</p>
+          {unreadItems.length === 0 ? (
+            <p className="dashboard-home-empty">No new announcements.</p>
           ) : (
-            notifications.slice(0, 8).map((item) => (
-              <article
+            unreadItems.slice(0, maxAnnouncements).map((item) => (
+              <button
                 key={item.id}
-                className={`dashboard-home-announce-item${item.isRead ? '' : ' is-unread'}`}
+                type="button"
+                className="dashboard-home-announce-item is-unread dashboard-home-announce-item--clickable"
+                onClick={() => {
+                  handleAnnouncementClick(item).catch(() => undefined);
+                }}
               >
                 <p className="dashboard-home-announce-type">
                   {item.type === 'broadcast' ? 'Announcement' : item.type.replace(/_/g, ' ')}
                 </p>
                 <p className="dashboard-home-announce-msg">{item.message}</p>
-              </article>
+              </button>
             ))
           )}
         </div>
@@ -168,7 +252,7 @@ export function DashboardHome({ user, onNavigate, onPasswordRequired }: Props) {
       <section className="dashboard-home-card dashboard-home-actions">
         <h3 className="dashboard-home-card-title">Quick actions</h3>
         <div className="dashboard-home-action-grid">
-          {QUICK_ACTIONS.map((action) => (
+          {quickActions.map((action) => (
             <button
               key={action.nav}
               type="button"
@@ -210,7 +294,7 @@ export function DashboardHome({ user, onNavigate, onPasswordRequired }: Props) {
           </div>
         </div>
         {(leaveBalance?.balances || []).length > 0 && (
-          <div className="dashboard-home-leave-types">
+          <div className="dashboard-home-leave-types dashboard-home-leave-types--detail">
             {leaveBalance!.balances.map((item) => (
               <div key={item.type} className="dashboard-home-leave-type">
                 <span className="dashboard-home-leave-type-name">{item.type}</span>
@@ -222,6 +306,10 @@ export function DashboardHome({ user, onNavigate, onPasswordRequired }: Props) {
           </div>
         )}
       </section>
+
+      {isManager ? (
+        <ManagerTeamAttendanceWidget onNavigate={onNavigate} variant="footer" />
+      ) : null}
     </div>
   );
 }

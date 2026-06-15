@@ -16,6 +16,15 @@ CREATE TABLE IF NOT EXISTS employees (
   reporting_to_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
   role TEXT NOT NULL DEFAULT 'employee',
   isregistered BOOLEAN NOT NULL DEFAULT TRUE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  employment_status VARCHAR(50) NOT NULL DEFAULT 'active',
+  is_first_login BOOLEAN NOT NULL DEFAULT TRUE,
+  onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
+  emergency_contact_name TEXT,
+  emergency_contact_phone TEXT,
+  bank_account_name TEXT,
+  bank_account_number TEXT,
+  bank_ifsc TEXT,
   mustchangepassword BOOLEAN NOT NULL DEFAULT FALSE,
   dateofbirth TEXT,
   phone TEXT,
@@ -270,6 +279,16 @@ CREATE TABLE IF NOT EXISTS policy_documents (
 
 CREATE INDEX IF NOT EXISTS idx_policy_documents_visible ON policy_documents (is_visible, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS policy_chat_documents (
+  id SERIAL PRIMARY KEY,
+  filename VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  uploaded_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_policy_chat_documents_uploaded ON policy_chat_documents (uploaded_at DESC);
+
 CREATE TABLE IF NOT EXISTS live_activity_links (
   id SERIAL PRIMARY KEY,
   title TEXT NOT NULL,
@@ -396,3 +415,115 @@ CREATE TABLE IF NOT EXISTS social_tournament_scores (
 );
 
 CREATE INDEX IF NOT EXISTS idx_social_tournaments_status ON social_tournaments (status, game_id);
+
+CREATE TABLE IF NOT EXISTS exit_requests (
+  id SERIAL PRIMARY KEY,
+  employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  initiated_by_admin INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  exit_type VARCHAR(50),
+  status VARCHAR(50) NOT NULL DEFAULT 'pending',
+  requested_last_working_day DATE,
+  confirmed_last_working_day DATE,
+  last_working_day DATE,
+  reason TEXT,
+  employee_reason TEXT,
+  hr_notes TEXT,
+  reviewed_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  reviewed_at TIMESTAMPTZ,
+  kt_signed_off BOOLEAN NOT NULL DEFAULT FALSE,
+  kt_signed_off_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  kt_signed_off_at TIMESTAMPTZ,
+  relieving_letter_url TEXT,
+  experience_letter_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_exit_requests_employee ON exit_requests (employee_id, status);
+
+CREATE TABLE IF NOT EXISTS exit_clearances (
+  id SERIAL PRIMARY KEY,
+  exit_request_id INTEGER NOT NULL REFERENCES exit_requests(id) ON DELETE CASCADE,
+  clearance_type VARCHAR(50) NOT NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'pending',
+  approved_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  remarks TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (exit_request_id, clearance_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_exit_clearances_request ON exit_clearances (exit_request_id, clearance_type);
+
+CREATE TABLE IF NOT EXISTS onboarding_tasks (
+  id SERIAL PRIMARY KEY,
+  employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  task_key VARCHAR(100) NOT NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'pending',
+  completed_at TIMESTAMPTZ,
+  meta JSONB,
+  UNIQUE (employee_id, task_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_onboarding_tasks_employee ON onboarding_tasks (employee_id);
+
+CREATE TABLE IF NOT EXISTS posh_config (
+  id INTEGER PRIMARY KEY DEFAULT 1,
+  video_url TEXT,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS posh_quiz_questions (
+  id SERIAL PRIMARY KEY,
+  question TEXT NOT NULL,
+  option_a TEXT NOT NULL,
+  option_b TEXT NOT NULL,
+  option_c TEXT NOT NULL,
+  option_d TEXT NOT NULL,
+  correct_option CHAR(1) NOT NULL CHECK (correct_option IN ('a', 'b', 'c', 'd')),
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE TABLE IF NOT EXISTS posh_quiz_attempts (
+  id SERIAL PRIMARY KEY,
+  employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  score INTEGER NOT NULL,
+  passed BOOLEAN NOT NULL,
+  answers JSONB,
+  attempted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS exit_manager_submissions (
+  id SERIAL PRIMARY KEY,
+  exit_request_id INTEGER NOT NULL UNIQUE REFERENCES exit_requests(id) ON DELETE CASCADE,
+  knowledge_transfer_summary TEXT,
+  pending_tasks_status TEXT,
+  handover_person_name TEXT,
+  confirmed BOOLEAN NOT NULL DEFAULT FALSE,
+  submitted_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS exit_interviews (
+  id SERIAL PRIMARY KEY,
+  exit_request_id INTEGER NOT NULL UNIQUE REFERENCES exit_requests(id) ON DELETE CASCADE,
+  employee_self_assessment JSONB,
+  hr_interview_notes TEXT,
+  final_reason TEXT,
+  employee_submitted_at TIMESTAMPTZ,
+  hr_recorded_at TIMESTAMPTZ,
+  hr_recorded_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS kt_tasks (
+  id SERIAL PRIMARY KEY,
+  exit_request_id INTEGER NOT NULL REFERENCES exit_requests(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  handover_owner_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  assigned_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+  status VARCHAR(50) NOT NULL DEFAULT 'pending',
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_kt_tasks_exit ON kt_tasks (exit_request_id, status);

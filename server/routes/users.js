@@ -16,6 +16,7 @@ const { ensurePersonalTasksTable, rowToTask, PRIORITIES, parseDueDateInput } = r
 const { logAudit } = require('../utils/audit');
 const { ageFromDateOfBirth } = require('../utils/birthdays');
 const { TEAM_LEAD_SQL } = require('../utils/teamLeads');
+const { syncProfileTask } = require('../utils/onboardingHelpers');
 
 const router = express.Router();
 
@@ -68,6 +69,13 @@ function rowToProfile(row) {
     profilePhotoUrl: normalizeProfilePhotoUrl(row.profilephotourl),
     age: ageFromDateOfBirth(row.dateofbirth),
     createdAt: row.createdat,
+    isFirstLogin: row.is_first_login === true,
+    onboardingCompleted: row.onboarding_completed === true,
+    emergencyContactName: row.emergency_contact_name || null,
+    emergencyContactPhone: row.emergency_contact_phone || null,
+    bankAccountName: row.bank_account_name || null,
+    bankAccountNumber: row.bank_account_number || null,
+    bankIfsc: row.bank_ifsc || null,
   };
 }
 
@@ -83,7 +91,19 @@ function parseProfileFields(body) {
     else if (/^\d{4}-\d{2}-\d{2}$/.test(rawDob)) dateOfBirth = rawDob;
     else throw new Error('dateOfBirth must be YYYY-MM-DD or empty');
   }
-  return { name, phone, location, bio, dateOfBirth };
+  const strOrNull = (v) => (v != null ? String(v).trim() || null : undefined);
+  return {
+    name,
+    phone,
+    location,
+    bio,
+    dateOfBirth,
+    emergencyContactName: strOrNull(body.emergencyContactName),
+    emergencyContactPhone: strOrNull(body.emergencyContactPhone),
+    bankAccountName: strOrNull(body.bankAccountName),
+    bankAccountNumber: strOrNull(body.bankAccountNumber),
+    bankIfsc: strOrNull(body.bankIfsc),
+  };
 }
 
 let profilePhotoColumnsReady = false;
@@ -107,6 +127,19 @@ async function applyProfileUpdate(userId, fields, profilePhotoUrl, profileFile) 
     bio: fields.bio !== undefined ? fields.bio : row.bio,
     dateofbirth: fields.dateOfBirth !== undefined ? fields.dateOfBirth : row.dateofbirth,
     profilephotourl: profilePhotoUrl !== undefined ? profilePhotoUrl : row.profilephotourl,
+    emergency_contact_name:
+      fields.emergencyContactName !== undefined
+        ? fields.emergencyContactName
+        : row.emergency_contact_name,
+    emergency_contact_phone:
+      fields.emergencyContactPhone !== undefined
+        ? fields.emergencyContactPhone
+        : row.emergency_contact_phone,
+    bank_account_name:
+      fields.bankAccountName !== undefined ? fields.bankAccountName : row.bank_account_name,
+    bank_account_number:
+      fields.bankAccountNumber !== undefined ? fields.bankAccountNumber : row.bank_account_number,
+    bank_ifsc: fields.bankIfsc !== undefined ? fields.bankIfsc : row.bank_ifsc,
   };
 
   if (fields.name !== undefined && !next.name) {
@@ -119,8 +152,10 @@ async function applyProfileUpdate(userId, fields, profilePhotoUrl, profileFile) 
       `
       UPDATE employees
       SET name = $1, phone = $2, location = $3, bio = $4, dateofbirth = $5, profilephotourl = $6,
-          profile_photo = $7, profile_photo_mime = $8
-      WHERE id = $9
+          profile_photo = $7, profile_photo_mime = $8,
+          emergency_contact_name = $9, emergency_contact_phone = $10,
+          bank_account_name = $11, bank_account_number = $12, bank_ifsc = $13
+      WHERE id = $14
     `,
       [
         next.name,
@@ -131,6 +166,11 @@ async function applyProfileUpdate(userId, fields, profilePhotoUrl, profileFile) 
         next.profilephotourl,
         profileFile.buffer,
         profileFile.mimetype || 'image/jpeg',
+        next.emergency_contact_name,
+        next.emergency_contact_phone,
+        next.bank_account_name,
+        next.bank_account_number,
+        next.bank_ifsc,
         userId,
       ]
     );
@@ -138,17 +178,36 @@ async function applyProfileUpdate(userId, fields, profilePhotoUrl, profileFile) 
     await pool.query(
       `
       UPDATE employees
-      SET name = $1, phone = $2, location = $3, bio = $4, dateofbirth = $5, profilephotourl = $6
-      WHERE id = $7
+      SET name = $1, phone = $2, location = $3, bio = $4, dateofbirth = $5, profilephotourl = $6,
+          emergency_contact_name = $7, emergency_contact_phone = $8,
+          bank_account_name = $9, bank_account_number = $10, bank_ifsc = $11
+      WHERE id = $12
     `,
-      [next.name, next.phone, next.location, next.bio, next.dateofbirth, next.profilephotourl, userId]
+      [
+        next.name,
+        next.phone,
+        next.location,
+        next.bio,
+        next.dateofbirth,
+        next.profilephotourl,
+        next.emergency_contact_name,
+        next.emergency_contact_phone,
+        next.bank_account_name,
+        next.bank_account_number,
+        next.bank_ifsc,
+        userId,
+      ]
     );
   }
+
+  await syncProfileTask(userId).catch(() => {});
 
   const updatedResult = await pool.query(
     `
       SELECT id, employeecode, name, email, department, designation, role, reporting_to_id,
-             dateofbirth, phone, location, bio, profilephotourl, createdat
+             dateofbirth, phone, location, bio, profilephotourl, createdat, is_first_login,
+             onboarding_completed, emergency_contact_name, emergency_contact_phone,
+             bank_account_name, bank_account_number, bank_ifsc
       FROM employees WHERE id = $1
     `,
       [userId]
@@ -211,7 +270,7 @@ router.get('/team-leads', authMiddleware, enforcePasswordChange, async (req, res
       `
         SELECT id, name, employeecode, designation, department
         FROM employees
-        WHERE COALESCE(isregistered, TRUE) = TRUE
+        WHERE COALESCE(isregistered, TRUE) = TRUE AND COALESCE(is_active, TRUE) = TRUE
           AND id != $1
           AND ${TEAM_LEAD_SQL.replace(/\n/g, ' ')}
         ORDER BY name ASC
@@ -234,7 +293,7 @@ router.get('/org-directory', authMiddleware, enforcePasswordChange, async (_req,
              phone, location, dateofbirth, bio,
              (profile_photo IS NOT NULL) AS has_profile_photo
       FROM employees
-      WHERE COALESCE(isregistered, TRUE) = TRUE
+      WHERE COALESCE(isregistered, TRUE) = TRUE AND COALESCE(is_active, TRUE) = TRUE
       ORDER BY name ASC
     `
     );
@@ -263,7 +322,7 @@ router.get('/org-tree', authMiddleware, enforcePasswordChange, async (req, res) 
                profilephotourl, phone, location,
                (profile_photo IS NOT NULL) AS has_profile_photo
         FROM employees
-        WHERE COALESCE(isregistered, TRUE) = TRUE
+        WHERE COALESCE(isregistered, TRUE) = TRUE AND COALESCE(is_active, TRUE) = TRUE
         ORDER BY name ASC
       `
       ),
@@ -532,7 +591,9 @@ router.get('/me', authMiddleware, async (req, res) => {
     const result = await pool.query(
       `
       SELECT id, employeecode, name, email, department, designation, role, reporting_to_id,
-             dateofbirth, phone, location, bio, profilephotourl, createdat
+             dateofbirth, phone, location, bio, profilephotourl, createdat, is_first_login,
+             onboarding_completed, emergency_contact_name, emergency_contact_phone,
+             bank_account_name, bank_account_number, bank_ifsc
       FROM employees WHERE id = $1
     `,
       [req.user.id]
@@ -555,7 +616,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
     const result = await pool.query(
       `
       SELECT id, employeecode, name, email, department, designation, role, reporting_to_id,
-             dateofbirth, phone, location, bio, profilephotourl, createdat
+             dateofbirth, phone, location, bio, profilephotourl, createdat, is_first_login
       FROM employees WHERE id = $1
     `,
       [req.user.id]

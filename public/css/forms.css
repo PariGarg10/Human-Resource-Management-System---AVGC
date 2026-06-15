@@ -43,8 +43,23 @@
   gap: 12px;
 }
 
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 4px;
+}
+
 .form-group--action {
-  align-self: end;
+  align-self: stretch;
+  align-items: flex-end;
+}
+
+.form-group--action .btn {
+  width: auto;
+  max-width: 100%;
 }
 
 .manage-admin-form {
@@ -98,7 +113,7 @@
 
 .manage-admin-actions {
   grid-column: 1 / -1;
-  align-items: flex-start;
+  align-items: flex-end;
 }
 
 .manage-admin-actions .btn {
@@ -214,7 +229,12 @@ a.btn-primary:visited,
 
 .btn-outline:hover {
   background: rgba(230, 57, 70, 0.12);
-  color: #fff;
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-outline:hover {
+  background: rgba(237, 29, 36, 0.22);
+  color: #ffffff;
 }
 
 .btn-sm {

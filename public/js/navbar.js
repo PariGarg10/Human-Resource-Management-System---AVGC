@@ -162,6 +162,50 @@ HRMS.syncNavProfileName = function (name, email) {
   if (ah && nm) ah.textContent = nm;
 };
 
+HRMS.syncPortalUserIdentity = function syncPortalUserIdentity(user, punchIn, punchOut) {
+  const escapeHtml = (value) =>
+    String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  const name = (user && (user.name || user.email)) || '—';
+  const designation = (user && user.designation) || '—';
+  const empId = (user && user.employeecode) || '—';
+  const root = document.getElementById('sidebarUserIdentity');
+  if (root) {
+    root.innerHTML = `
+      <p class="portal-user-identity-name">${escapeHtml(name)}</p>
+      <p class="portal-user-identity-line">${escapeHtml(designation)}</p>
+      <p class="portal-user-identity-line">${escapeHtml(empId)}</p>
+      <p class="portal-user-identity-line">${escapeHtml(punchIn || '—')}</p>
+      <p class="portal-user-identity-line">${escapeHtml(punchOut || '—')}</p>
+    `;
+  }
+  HRMS.syncNavProfileName(name, user && user.email);
+};
+
+HRMS.loadPortalUserIdentity = async function loadPortalUserIdentity(apiFn) {
+  let user = {};
+  try {
+    user = JSON.parse(localStorage.getItem('employee') || '{}');
+  } catch (_e) {}
+  let punchIn = '—';
+  let punchOut = '—';
+  const formatPunch = (value) => {
+    if (!value) return '—';
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return '—';
+    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  };
+  try {
+    const data = await apiFn('/api/attendance/today');
+    punchIn = formatPunch(data.record && data.record.punchin);
+    punchOut = formatPunch(data.record && data.record.punchout);
+  } catch (_e) {}
+  HRMS.syncPortalUserIdentity(user, punchIn, punchOut);
+};
+
 HRMS.initNotificationBell = function initNotificationBell(apiFn) {
   const bell = document.getElementById('notificationBell');
   const panel = document.getElementById('notificationPanel');
@@ -187,18 +231,25 @@ HRMS.initNotificationBell = function initNotificationBell(apiFn) {
         list.innerHTML = '<p class="notif-empty">No notifications</p>';
         return;
       }
-      list.innerHTML = items
-        .map(
-          (n) =>
-            `<button type="button" class="notif-row" data-notif-id="${n.id}" data-read="${n.isRead ? '1' : '0'}">
+      const visible = items.filter((n) => !n.isRead);
+      if (!visible.length) {
+        list.innerHTML = '<p class="notif-empty">No notifications</p>';
+        return;
+      }
+      list.innerHTML = visible
+        .map((n) => {
+          const safeMsg = String(n.message || '').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+          return `<button type="button" class="notif-row" data-notif-id="${n.id}" data-read="0" data-notif-type="${String(n.type || '').replace(/"/g, '')}" data-notif-msg="${safeMsg}">
               <span class="notif-icon">${n.type === 'birthday' ? '🎂' : n.type === 'broadcast' ? '🔔' : '•'}</span>
-              <span class="notif-msg">${String(n.message || '').replace(/</g, '&lt;')}</span>
-            </button>`
-        )
+              <span class="notif-msg">${safeMsg}</span>
+            </button>`;
+        })
         .join('');
       list.querySelectorAll('.notif-row').forEach((btn) => {
         btn.addEventListener('click', async () => {
           const id = Number(btn.getAttribute('data-notif-id'));
+          const type = btn.getAttribute('data-notif-type') || '';
+          const message = btn.getAttribute('data-notif-msg') || '';
           btn.remove();
           if (!list.querySelector('.notif-row')) {
             list.innerHTML = '<p class="notif-empty">No notifications</p>';
@@ -208,9 +259,13 @@ HRMS.initNotificationBell = function initNotificationBell(apiFn) {
             badge.textContent = unreadLeft > 9 ? '9+' : String(unreadLeft);
             badge.classList.toggle('hidden', unreadLeft === 0);
           }
+          panel.classList.remove('is-open');
           try {
             await apiFn(`/api/notifications/${id}/read`, { method: 'PATCH' });
           } catch (_e) {}
+          if (HRMS.navigateForNotification) {
+            HRMS.navigateForNotification(type, message);
+          }
         });
       });
     } catch (_e) {

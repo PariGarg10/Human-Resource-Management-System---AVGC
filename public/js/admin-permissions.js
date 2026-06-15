@@ -22,9 +22,12 @@
     employees: MODULE.EMPLOYEE_MANAGEMENT,
     'employee-documents': MODULE.EMPLOYEE_MANAGEMENT,
     teams: MODULE.EMPLOYEE_MANAGEMENT,
+    'exit-clearances': MODULE.EMPLOYEE_MANAGEMENT,
+    onboarding: MODULE.EMPLOYEE_MANAGEMENT,
     'manager-assignments': MODULE.EMPLOYEE_MANAGEMENT,
     'manager-directory': MODULE.EMPLOYEE_MANAGEMENT,
     attendance: MODULE.ATTENDANCE,
+    'leave-apply': MODULE.LEAVE_MANAGEMENT,
     leaves: MODULE.LEAVE_MANAGEMENT,
     'leave-entitlements': MODULE.LEAVE_MANAGEMENT,
     'import-employees': MODULE.IMPORT_DATA,
@@ -45,6 +48,9 @@
   const ALWAYS_VISIBLE = new Set([
     'my-tasks',
     'profile',
+    'dashboard',
+    'calendar',
+    'teams',
     'asset-management',
     'policies-and-links',
     'homepage-recognition',
@@ -93,7 +99,7 @@
     const canPeople = getPermissions(user).includes(MODULE.EMPLOYEE_MANAGEMENT);
     document
       .querySelectorAll(
-        '.sidebar-nav [data-nav="manager-assignments"], .sidebar-nav [data-nav="manager-directory"], .sidebar-nav [data-nav="teams"]'
+        '.sidebar-nav [data-nav="manager-assignments"], .sidebar-nav [data-nav="manager-directory"]'
       )
       .forEach((el) => {
         el.style.display = canPeople ? '' : 'none';

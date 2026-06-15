@@ -323,3 +323,9 @@ Default super admin (after `db:init` / `db:reset-super-admin`): see seed scripts
 ## License
 
 ISC (see `package.json`).
+
+
+
+
+For any future changes 
+Just fork this repo : 

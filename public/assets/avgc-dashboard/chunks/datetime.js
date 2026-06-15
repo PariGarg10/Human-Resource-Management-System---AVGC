@@ -1,0 +1,1 @@
+function e(e){return e?new Date(e).toLocaleTimeString(void 0,{hour:`2-digit`,minute:`2-digit`}):`—`}export{e as t};

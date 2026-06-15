@@ -220,7 +220,15 @@ function parseAttendanceRow(row, options = {}) {
   ).trim();
 
   const employeecode = String(
-    pickRowField(row, ['employee code', 'emp code', 'employeecode', 'employee id', 'emp id']) || ''
+    pickRowField(row, [
+      'e code',
+      'e. code',
+      'employee code',
+      'emp code',
+      'employeecode',
+      'employee id',
+      'emp id',
+    ]) || ''
   ).trim();
 
   const punchInRaw = pickRowField(row, [
@@ -272,6 +280,7 @@ function parseAttendanceRow(row, options = {}) {
 
 module.exports = {
   normalizeImportDate,
+  normalizeHeader,
   normalizePersonName,
   readAttendanceRowsFromFile,
   parseAttendanceRow,

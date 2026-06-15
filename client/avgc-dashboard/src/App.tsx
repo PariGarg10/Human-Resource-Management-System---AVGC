@@ -1,30 +1,43 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { DashboardHome } from '@/components/dashboard/DashboardHome';
+import { FirstLoginCelebration } from '@/components/FirstLoginCelebration';
+import { OnboardingCompleteCelebration } from '@/components/OnboardingCompleteCelebration';
 import { PortalAppShell } from '@/components/layout/PortalAppShell';
 import { PasswordGate } from '@/components/PasswordGate';
 import { UserProvider } from '@/context/UserContext';
 import { api, readEmployee } from '@/lib/api';
 import {
   detectPortalRole,
+  isOnboardingNavAllowed,
   navSectionsForRole,
+  ONBOARDING_GATE_NAV_SECTIONS,
   PORTAL_PAGE_TITLES,
   type PortalNavId,
   type PortalRole,
 } from '@/lib/portalNav';
 import type { EmployeeUser, UserProfile } from '@/types/employee';
-import { AttendancePanel } from '@/views/AttendancePanel';
-import { AssetsPanel } from '@/views/AssetsPanel';
-import { CalendarPanel } from '@/views/CalendarPanel';
-import { HolidayCalendarPanel } from '@/views/HolidayCalendarPanel';
-import { LeaveApplyPanel, LeaveHistoryPanel } from '@/views/LeavePanels';
-import { LiveActivitiesPanel } from '@/views/LiveActivitiesPanel';
-import { OrgTreePanel } from '@/features/team-hub/OrgTreePanel';
-import { LeaveApprovalPanel } from '@/views/LeaveApprovalPanel';
-import { ManagerTeamAttendancePanel } from '@/views/ManagerTeamAttendancePanel';
-import { PlaceholderPanel } from '@/views/PlaceholderPanel';
-import { PoliciesPanel } from '@/views/PoliciesPanel';
-import { ProfilePanel, SettingsPanel } from '@/views/ProfileSettingsPanels';
-import SocialPortal from '@/SocialPortal.jsx';
+import {
+  AssetsPanel,
+  AttendancePanel,
+  CalendarPanel,
+  ExitPanel,
+  HolidayCalendarPanel,
+  LazyPanel,
+  LeaveApplyPanel,
+  LeaveApprovalPanel,
+  LeaveHistoryPanel,
+  LiveActivitiesPanel,
+  ManagerExitClearancesPanel,
+  ManagerTeamAttendancePanel,
+  OnboardingPanel,
+  OrgTreePanel,
+  PerformancePanel,
+  PlaceholderPanel,
+  PoliciesPanel,
+  ProfilePanel,
+  SettingsPanel,
+  SocialPortal,
+} from '@/lib/lazyPanels';
 
 function renderPanel(
   nav: PortalNavId,
@@ -32,61 +45,111 @@ function renderPanel(
   setUser: (u: EmployeeUser) => void,
   onNavigate: (id: PortalNavId) => void,
   onPasswordRequired: (msg?: string) => void,
-  portalRole: PortalRole
+  portalRole: PortalRole,
+  onOnboardingCompleted?: (options?: { celebrate?: boolean }) => void
 ) {
   switch (nav) {
     case 'dashboard':
       return (
         <DashboardHome
           user={user}
+          portalRole={portalRole}
           onNavigate={(id) => onNavigate(id as PortalNavId)}
           onPasswordRequired={onPasswordRequired}
         />
       );
     case 'profile':
       return (
-        <div className="profile-viewport">
-          <ProfilePanel user={user} onProfileSaved={(u) => setUser(u)} />
-        </div>
+        <LazyPanel>
+          <div className="profile-viewport">
+            <ProfilePanel user={user} onProfileSaved={(u) => setUser(u)} />
+          </div>
+        </LazyPanel>
       );
     case 'settings':
-      return <SettingsPanel />;
+      return (
+        <LazyPanel>
+          <SettingsPanel />
+        </LazyPanel>
+      );
     case 'asset-management':
-      return <AssetsPanel />;
+      return (
+        <LazyPanel>
+          <AssetsPanel />
+        </LazyPanel>
+      );
     case 'policies-and-links':
-      return <PoliciesPanel />;
+      return (
+        <LazyPanel>
+          <PoliciesPanel />
+        </LazyPanel>
+      );
     case 'attendance':
-      return <AttendancePanel />;
+      return (
+        <LazyPanel>
+          <AttendancePanel />
+        </LazyPanel>
+      );
     case 'calendar':
       return (
-        <div className="panel attendance-calendar-panel" style={{ padding: '14px 18px', overflow: 'hidden' }}>
-          <CalendarPanel />
-        </div>
+        <LazyPanel>
+          <div className="panel attendance-calendar-panel" style={{ padding: '14px 18px', overflow: 'hidden' }}>
+            <CalendarPanel />
+          </div>
+        </LazyPanel>
       );
     case 'holiday-calendar':
       return (
-        <div className="holiday-calendar-viewport">
-          <HolidayCalendarPanel />
-        </div>
+        <LazyPanel>
+          <div className="holiday-calendar-viewport">
+            <HolidayCalendarPanel />
+          </div>
+        </LazyPanel>
       );
     case 'leave-apply':
-      return <LeaveApplyPanel />;
+      return (
+        <LazyPanel>
+          <LeaveApplyPanel />
+        </LazyPanel>
+      );
     case 'leave-history':
-      return <LeaveHistoryPanel />;
+      return (
+        <LazyPanel>
+          <LeaveHistoryPanel />
+        </LazyPanel>
+      );
     case 'teams':
       return (
-        <div className="org-teams-viewport">
-          <OrgTreePanel />
-        </div>
+        <LazyPanel>
+          <div className="org-teams-viewport">
+            <OrgTreePanel />
+          </div>
+        </LazyPanel>
       );
     case 'live-activities':
-      return <LiveActivitiesPanel portalRole={portalRole} mode="links" />;
+      return (
+        <LazyPanel>
+          <LiveActivitiesPanel portalRole={portalRole} mode="links" />
+        </LazyPanel>
+      );
     case 'team-attendance':
-      return <ManagerTeamAttendancePanel />;
+      return (
+        <LazyPanel>
+          <ManagerTeamAttendancePanel />
+        </LazyPanel>
+      );
     case 'leave-approval':
-      return <LeaveApprovalPanel />;
+      return (
+        <LazyPanel>
+          <LeaveApprovalPanel />
+        </LazyPanel>
+      );
     case 'reports':
-      return <PlaceholderPanel title="Reports" />;
+      return (
+        <LazyPanel>
+          <PlaceholderPanel title="Reports" />
+        </LazyPanel>
+      );
     case 'helpdesk':
       return (
         <div className="panel">
@@ -98,9 +161,45 @@ function renderPanel(
       );
     case 'social-portal':
       return (
-        <div className="social-portal-viewport" style={{ margin: '-14px -18px', minHeight: 'calc(100vh - 120px)' }}>
-          <SocialPortal currentUserName={user?.name || 'You'} isAdminUser={false} />
-        </div>
+        <LazyPanel>
+          <div className="social-portal-viewport" style={{ margin: '-14px -18px', minHeight: 'calc(100vh - 120px)' }}>
+            <SocialPortal currentUserName={user?.name || 'You'} isAdminUser={false} />
+          </div>
+        </LazyPanel>
+      );
+    case 'onboarding':
+      return (
+        <LazyPanel>
+          <OnboardingPanel
+            user={user}
+            onNavigate={onNavigate}
+            onOnboardingCompleted={onOnboardingCompleted}
+          />
+        </LazyPanel>
+      );
+    case 'exit':
+      return (
+        <LazyPanel>
+          <ExitPanel />
+        </LazyPanel>
+      );
+    case 'exit-clearances':
+      return (
+        <LazyPanel>
+          <ManagerExitClearancesPanel />
+        </LazyPanel>
+      );
+    case 'performance':
+      return (
+        <LazyPanel>
+          <PerformancePanel portalRole={portalRole} />
+        </LazyPanel>
+      );
+    case 'performance-team':
+      return (
+        <LazyPanel>
+          <PerformancePanel portalRole="manager" initialTab="team" />
+        </LazyPanel>
       );
     default:
       return null;
@@ -116,19 +215,106 @@ function dashboardPathForRole(role: string): string {
 
 export default function App() {
   const portalRole: PortalRole = useMemo(() => detectPortalRole(), []);
-  const navSections = useMemo(() => navSectionsForRole(portalRole), [portalRole]);
+  const [onboardingIncomplete, setOnboardingIncomplete] = useState(() => {
+    const emp = readEmployee();
+    const role = detectPortalRole();
+    return Boolean(emp && role === 'employee' && emp.onboardingCompleted !== true);
+  });
 
-  const [nav, setNav] = useState<PortalNavId>('dashboard');
+  const onboardingGated = onboardingIncomplete && portalRole === 'employee';
+
+  const navSections = useMemo(() => {
+    if (onboardingGated) return ONBOARDING_GATE_NAV_SECTIONS;
+
+    let base = navSectionsForRole(portalRole);
+    return base;
+  }, [portalRole, onboardingGated]);
+
+  const [nav, setNav] = useState<PortalNavId>(() => {
+    const emp = readEmployee();
+    const role = detectPortalRole();
+    if (emp && role === 'employee' && emp.onboardingCompleted !== true) {
+      return 'onboarding';
+    }
+    return 'dashboard';
+  });
   const [user, setUser] = useState<EmployeeUser | null>(() => readEmployee());
   const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
   const [passwordRequired, setPasswordRequired] = useState(false);
   const [passwordMessage, setPasswordMessage] = useState<string | undefined>();
   const [booting, setBooting] = useState(true);
+  const [showFirstLogin, setShowFirstLogin] = useState(false);
+  const [showOnboardingCelebrate, setShowOnboardingCelebrate] = useState(false);
+  const [portalUnlocking, setPortalUnlocking] = useState(false);
+
+  const finishOnboardingUnlock = useCallback(() => {
+    setUser((prev) => {
+      const next = prev ? { ...prev, onboardingCompleted: true } : prev;
+      if (next) localStorage.setItem('employee', JSON.stringify(next));
+      return next;
+    });
+    setOnboardingIncomplete(false);
+    setShowOnboardingCelebrate(false);
+    setPortalUnlocking(true);
+    window.setTimeout(() => setNav('dashboard'), 350);
+    window.setTimeout(() => setPortalUnlocking(false), 1400);
+  }, []);
+
+  const handleOnboardingCompleted = useCallback(
+    (options?: { celebrate?: boolean }) => {
+      if (options?.celebrate) {
+        setShowOnboardingCelebrate((open) => open || true);
+        return;
+      }
+      finishOnboardingUnlock();
+    },
+    [finishOnboardingUnlock]
+  );
+
+  const navigatePortal = useCallback(
+    (id: PortalNavId) => {
+      if (onboardingGated && !isOnboardingNavAllowed(id)) {
+        setNav('onboarding');
+        return;
+      }
+      if (id === 'social-portal') {
+        (window as { HRMS?: { fireConfettiBurst?: (o?: { x: number; y: number }) => void } }).HRMS?.fireConfettiBurst?.();
+      }
+      setNav(id);
+    },
+    [onboardingGated]
+  );
+
+  useEffect(() => {
+    const onPortalNav = (event: Event) => {
+      const detail = (event as CustomEvent<{ nav?: string }>).detail;
+      const target = detail?.nav as PortalNavId | undefined;
+      if (target) navigatePortal(target);
+    };
+    window.addEventListener('hrms:portal-nav', onPortalNav);
+    return () => window.removeEventListener('hrms:portal-nav', onPortalNav);
+  }, [navigatePortal]);
+
+  useEffect(() => {
+    if (!onboardingGated) return;
+    if (!isOnboardingNavAllowed(nav)) {
+      setNav('onboarding');
+    }
+  }, [onboardingGated, nav]);
 
   useEffect(() => {
     const path = window.location.pathname.replace(/\/$/, '') || '/';
     if (path === '/profile' || path === '/account/profile') {
       setNav('profile');
+    }
+    if (path === '/employee/onboarding') {
+      setNav('onboarding');
+    }
+    if (path === '/employee/exit') {
+      setNav('exit');
+    }
+    if (path === '/manager/exit-clearances') {
+      setNav('exit-clearances');
     }
 
     const token = localStorage.getItem('token');
@@ -155,7 +341,11 @@ export default function App() {
 
     const expectedPath = dashboardPathForRole(role);
     const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
-    if (currentPath !== expectedPath && !['/profile', '/account/profile'].includes(currentPath)) {
+    const allowedExtraPaths =
+      portalRole === 'manager'
+        ? ['/profile', '/account/profile', '/manager/exit-clearances']
+        : ['/profile', '/account/profile', '/employee/onboarding', '/employee/exit'];
+    if (currentPath !== expectedPath && !allowedExtraPaths.includes(currentPath)) {
       window.location.replace(expectedPath);
       return;
     }
@@ -172,6 +362,9 @@ export default function App() {
     setUser(emp);
     if (emp.mustchangepassword) {
       setPasswordRequired(true);
+    }
+    if (emp.isFirstLogin === true && portalRole === 'employee') {
+      setShowFirstLogin(true);
     }
     setBooting(false);
 
@@ -192,11 +385,25 @@ export default function App() {
           bio: p.bio,
           profilePhotoUrl: p.profilePhotoUrl,
           age: p.age,
+          isFirstLogin: p.isFirstLogin === true,
+          onboardingCompleted: p.onboardingCompleted === true,
+          mustchangepassword: emp.mustchangepassword,
         };
         localStorage.setItem('employee', JSON.stringify(merged));
         setUser(merged);
+        if (portalRole === 'employee') {
+          const incomplete = p.onboardingCompleted !== true;
+          setOnboardingIncomplete(incomplete);
+          if (incomplete) {
+            setNav((current) => (isOnboardingNavAllowed(current) ? current : 'onboarding'));
+          }
+        }
+        if (p.isFirstLogin === true && portalRole === 'employee') {
+          setShowFirstLogin(true);
+        }
       })
       .catch(() => {});
+
   }, [portalRole]);
 
   const onPasswordRequired = useCallback((msg?: string) => {
@@ -214,9 +421,28 @@ export default function App() {
 
   const pageTitle = PORTAL_PAGE_TITLES[nav] || 'Dashboard';
   const portalLabel = portalRole === 'manager' ? 'Manager' : 'Employee';
+  const firstName = (user.name || 'there').trim().split(/\s+/)[0] || 'there';
 
   return (
     <UserProvider value={{ user, setUser, avatarOverride, setAvatarOverride }}>
+      {showFirstLogin && user.id && portalRole === 'employee' ? (
+        <FirstLoginCelebration
+          userId={user.id}
+          firstName={firstName}
+          onboardingGated={onboardingGated}
+          onClose={() => {
+            setShowFirstLogin(false);
+            setUser((prev) => (prev ? { ...prev, isFirstLogin: false } : prev));
+          }}
+          onNavigate={navigatePortal}
+        />
+      ) : null}
+      {showOnboardingCelebrate ? (
+        <OnboardingCompleteCelebration
+          firstName={firstName}
+          onEnterPortal={finishOnboardingUnlock}
+        />
+      ) : null}
       <PortalAppShell
         activeNav={nav}
         pageTitle={pageTitle}
@@ -224,19 +450,43 @@ export default function App() {
         rolePill={portalLabel}
         sidebarRoleClass={portalRole === 'manager' ? 'manager' : 'employee'}
         navSections={navSections}
-        onNavigate={(id) => {
-          if (id === 'social-portal') {
-            (window as { HRMS?: { fireConfettiBurst?: (o?: { x: number; y: number }) => void } }).HRMS?.fireConfettiBurst?.();
-          }
-          setNav(id);
-        }}
+        onNavigate={navigatePortal}
       >
         {passwordRequired && (
           <div style={{ marginBottom: 16 }}>
             <PasswordGate message={passwordMessage} />
           </div>
         )}
-        {renderPanel(nav, user, setUser, setNav, onPasswordRequired, portalRole)}
+        {onboardingGated && !showOnboardingCelebrate && (
+          <div className="onboarding-gate-banner" role="status">
+            <strong>Almost there!</strong> Finish every task below to unlock your full portal — dashboard, leave,
+            attendance, and more.
+          </div>
+        )}
+        <div
+          className={[
+            'portal-view-root',
+            nav === 'teams' ? 'portal-view-root--teams' : '',
+            nav === 'calendar' ? 'portal-view-root--calendar' : '',
+            nav === 'holiday-calendar' ? 'portal-view-root--holiday' : '',
+            portalUnlocking ? 'portal-content--unlocking' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
+        >
+          {renderPanel(
+            nav,
+            user,
+            (u) => {
+              setUser(u);
+              if (u.onboardingCompleted) handleOnboardingCompleted({ celebrate: true });
+            },
+            navigatePortal,
+            onPasswordRequired,
+            portalRole,
+            handleOnboardingCompleted
+          )}
+        </div>
       </PortalAppShell>
     </UserProvider>
   );

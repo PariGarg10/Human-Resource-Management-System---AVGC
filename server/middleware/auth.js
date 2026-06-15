@@ -24,7 +24,36 @@ function extractToken(req) {
   return cookies.token || null;
 }
 
+const AUTH_CACHE_TTL_MS = 60_000;
+const authUserCache = new Map();
+
+function authCacheKey(payload) {
+  return `${payload?.id}:${payload?.adminId || ''}`;
+}
+
+function getCachedAuthUser(payload) {
+  const key = authCacheKey(payload);
+  const entry = authUserCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.at > AUTH_CACHE_TTL_MS) {
+    authUserCache.delete(key);
+    return null;
+  }
+  return entry.user;
+}
+
+function setCachedAuthUser(payload, user) {
+  authUserCache.set(authCacheKey(payload), { user, at: Date.now() });
+}
+
+function invalidateAuthUserCache(userId, adminId = '') {
+  authUserCache.delete(`${userId}:${adminId || ''}`);
+}
+
 async function hydrateAuthUser(payload) {
+  const cached = getCachedAuthUser(payload);
+  if (cached) return cached;
+
   const employeeId = Number(payload?.id);
   if (!Number.isFinite(employeeId)) return null;
 
@@ -53,7 +82,7 @@ async function hydrateAuthUser(payload) {
     role = 'admin';
   }
 
-  return {
+  const user = {
     ...payload,
     id: employee.id,
     name: employee.name,
@@ -62,6 +91,8 @@ async function hydrateAuthUser(payload) {
     force_password_change: forcePasswordChange,
     mustchangepassword: forcePasswordChange,
   };
+  setCachedAuthUser(payload, user);
+  return user;
 }
 
 function authMiddleware(req, res, next) {
@@ -110,10 +141,16 @@ function requireRoles(...roles) {
       return next();
     }
     const userRole = String(req.user.role || '').toLowerCase().trim();
-    if (!allowed.includes(userRole)) {
-      return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
+    if (allowed.includes(userRole)) {
+      return next();
     }
-    return next();
+    if (
+      isFounderUser(req.user) &&
+      (allowed.includes('founder') || allowed.includes('admin') || allowed.includes('it_head'))
+    ) {
+      return next();
+    }
+    return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
   };
 }
 
@@ -175,4 +212,5 @@ module.exports = {
   requireAdminOrFounder,
   isFounderUser,
   enforcePasswordChange,
+  invalidateAuthUserCache,
 };
