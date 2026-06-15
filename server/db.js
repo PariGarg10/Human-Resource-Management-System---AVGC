@@ -4,14 +4,16 @@ const { Pool } = require('pg');
 const connectionString = process.env.DATABASE_URL;
 const useSsl =
   connectionString &&
-  /neon\.tech|sslmode=require|sslmode=verify|amazonaws\.com|supabase/i.test(connectionString);
+  /neon\.tech|sslmode=require|sslmode=verify|amazonaws\.com|supabase|railway\.app|rlwy\.net/i.test(
+    connectionString
+  );
 
 const pool = new Pool({
   connectionString,
   ...(useSsl ? { ssl: { rejectUnauthorized: false } } : {}),
   max: process.env.VERCEL ? 2 : 10,
   idleTimeoutMillis: process.env.VERCEL ? 10000 : 30000,
-  connectionTimeoutMillis: process.env.VERCEL ? 10000 : 0,
+  connectionTimeoutMillis: process.env.VERCEL ? 10000 : 15000,
 });
 
 if (!connectionString && process.env.VERCEL) {
@@ -22,4 +24,14 @@ pool.on('error', (err) => {
   console.error('[PostgreSQL] Unexpected pool error:', err.message);
 });
 
-module.exports = { pool };
+async function warmPool() {
+  if (!connectionString) return;
+  try {
+    await pool.query('SELECT 1');
+    console.log('[PostgreSQL] Connection pool warmed');
+  } catch (err) {
+    console.warn('[PostgreSQL] Pool warmup failed:', err.message);
+  }
+}
+
+module.exports = { pool, warmPool };

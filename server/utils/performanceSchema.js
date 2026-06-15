@@ -1,5 +1,7 @@
 const { pool } = require('../db');
 
+let schemaEnsured = false;
+
 const LEGACY_TABLES = [
   'manager_recognition_notes',
   'performance_mvp_highlights',
@@ -50,6 +52,7 @@ async function seedRatingBands() {
 }
 
 async function ensurePerformanceSchema() {
+  if (schemaEnsured) return;
   await dropLegacyPerformanceTables();
 
   await pool.query(`
@@ -217,6 +220,7 @@ async function ensurePerformanceSchema() {
 
   await seedAppraisalCategories();
   await seedRatingBands();
+  schemaEnsured = true;
 }
 
 module.exports = { ensurePerformanceSchema };

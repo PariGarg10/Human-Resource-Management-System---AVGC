@@ -1,0 +1,16 @@
+# Railway deployment — https://docs.railway.com/guides/config-as-code
+# Backend API + static files from /public (dashboard assets are pre-built in repo).
+
+[build]
+# Skip the React rebuild on Railway unless you need it; assets live in public/assets/avgc-dashboard/
+buildCommand = "npm install"
+
+[deploy]
+startCommand = "npm start"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[env]
+NODE_ENV = "production"

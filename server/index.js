@@ -4,6 +4,7 @@ const compression = require('compression');
 const cors = require('cors');
 const path = require('path');
 const { getPublicDir, getUploadsRoot } = require('./utils/storagePaths');
+const { isProductionRuntime } = require('./utils/runtimeEnv');
 
 const authRoutes = require('./routes/auth');
 const biometricRoutes = require('./routes/biometric');
@@ -42,6 +43,8 @@ const { startEsslAttendanceSync } = require('./jobs/esslAttendanceSync');
 const app = express();
 const PORT = process.env.PORT || 3000;
 const publicDir = getPublicDir();
+const isProd = isProductionRuntime();
+const staticMaxAge = isProd ? '30d' : 0;
 
 function sendPublicHtml(res, filename) {
   const absolutePath = path.resolve(publicDir, filename);
@@ -54,7 +57,7 @@ function sendPublicHtml(res, filename) {
 }
 
 app.use(cors());
-app.use(compression());
+app.use(compression({ threshold: 1024 }));
 app.use(express.json());
 
 // Hard-priority HTML routes (runs before static; avoids "Cannot GET" if another layer shadows routes)
@@ -114,28 +117,62 @@ app.use(
 );
 app.use('/uploads', express.static(getUploadsRoot(), { index: false, maxAge: '1h', fallthrough: true }));
 app.use(
+  '/assets',
+  express.static(path.join(publicDir, 'assets'), {
+    index: false,
+    maxAge: staticMaxAge,
+    immutable: isProd,
+    etag: true,
+  })
+);
+app.use(
+  '/css',
+  express.static(path.join(publicDir, 'css'), {
+    index: false,
+    maxAge: staticMaxAge,
+    etag: true,
+  })
+);
+app.use(
+  '/js',
+  express.static(path.join(publicDir, 'js'), {
+    index: false,
+    maxAge: staticMaxAge,
+    etag: true,
+  })
+);
+app.use(
   express.static(publicDir, {
     index: false,
-    maxAge: process.env.NODE_ENV === 'production' ? '7d' : 0,
+    maxAge: staticMaxAge,
+    etag: true,
   })
 );
 
 app.get('/health', async (_req, res) => {
-  const payload = { ok: true, vercel: Boolean(process.env.VERCEL) };
+  const strict = String(_req.query.strict || '').toLowerCase() === '1';
+  const payload = {
+    ok: true,
+    service: 'avgc-hrms',
+    vercel: Boolean(process.env.VERCEL),
+    railway: Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID),
+  };
+
   if (!process.env.DATABASE_URL) {
     payload.database = 'missing DATABASE_URL';
-    return res.status(503).json(payload);
+    return strict ? res.status(503).json(payload) : res.json(payload);
   }
+
   try {
     const { pool } = require('./db');
     await pool.query('SELECT 1');
     payload.database = 'connected';
+    return res.json(payload);
   } catch (err) {
     payload.database = 'error';
     payload.dbError = err.message;
-    return res.status(503).json(payload);
+    return strict ? res.status(503).json(payload) : res.json(payload);
   }
-  return res.json(payload);
 });
 
 let apiSchemaEnsured = false;
@@ -225,19 +262,23 @@ async function startBackgroundJobs() {
 }
 
 if (require.main === module) {
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`AVGC server running on port ${PORT} (${isProd ? 'production' : 'development'} mode)`);
+    console.log('[AVGC] HTML dashboards: /employee/dashboard, /manager/dashboard, /admin/dashboard');
+    startBackgroundJobs();
+    const { warmPool } = require('./db');
+    warmPool().catch(() => {});
+  });
+
   (async () => {
     try {
       const { ensureEmployeeSchemaColumns } = require('./utils/ensureSchema');
       await ensureEmployeeSchemaColumns();
       apiSchemaEnsured = true;
+      console.log('[AVGC] Schema ensure complete');
     } catch (err) {
       console.warn('[AVGC] Schema ensure failed (login may fail until db:init):', err.message);
     }
-    app.listen(PORT, () => {
-      console.log(`AVGC server running on http://localhost:${PORT}`);
-      console.log('[AVGC] HTML dashboards: /employee/dashboard, /manager/dashboard, /admin/dashboard');
-      startBackgroundJobs();
-    });
   })();
 }
 
