@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "installCommand": "npm install && npm run install:dashboard",
   "buildCommand": "npm run build",
   "functions": {
     "api/index.js": {
