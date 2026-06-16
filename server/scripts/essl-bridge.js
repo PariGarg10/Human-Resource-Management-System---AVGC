@@ -9,7 +9,12 @@
 require('dotenv').config();
 
 const { upsertAttendanceFromDeviceRecords } = require('../utils/deviceAttendance');
-const { fetchDeviceAttendanceLogs } = require('../utils/zkDeviceClient');
+const { fetchDeviceAttendanceLogs, deviceErrorMessage } = require('../utils/zkDeviceClient');
+
+function formatErr(err) {
+  if (err && typeof err.toast === 'function') return err.toast();
+  return deviceErrorMessage(err?.err || err);
+}
 
 function envBool(value) {
   return ['1', 'true', 'yes', 'on'].includes(String(value || '').toLowerCase());
@@ -40,6 +45,18 @@ async function fetchDeviceLogs() {
 async function pushToCloud(cfg, records) {
   if (!cfg.hrmsUrl) throw new Error('HRMS_API_URL or FRONTEND_URL is required for remote mode');
   if (!cfg.apiKey) throw new Error('BIOMETRIC_API_KEY is required for remote mode');
+  if (!records.length) {
+    console.log('[essl-bridge] No new device logs to push (0 records).');
+    return { skipped: true, reason: 'no records' };
+  }
+
+  const payload = records.map((row) => {
+    const copy = { ...row };
+    for (const key of ['recordTime', 'attTime', 'time', 'timestamp']) {
+      if (copy[key] instanceof Date) copy[key] = copy[key].toISOString();
+    }
+    return copy;
+  });
 
   const response = await fetch(`${cfg.hrmsUrl}/api/biometric/essl-sync`, {
     method: 'POST',
@@ -47,7 +64,7 @@ async function pushToCloud(cfg, records) {
       'Content-Type': 'application/json',
       'x-api-key': cfg.apiKey,
     },
-    body: JSON.stringify({ records }),
+    body: JSON.stringify({ records: payload }),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -82,6 +99,18 @@ async function main() {
     console.error('[essl-bridge] Set ESSL_DEVICE_IP in .env');
     process.exit(1);
   }
+  if (cfg.mode === 'remote') {
+    if (!cfg.hrmsUrl) {
+      console.error('[essl-bridge] Set HRMS_API_URL to your Vercel app URL for remote mode');
+      process.exit(1);
+    }
+    if (!cfg.apiKey || cfg.apiKey.includes('(')) {
+      console.error(
+        '[essl-bridge] Set BIOMETRIC_API_KEY to a plain secret (no spaces/parentheses). Must match Vercel env.'
+      );
+      process.exit(1);
+    }
+  }
 
   console.log(
     `[essl-bridge] Mode=${cfg.mode} interval=${cfg.intervalMs}ms lookback=${cfg.lookbackDays} day(s)`
@@ -91,7 +120,7 @@ async function main() {
     try {
       await runOnce(cfg);
     } catch (err) {
-      console.error('[essl-bridge] Sync failed:', err.message);
+      console.error('[essl-bridge] Sync failed:', formatErr(err));
     }
   };
 
@@ -100,6 +129,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error('[essl-bridge] Fatal:', err.message);
+  console.error('[essl-bridge] Fatal:', formatErr(err));
   process.exit(1);
 });

@@ -200,6 +200,10 @@ app.use('/api', (req, res, next) => {
   if (p === '/home-recognition' && req.method === 'GET') {
     return next();
   }
+  // ESSL office bridge uses x-api-key, not JWT
+  if (p === '/biometric/essl-sync' || p === '/biometric/punch') {
+    return next();
+  }
   if (p === '/auth/me' || p === '/auth/logout') {
     return authMiddleware(req, res, next);
   }
