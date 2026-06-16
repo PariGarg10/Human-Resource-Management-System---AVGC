@@ -46,6 +46,8 @@
     const invForm = document.getElementById('assetAddForm');
     const allocForm = document.getElementById('assetAllocateForm');
     const employeeSelect = document.getElementById('assetAllocateEmployee');
+    const inventoryImportInput = document.getElementById('assetInventoryImportFile');
+    const inventoryImportSampleBtn = document.getElementById('assetInventorySampleBtn');
     const adminPanels = document.querySelectorAll('[data-asset-admin-only]');
 
     adminPanels.forEach((el) => {
@@ -75,13 +77,13 @@
 
     async function loadInventory() {
       if (!invBody) return;
-      invBody.innerHTML = '<tr><td colspan="6" class="stat-sub">Loading…</td></tr>';
+      invBody.innerHTML = '<tr><td colspan="8" class="stat-sub">Loading…</td></tr>';
       try {
         const data = await api('/api/assets/inventory');
         const items = data.items || [];
         if (!items.length) {
           invBody.innerHTML =
-            '<tr><td colspan="6" class="stat-sub">No inventory items yet. Use the form above to add one.</td></tr>';
+            '<tr><td colspan="8" class="stat-sub">No inventory items yet. Use the form above to add one.</td></tr>';
           return;
         }
         invBody.innerHTML = items
@@ -91,6 +93,8 @@
                   <button type="button" class="btn btn-outline btn-sm" data-edit-item="${row.id}"
                     data-name="${String(row.name || '').replace(/"/g, '&quot;')}"
                     data-category="${String(row.category || '').replace(/"/g, '&quot;')}"
+                    data-model-number="${String(row.modelNumber || '').replace(/"/g, '&quot;')}"
+                    data-serial-number="${String(row.serialNumber || '').replace(/"/g, '&quot;')}"
                     data-total="${row.totalCount}">Edit</button>
                   <button type="button" class="btn btn-outline btn-sm" data-del-item="${row.id}">Remove</button>
                 </td>`
@@ -98,6 +102,8 @@
             return `<tr>
               <td>${esc(row.name)}</td>
               <td>${esc(row.category)}</td>
+              <td>${esc(row.modelNumber || '—')}</td>
+              <td>${esc(row.serialNumber || '—')}</td>
               <td>${row.totalCount}</td>
               <td>${row.allocatedCount}</td>
               <td>${row.availableCount}</td>
@@ -113,11 +119,15 @@
             if (name == null) return;
             const category = window.prompt('Category:', btn.getAttribute('data-category') || '');
             if (category == null) return;
+            const modelNumber = window.prompt('Model number:', btn.getAttribute('data-model-number') || '');
+            if (modelNumber == null) return;
+            const serialNumber = window.prompt('Serial number:', btn.getAttribute('data-serial-number') || '');
+            if (serialNumber == null) return;
             const totalNext = window.prompt('Total count:', btn.getAttribute('data-total') || '0');
             if (totalNext == null) return;
             const totalCount = Number(totalNext);
-            if (!name.trim() || !category.trim()) {
-              HRMS.toast('Name and category are required', 'error');
+            if (!name.trim() || !category.trim() || !modelNumber.trim() || !serialNumber.trim()) {
+              HRMS.toast('Name, category, model number and serial number are required', 'error');
               return;
             }
             if (!Number.isFinite(totalCount) || totalCount < 0) {
@@ -130,6 +140,8 @@
                 body: JSON.stringify({
                   name: name.trim(),
                   category: category.trim(),
+                  modelNumber: modelNumber.trim(),
+                  serialNumber: serialNumber.trim(),
                   totalCount,
                 }),
               });
@@ -155,19 +167,19 @@
           });
         });
       } catch (e) {
-        invBody.innerHTML = `<tr><td colspan="6" class="stat-sub">${esc(e.message)}</td></tr>`;
+        invBody.innerHTML = `<tr><td colspan="8" class="stat-sub">${esc(e.message)}</td></tr>`;
       }
     }
 
     async function loadAllocations() {
       if (!allocBody) return;
-      allocBody.innerHTML = '<tr><td colspan="6" class="stat-sub">Loading…</td></tr>';
+      allocBody.innerHTML = '<tr><td colspan="8" class="stat-sub">Loading…</td></tr>';
       try {
         const data = await api('/api/assets/allocations');
         const rows = data.allocations || [];
         if (!rows.length) {
           allocBody.innerHTML =
-            '<tr><td colspan="6" class="stat-sub">No assets allocated yet.</td></tr>';
+            '<tr><td colspan="8" class="stat-sub">No assets allocated yet.</td></tr>';
           return;
         }
         allocBody.innerHTML = rows
@@ -179,6 +191,8 @@
             return `<tr>
               <td>${esc(row.employeeName)}</td>
               <td>${esc(row.itemName)}</td>
+              <td>${esc(row.modelNumber || '—')}</td>
+              <td>${esc(row.serialNumber || '—')}</td>
               <td>${fmtDate(row.allocatedAt)}</td>
               <td>${esc(row.status)}</td>
               <td>${esc(row.notes || '—')}</td>
@@ -201,8 +215,26 @@
           });
         });
       } catch (e) {
-        allocBody.innerHTML = `<tr><td colspan="6" class="stat-sub">${esc(e.message)}</td></tr>`;
+        allocBody.innerHTML = `<tr><td colspan="8" class="stat-sub">${esc(e.message)}</td></tr>`;
       }
+    }
+
+    function downloadSampleExcel(filename, headers, rows) {
+      const table = `
+        <table>
+          <thead><tr>${headers.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+          <tbody>${rows.map((row) => `<tr>${headers.map((h) => `<td>${esc(row[h] || '')}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table>`;
+      const blob = new Blob([`<html><meta charset="utf-8"><body>${table}</body></html>`], {
+        type: 'application/vnd.ms-excel;charset=utf-8;',
+      });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(a.href);
+      a.remove();
     }
 
     if (isAdmin && invForm && invForm.dataset.assetBound !== '1') {
@@ -211,21 +243,67 @@
         ev.preventDefault();
         const name = document.getElementById('assetItemName')?.value?.trim();
         const category = document.getElementById('assetItemCategory')?.value?.trim();
+        const modelNumber = document.getElementById('assetItemModelNumber')?.value?.trim();
+        const serialNumber = document.getElementById('assetItemSerialNumber')?.value?.trim();
         const totalCount = Number(document.getElementById('assetItemTotal')?.value);
-        if (!name || !category) {
-          HRMS.toast('Name and category are required', 'error');
+        if (!name || !category || !modelNumber || !serialNumber) {
+          HRMS.toast('Name, category, model number and serial number are required', 'error');
           return;
         }
         try {
           await apiJson(api, '/api/assets/inventory', {
             method: 'POST',
-            body: JSON.stringify({ name, category, totalCount }),
+            body: JSON.stringify({ name, category, modelNumber, serialNumber, totalCount }),
           });
           HRMS.toast('Item added', 'success');
           invForm.reset();
           await refresh();
         } catch (e) {
           HRMS.toast(e.message, 'error');
+        }
+      });
+
+      inventoryImportSampleBtn?.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        downloadSampleExcel(
+          'asset-inventory-import-sample.xls',
+          ['Device Type', 'Category', 'Model Number', 'Serial Number', 'Quantity', 'Assigned To'],
+          [
+            {
+              'Device Type': 'Laptop',
+              Category: 'IT Asset',
+              'Model Number': 'LEN-T14-G5',
+              'Serial Number': 'SN-2026-0001',
+              Quantity: '5',
+              'Assigned To': 'EMP001',
+            },
+          ]
+        );
+      });
+
+      inventoryImportInput?.addEventListener('change', async () => {
+        const file = inventoryImportInput.files?.[0];
+        if (!file) return;
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+          const result = await api('/api/assets/inventory/import', {
+            method: 'POST',
+            body: fd,
+          });
+          const failed = Number(result.failedrows || 0);
+          const success = Number(result.successfulimports || 0);
+          HRMS.toast(
+            failed > 0
+              ? `Imported ${success} row(s), ${failed} failed`
+              : `Imported ${success} asset row(s) successfully`,
+            failed > 0 ? 'warning' : 'success'
+          );
+          await refresh();
+        } catch (e) {
+          HRMS.toast(e.message || 'Could not import asset inventory', 'error');
+        } finally {
+          inventoryImportInput.value = '';
         }
       });
     }
@@ -236,6 +314,8 @@
         ev.preventDefault();
         const inventoryItemId = Number(document.getElementById('assetAllocateItem')?.value);
         const employeeId = Number(employeeSelect?.value);
+        const modelNumber = document.getElementById('assetAllocateModelNumber')?.value?.trim() || null;
+        const serialNumber = document.getElementById('assetAllocateSerialNumber')?.value?.trim() || null;
         const notes = document.getElementById('assetAllocateNotes')?.value?.trim() || null;
         const allocatedAt = document.getElementById('assetAllocateDate')?.value;
         if (!inventoryItemId || !employeeId) {
@@ -248,6 +328,8 @@
             body: JSON.stringify({
               inventoryItemId,
               employeeId,
+              modelNumber,
+              serialNumber,
               notes,
               allocatedAt: allocatedAt ? new Date(allocatedAt).toISOString() : undefined,
             }),
@@ -274,9 +356,20 @@
               .filter((i) => i.availableCount > 0)
               .map(
                 (i) =>
-                  `<option value="${i.id}">${esc(i.name)} (${i.availableCount} available)</option>`
+                  `<option value="${i.id}" data-model-number="${esc(i.modelNumber || '')}" data-serial-number="${esc(i.serialNumber || '')}">${esc(i.name)} (${i.availableCount} available)</option>`
               )
               .join('');
+          if (sel.dataset.assetModelBound !== '1') {
+            sel.dataset.assetModelBound = '1';
+            sel.addEventListener('change', () => {
+              const selected = sel.options[sel.selectedIndex];
+              const modelField = document.getElementById('assetAllocateModelNumber');
+              const serialField = document.getElementById('assetAllocateSerialNumber');
+              if (modelField) modelField.value = selected?.getAttribute('data-model-number') || '';
+              if (serialField) serialField.value = selected?.getAttribute('data-serial-number') || '';
+            });
+          }
+          sel.dispatchEvent(new Event('change'));
         } catch (_) {}
       }
     }

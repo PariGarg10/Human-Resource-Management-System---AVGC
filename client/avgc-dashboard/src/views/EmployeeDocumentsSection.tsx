@@ -24,6 +24,7 @@ const EMPLOYEE_CATEGORY_LABELS: Record<string, string> = {
   pan: 'PAN card',
   education: 'Educational certificates',
   work_experience: 'Work experience',
+  cancelled_cheque: 'Cancelled cheque',
 };
 
 async function openDocument(id: number) {

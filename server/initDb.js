@@ -77,6 +77,8 @@ async function runSchema() {
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       category TEXT NOT NULL,
+      model_number TEXT,
+      serial_number TEXT,
       total_count INTEGER NOT NULL DEFAULT 0 CHECK (total_count >= 0),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -87,6 +89,8 @@ async function runSchema() {
       id SERIAL PRIMARY KEY,
       inventory_item_id INTEGER NOT NULL REFERENCES inventory_items(id) ON DELETE CASCADE,
       employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      model_number TEXT,
+      serial_number TEXT,
       allocated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       notes TEXT,
       status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'returned')),
@@ -94,6 +98,10 @@ async function runSchema() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await pool.query('ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS model_number TEXT');
+  await pool.query('ALTER TABLE inventory_items ADD COLUMN IF NOT EXISTS serial_number TEXT');
+  await pool.query('ALTER TABLE asset_allocations ADD COLUMN IF NOT EXISTS model_number TEXT');
+  await pool.query('ALTER TABLE asset_allocations ADD COLUMN IF NOT EXISTS serial_number TEXT');
   await pool.query(`
     CREATE TABLE IF NOT EXISTS policy_documents (
       id SERIAL PRIMARY KEY,

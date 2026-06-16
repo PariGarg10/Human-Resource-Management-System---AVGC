@@ -16,7 +16,7 @@ const { generateEmployeeCode } = require('../utils/employeeCode');
 const { getEffectiveAttendanceStatus } = require('../utils/attendanceView');
 const { filterUpcomingBirthdays } = require('../utils/birthdays');
 const { getHolidayDatesSet, isHolidayDate } = require('../utils/holidaysRange');
-const { createNotification } = require('../utils/notifications');
+const { createNotification, broadcastToEmployeesAndManagers } = require('../utils/notifications');
 const { getLeaveBalance } = require('../utils/leaveBalance');
 const {
   listEntitlements,
@@ -122,6 +122,14 @@ router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEME
       employeecode: code,
       role: normalizedRole,
       designation: designationValue,
+    });
+
+    const joinedName = String(name || '').trim() || 'A new teammate';
+    const joinedDesignation = designationValue ? ` as ${designationValue}` : '';
+    const joinMessage = `🎉 Please welcome ${joinedName}${joinedDesignation}! They have joined the team.`;
+    await broadcastToEmployeesAndManagers('broadcast', joinMessage, {
+      subjectEmployeeId: result.rows[0].id,
+      eventDate: new Date().toISOString().slice(0, 10),
     });
 
     return res.status(201).json({

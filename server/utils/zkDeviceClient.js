@@ -206,10 +206,22 @@ async function fetchDeviceAttendanceLogs() {
     throw new Error('ESSL_DEVICE_IP is not set');
   }
 
-  if (cfg.sdk === 'node-zklib') {
-    const logs = await fetchWithNodeZklib(cfg);
-    console.log(`[ESSL] Fetched ${logs.length} attendance record(s)`);
-    return logs;
+  const tryNodeZklib = cfg.sdk === 'node-zklib' || cfg.sdk === 'auto';
+  const tryZklibJs = cfg.sdk === 'zklib-js' || cfg.sdk === 'auto';
+
+  if (tryNodeZklib) {
+    try {
+      const logs = await fetchWithNodeZklib(cfg);
+      console.log(`[ESSL] Fetched ${logs.length} attendance record(s)`);
+      return logs;
+    } catch (err) {
+      const msg = deviceErrorMessage(err?.err || err);
+      if (tryZklibJs && /NO_REPLY_ON_CMD_CONNECT/i.test(msg)) {
+        console.warn('[ESSL] node-zklib connect failed; falling back to zklib-js…');
+      } else {
+        throw err;
+      }
+    }
   }
 
   return fetchWithZklibJs(cfg);

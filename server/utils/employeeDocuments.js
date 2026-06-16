@@ -5,6 +5,7 @@ const EMPLOYEE_CATEGORIES = Object.freeze([
   'pan',
   'education',
   'work_experience',
+  'cancelled_cheque',
 ]);
 
 const ADMIN_CATEGORIES = Object.freeze(['payslip', 'form_16', 'appraisal_letter']);
@@ -14,6 +15,7 @@ const CATEGORY_LABELS = Object.freeze({
   pan: 'PAN card',
   education: 'Educational certificates',
   work_experience: 'Work experience',
+  cancelled_cheque: 'Cancelled cheque',
   payslip: 'Pay slip',
   form_16: 'Form 16',
   appraisal_letter: 'Appraisal letter',

@@ -206,14 +206,23 @@
             <form id="assetAddForm" class="asset-management-form asset-management-form--add">
               <div class="form-group"><label for="assetItemName">Item name</label><input id="assetItemName" required /></div>
               <div class="form-group"><label for="assetItemCategory">Category</label><input id="assetItemCategory" required /></div>
+              <div class="form-group"><label for="assetItemModelNumber">Model number</label><input id="assetItemModelNumber" required /></div>
+              <div class="form-group"><label for="assetItemSerialNumber">Serial number</label><input id="assetItemSerialNumber" required /></div>
               <div class="form-group"><label for="assetItemTotal">Total count</label><input id="assetItemTotal" type="number" min="0" required /></div>
-              <div class="form-group form-group--action"><button type="submit" class="btn btn-primary">Add item</button></div>
+              <div class="form-group form-group--action" style="display:grid;grid-auto-flow:column;grid-auto-columns:max-content;justify-content:flex-end;align-items:center;gap:8px;white-space:nowrap;">
+                <button type="submit" class="btn btn-primary">Add item</button>
+                <label for="assetInventoryImportFile" class="btn btn-outline" style="cursor:pointer;">Upload Excel</label>
+                <button type="button" id="assetInventorySampleBtn" class="btn btn-outline">Download sample format</button>
+                <input type="file" id="assetInventoryImportFile" accept=".xlsx,.xls,.csv" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0;" aria-hidden="true" tabindex="-1" />
+              </div>
             </form>
           </div>
           <div class="panel asset-management-panel panel--asset-allocate" data-asset-admin-only>
             <h3 class="panel-title panel-title--sub">Allocate asset</h3>
             <form id="assetAllocateForm" class="asset-management-form asset-management-form--allocate">
               <div class="form-group"><label for="assetAllocateItem">Item</label><select id="assetAllocateItem" required></select></div>
+              <div class="form-group"><label for="assetAllocateModelNumber">Model number</label><input id="assetAllocateModelNumber" /></div>
+              <div class="form-group"><label for="assetAllocateSerialNumber">Serial number</label><input id="assetAllocateSerialNumber" /></div>
               <div class="form-group"><label for="assetAllocateEmployee">Employee</label><select id="assetAllocateEmployee" required></select></div>
               <div class="form-group"><label for="assetAllocateDate">Allocated on</label><input id="assetAllocateDate" type="date" /></div>
               <div class="form-group"><label for="assetAllocateNotes">Notes</label><input id="assetAllocateNotes" /></div>
@@ -224,8 +233,8 @@
             <h3 class="panel-title panel-title--sub">Inventory</h3>
             <div class="table-wrap table-wrap--scroll asset-table-scroll">
               <table class="data-table">
-                <thead><tr><th>Item name</th><th>Category</th><th>Total</th><th>Allocated</th><th>Available</th><th>Actions</th></tr></thead>
-                <tbody id="assetInventoryBody"><tr><td colspan="6" class="stat-sub">Loading…</td></tr></tbody>
+                <thead><tr><th>Item name</th><th>Category</th><th>Model number</th><th>Serial number</th><th>Total</th><th>Allocated</th><th>Available</th><th>Actions</th></tr></thead>
+                <tbody id="assetInventoryBody"><tr><td colspan="8" class="stat-sub">Loading…</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -233,8 +242,8 @@
             <h3 class="panel-title panel-title--sub">All allocations</h3>
             <div class="table-wrap table-wrap--scroll asset-table-scroll">
               <table class="data-table">
-                <thead><tr><th>Employee</th><th>Item</th><th>Allocated on</th><th>Status</th><th>Notes</th><th>Action</th></tr></thead>
-                <tbody id="assetAllocationsBody"><tr><td colspan="6" class="stat-sub">Loading…</td></tr></tbody>
+                <thead><tr><th>Employee</th><th>Item</th><th>Model number</th><th>Serial number</th><th>Allocated on</th><th>Status</th><th>Notes</th><th>Action</th></tr></thead>
+                <tbody id="assetAllocationsBody"><tr><td colspan="8" class="stat-sub">Loading…</td></tr></tbody>
               </table>
             </div>
           </div>
