@@ -6,6 +6,7 @@ const { pool } = require('../db');
 const { getHolidayDatesSet } = require('./holidaysRange');
 const { getSaturdayConfigMerged } = require('./saturdayConfigRange');
 const { getUploadsRoot } = require('./storagePaths');
+const { PRESENT_MIN_HOURS, HALFDAY_MIN_HOURS } = require('./attendance');
 
 function dateFromYmd(dateStr) {
   const [y, m, d] = String(dateStr).split('-').map(Number);
@@ -88,8 +89,8 @@ async function computeLopDays(employeeId, month, year) {
     }
     if (row.status === 'leave' || row.status === 'on_leave') continue;
     const hours = Number(row.totalhours);
-    if (!Number.isFinite(hours) || hours < 4) lopDays += 1;
-    else if (hours > 4 && hours < 8.5) lopDays += 0.5;
+    if (!Number.isFinite(hours) || hours <= HALFDAY_MIN_HOURS) lopDays += 1;
+    else if (hours > HALFDAY_MIN_HOURS && hours < PRESENT_MIN_HOURS) lopDays += 0.5;
   }
 
   return { lopDays, workingDays };

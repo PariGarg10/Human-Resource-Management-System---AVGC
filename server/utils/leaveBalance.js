@@ -7,6 +7,7 @@ const {
   getEffectiveEntitlementsForEmployee,
   getPeriodBounds,
 } = require('./leaveEntitlements');
+const { PRESENT_MIN_HOURS, HALFDAY_MIN_HOURS } = require('./attendance');
 
 const LEGACY_LEAVE_POLICIES = [
   { type: 'Casual Leave', total: 12, aliases: ['Paid Leave'] },
@@ -122,8 +123,8 @@ async function getLeaveBalance(employeeId, year = new Date().getFullYear()) {
 
     let attendanceDeduction = 0;
     for (const row of attendanceResult.rows) {
-      if (row.totalhours > 4 && row.totalhours < 8.5) attendanceDeduction += 0.5;
-      else if (row.totalhours < 4) attendanceDeduction += 1;
+      if (row.totalhours > HALFDAY_MIN_HOURS && row.totalhours < PRESENT_MIN_HOURS) attendanceDeduction += 0.5;
+      else if (row.totalhours <= HALFDAY_MIN_HOURS) attendanceDeduction += 1;
     }
     const key = `${casualEnt.type}|${casualEnt.bounds.period}`;
     usedByKey.set(key, (usedByKey.get(key) || 0) + attendanceDeduction);

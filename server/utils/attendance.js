@@ -14,11 +14,14 @@ function calculateTotalHours(punchIn, punchOut) {
   return Number((minutes / 60).toFixed(2));
 }
 
+const HALFDAY_MIN_HOURS = 4;
+const PRESENT_MIN_HOURS = 9;
+
 function getAttendanceStatus(totalHours) {
   if (totalHours === null || totalHours === undefined) return 'absent';
-  if (totalHours >= 8) return 'present';
-  if (totalHours > 4 && totalHours < 8) return 'halfday';
+  if (totalHours >= PRESENT_MIN_HOURS) return 'present';
+  if (totalHours > HALFDAY_MIN_HOURS && totalHours < PRESENT_MIN_HOURS) return 'halfday';
   return 'absent';
 }
 
-module.exports = { calculateTotalHours, getAttendanceStatus };
+module.exports = { calculateTotalHours, getAttendanceStatus, HALFDAY_MIN_HOURS, PRESENT_MIN_HOURS };

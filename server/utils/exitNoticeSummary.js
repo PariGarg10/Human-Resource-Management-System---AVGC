@@ -3,6 +3,7 @@ const { pool } = require('../db');
 const { getLeaveBalance } = require('./leaveBalance');
 const { getHolidayDatesSet } = require('./holidaysRange');
 const { getSaturdayConfigMerged } = require('./saturdayConfigRange');
+const { PRESENT_MIN_HOURS, HALFDAY_MIN_HOURS } = require('./attendance');
 
 function dateFromYmd(dateStr) {
   const [y, m, d] = String(dateStr).split('-').map(Number);
@@ -62,9 +63,9 @@ async function getExitNoticeSummary(employeeId, exitRequest) {
     }
     const hours = Number(row.totalhours);
     if (!Number.isFinite(hours)) continue;
-    if (hours >= 8.5) {
+    if (hours >= PRESENT_MIN_HOURS) {
       presentDays += 1;
-    } else if (hours > 4) {
+    } else if (hours > HALFDAY_MIN_HOURS) {
       presentDays += 0.5;
       lopDays += 0.5;
     } else if (hours > 0) {

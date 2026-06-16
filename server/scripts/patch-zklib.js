@@ -91,6 +91,18 @@ if (!src.includes('Device returned no attendance buffer') && src.includes(attend
   changed = true;
 }
 
+// zklib-js swallows requestData errors and prints "Promise Rejected" — hides the real cause.
+const swallowBefore = `    }).catch(function () {
+      console.log("Promise Rejected");
+     });`;
+
+const swallowAfter = `    }).catch((err) => Promise.reject(err));`;
+
+if (!src.includes('Promise.reject(err));') && src.includes(swallowBefore)) {
+  src = src.replace(swallowBefore, swallowAfter);
+  changed = true;
+}
+
 if (changed) {
   fs.writeFileSync(target, src);
   console.log('[patch-zklib] Patches applied');

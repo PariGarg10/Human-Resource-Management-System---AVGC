@@ -15,7 +15,7 @@ export function monthName(m: number): string {
 export function calendarDayAbbrev(status?: string | null): string {
   const s = String(status || '').toLowerCase();
   if (s === 'present') return 'P';
-  if (s === 'halfday') return 'hd';
+  if (s === 'halfday') return 'HD';
   if (s === 'absent') return 'A';
   if (s === 'leave') return 'L';
   return '';

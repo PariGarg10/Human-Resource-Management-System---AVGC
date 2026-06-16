@@ -3,6 +3,7 @@ const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange, requireRoles } = require('../middleware/auth');
 const { getEffectiveAttendanceStatus } = require('../utils/attendanceView');
 const { isHolidayDate } = require('../utils/holidaysRange');
+const { PRESENT_MIN_HOURS, HALFDAY_MIN_HOURS } = require('../utils/attendance');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -94,10 +95,10 @@ router.get('/team-summary', async (req, res) => {
     const { rows } = await pool.query(
       `
       SELECT e.id AS employeeid, e.employeecode, e.name,
-        SUM(CASE WHEN a.totalhours IS NOT NULL AND a.totalhours >= 8.5 THEN 1 ELSE 0 END) AS presentdays,
-        SUM(CASE WHEN a.totalhours IS NOT NULL AND a.totalhours > 4 AND a.totalhours < 8.5 THEN 1 ELSE 0 END) AS halfdays,
+        SUM(CASE WHEN a.totalhours IS NOT NULL AND a.totalhours >= ${PRESENT_MIN_HOURS} THEN 1 ELSE 0 END) AS presentdays,
+        SUM(CASE WHEN a.totalhours IS NOT NULL AND a.totalhours > ${HALFDAY_MIN_HOURS} AND a.totalhours < ${PRESENT_MIN_HOURS} THEN 1 ELSE 0 END) AS halfdays,
         SUM(CASE WHEN a.status = 'leave' THEN 1 ELSE 0 END) AS leavedays,
-        SUM(CASE WHEN a.id IS NULL OR (a.totalhours IS NOT NULL AND a.totalhours <= 4) OR (a.totalhours IS NULL AND COALESCE(a.status, 'absent') = 'absent') THEN 1 ELSE 0 END) AS absentdays
+        SUM(CASE WHEN a.id IS NULL OR (a.totalhours IS NOT NULL AND a.totalhours <= ${HALFDAY_MIN_HOURS}) OR (a.totalhours IS NULL AND COALESCE(a.status, 'absent') = 'absent') THEN 1 ELSE 0 END) AS absentdays
       FROM manageremployees me
       JOIN employees e ON e.id = me.employeeid
       LEFT JOIN attendancelogs a ON a.employeeid = e.id AND a.date BETWEEN $1::date AND $2::date

@@ -1,9 +1,16 @@
 /**
  * Test TCP connection to ESSL/ZKTeco device (run on office LAN).
  *   npm run essl:test
+ *
+ * Before running: stop npm start / essl:bridge, close eSSL desktop software.
  */
 require('dotenv').config();
-const { fetchDeviceAttendanceLogs, deviceConfig } = require('../utils/zkDeviceClient');
+const {
+  fetchDeviceAttendanceLogs,
+  deviceConfig,
+  deviceErrorMessage,
+  probeDeviceConnection,
+} = require('../utils/zkDeviceClient');
 
 async function main() {
   const cfg = deviceConfig();
@@ -13,8 +20,14 @@ async function main() {
   }
 
   console.log(
-    `[essl-test] Fetching from ${cfg.ip}:${cfg.port} (timeout ${cfg.timeout}ms, inport ${cfg.inport})…`
+    `[essl-test] Device ${cfg.ip}:${cfg.port} sdk=${cfg.sdk} commKey=${cfg.commKey} ` +
+      `(timeout ${cfg.timeout}ms, inport ${cfg.inport}, tcpOnly=${cfg.tcpOnly}, disable=${cfg.disableDeviceBeforeRead})`
   );
+  console.log('[essl-test] Tip: stop npm start / essl:bridge and close eSSL desktop before testing.\n');
+
+  const probe = await probeDeviceConnection();
+  probe.forEach((line) => console.log(`[essl-test] ${line}`));
+  console.log('');
 
   try {
     const logs = await fetchDeviceAttendanceLogs();
@@ -24,7 +37,7 @@ async function main() {
     }
     console.log('[essl-test] OK — device read works from this laptop.');
   } catch (err) {
-    console.error('[essl-test] Failed:', err.message);
+    console.error('[essl-test] Failed:', deviceErrorMessage(err.err || err));
     process.exit(1);
   }
 }
