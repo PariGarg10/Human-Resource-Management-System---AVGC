@@ -2,7 +2,8 @@
  * Raw TCP handshake diagnostic for eSSL/ZKTeco (run on office LAN).
  *   npm run essl:diagnose
  */
-require('dotenv').config();
+const { loadEsslEnv } = require('./loadEsslEnv');
+loadEsslEnv();
 const net = require('net');
 const ZKLib = require('node-zklib');
 const { COMMANDS } = require('node-zklib/constants');

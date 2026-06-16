@@ -2,7 +2,8 @@
  * Test office PC → Vercel HRMS API (no device required).
  *   npm run essl:bridge:ping
  */
-require('dotenv').config();
+const { loadEsslEnv } = require('./loadEsslEnv');
+loadEsslEnv();
 
 function config() {
   return {

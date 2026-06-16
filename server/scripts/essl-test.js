@@ -4,7 +4,8 @@
  *
  * Before running: stop npm start / essl:bridge, close eSSL desktop software.
  */
-require('dotenv').config();
+const { loadEsslEnv } = require('./loadEsslEnv');
+loadEsslEnv();
 const {
   fetchDeviceAttendanceLogs,
   deviceConfig,
