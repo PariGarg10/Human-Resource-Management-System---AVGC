@@ -1283,7 +1283,6 @@ router.get('/admin/export/:year', requirePortalAdmin, async (req, res) => {
       'Q4 Score': r.q4_score,
       'Annual Score': r.annual_score,
       'Rating Band': r.rating_band,
-      'Increment %': r.increment_percent,
       'Bonus Amount': r.bonus_amount,
     }));
 

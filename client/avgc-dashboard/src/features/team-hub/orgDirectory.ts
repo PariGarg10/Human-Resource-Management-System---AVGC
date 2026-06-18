@@ -9,6 +9,7 @@ export type OrgPerson = {
   employeecode?: string;
   phone?: string | null;
   location?: string | null;
+  dateOfJoining?: string | null;
   dateOfBirth?: string | null;
   bio?: string | null;
   profilePhotoUrl?: string | null;

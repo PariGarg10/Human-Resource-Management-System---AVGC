@@ -2,6 +2,14 @@
  * Manager assignments + manager directory (admin dashboard panels & standalone pages).
  */
 (function () {
+  function esc(s) {
+    return String(s ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
   function managerOption(manager) {
     return `<option value="${manager.id}">${manager.name} (${manager.email})</option>`;
   }
@@ -203,7 +211,7 @@
                 day: 'numeric',
               })
             : '—';
-          return `<article class="manager-card">${img}<div><h3>${m.name || '—'}</h3><p class="manager-meta"><strong>Email:</strong> ${m.email || '—'}</p><p class="manager-meta"><strong>Department:</strong> ${m.department || '—'}</p><p class="manager-meta"><strong>Join date:</strong> ${join}</p></div></article>`;
+          return `<article class="manager-card">${img}<div><h3>${m.name || '—'}</h3><p class="manager-meta"><strong>Designation:</strong> ${esc(m.designation || '—')}</p><p class="manager-meta"><strong>Mobile:</strong> ${esc(m.phone || '—')}</p><p class="manager-meta"><strong>Email:</strong> ${esc(m.email || '—')}</p><p class="manager-meta"><strong>Department:</strong> ${esc(m.department || '—')}</p><p class="manager-meta"><strong>Join date:</strong> ${join}</p></div></article>`;
         })
         .join('');
     }
@@ -216,7 +224,9 @@
           (m) =>
             (m.name || '').toLowerCase().includes(q) ||
             (m.department || '').toLowerCase().includes(q) ||
-            (m.email || '').toLowerCase().includes(q)
+            (m.email || '').toLowerCase().includes(q) ||
+            (m.designation || '').toLowerCase().includes(q) ||
+            (m.phone || '').toLowerCase().includes(q)
         )
       );
     }

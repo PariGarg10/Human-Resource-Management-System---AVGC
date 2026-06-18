@@ -10,7 +10,7 @@ router.get('/', authMiddleware, enforceForcePasswordChange, requireAdminOrFounde
   try {
     const { rows: managers } = await pool.query(
       `
-      SELECT id, employeecode, name, email, department, role, profilephotourl, createdat
+      SELECT id, employeecode, name, email, department, designation, phone, role, profilephotourl, date_of_joining, createdat
       FROM employees
       WHERE role = 'manager'
       ORDER BY name ASC
@@ -24,8 +24,10 @@ router.get('/', authMiddleware, enforceForcePasswordChange, requireAdminOrFounde
         name: m.name,
         email: m.email,
         department: m.department,
+        designation: m.designation || null,
+        phone: m.phone || null,
         profilePhotoUrl: normalizeProfilePhotoUrl(m.profilephotourl),
-        joinDate: m.createdat,
+        joinDate: m.date_of_joining || m.createdat,
       })),
     });
   } catch (err) {

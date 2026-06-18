@@ -68,6 +68,11 @@ function rowToProfile(row) {
     bio: row.bio || null,
     profilePhotoUrl: normalizeProfilePhotoUrl(row.profilephotourl),
     age: ageFromDateOfBirth(row.dateofbirth),
+    dateOfJoining: row.date_of_joining
+      ? String(row.date_of_joining).slice(0, 10)
+      : row.createdat
+        ? String(row.createdat).slice(0, 10)
+        : null,
     createdAt: row.createdat,
     isFirstLogin: row.is_first_login === true,
     onboardingCompleted: row.onboarding_completed === true,
@@ -205,7 +210,7 @@ async function applyProfileUpdate(userId, fields, profilePhotoUrl, profileFile) 
   const updatedResult = await pool.query(
     `
       SELECT id, employeecode, name, email, department, designation, role, reporting_to_id,
-             dateofbirth, phone, location, bio, profilephotourl, createdat, is_first_login,
+             dateofbirth, phone, location, bio, profilephotourl, date_of_joining, createdat, is_first_login,
              onboarding_completed, emergency_contact_name, emergency_contact_phone,
              bank_account_name, bank_account_number, bank_ifsc
       FROM employees WHERE id = $1
@@ -290,7 +295,7 @@ router.get('/org-directory', authMiddleware, enforcePasswordChange, async (_req,
     const { rows } = await pool.query(
       `
       SELECT id, employeecode, name, email, department, designation, role, profilephotourl,
-             phone, location, dateofbirth, bio,
+             phone, location, dateofbirth, bio, date_of_joining, createdat,
              (profile_photo IS NOT NULL) AS has_profile_photo
       FROM employees
       WHERE COALESCE(isregistered, TRUE) = TRUE AND COALESCE(is_active, TRUE) = TRUE
@@ -591,7 +596,7 @@ router.get('/me', authMiddleware, async (req, res) => {
     const result = await pool.query(
       `
       SELECT id, employeecode, name, email, department, designation, role, reporting_to_id,
-             dateofbirth, phone, location, bio, profilephotourl, createdat, is_first_login,
+             dateofbirth, phone, location, bio, profilephotourl, date_of_joining, createdat, is_first_login,
              onboarding_completed, emergency_contact_name, emergency_contact_phone,
              bank_account_name, bank_account_number, bank_ifsc
       FROM employees WHERE id = $1

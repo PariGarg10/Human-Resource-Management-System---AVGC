@@ -4757,7 +4757,7 @@ body:has(.dashboard-home-viewport--manager) .policy-chat-fab {
 
 .perf-band-header {
   display: grid;
-  grid-template-columns: 1.4fr repeat(5, minmax(64px, 1fr));
+  grid-template-columns: 1.4fr repeat(4, minmax(64px, 1fr));
   gap: 8px;
   margin-bottom: 6px;
   font-size: 0.72rem;
@@ -4767,7 +4767,7 @@ body:has(.dashboard-home-viewport--manager) .policy-chat-fab {
 
 .perf-band-row {
   display: grid;
-  grid-template-columns: 1.4fr repeat(5, minmax(64px, 1fr));
+  grid-template-columns: 1.4fr repeat(4, minmax(64px, 1fr));
   gap: 8px;
   flex-wrap: nowrap !important;
   margin-bottom: 8px;

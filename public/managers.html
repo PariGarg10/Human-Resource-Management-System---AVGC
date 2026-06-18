@@ -116,6 +116,8 @@
               img +
               '<div>' +
                 '<h3>' + (m.name || '—') + '</h3>' +
+                '<p class="manager-meta"><strong>Designation:</strong> ' + (m.designation || '—') + '</p>' +
+                '<p class="manager-meta"><strong>Mobile:</strong> ' + (m.phone || '—') + '</p>' +
                 '<p class="manager-meta"><strong>Email:</strong> ' + (m.email || '—') + '</p>' +
                 '<p class="manager-meta"><strong>Department:</strong> ' + (m.department || '—') + '</p>' +
                 '<p class="manager-meta"><strong>Join date:</strong> ' + formatJoin(m.joinDate) + '</p>' +
@@ -129,7 +131,7 @@
         var q = document.getElementById('managerSearch').value.trim().toLowerCase();
         if (!q) return render(allManagers);
         render(allManagers.filter(function (m) {
-          return (m.name || '').toLowerCase().includes(q) || (m.department || '').toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q);
+          return (m.name || '').toLowerCase().includes(q) || (m.department || '').toLowerCase().includes(q) || (m.email || '').toLowerCase().includes(q) || (m.designation || '').toLowerCase().includes(q) || (m.phone || '').toLowerCase().includes(q);
         }));
       }
 

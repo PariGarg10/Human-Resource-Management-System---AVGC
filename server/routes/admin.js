@@ -73,7 +73,7 @@ router.get('/session', (req, res) => {
 
 router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
   try {
-    const { name, email, password, department, role, employeecode, designation } = req.body;
+    const { name, email, password, department, role, employeecode, designation, dateOfJoining } = req.body;
 
     if (!name || !email) {
       return res.status(400).json({ message: 'name and email are required' });
@@ -96,13 +96,21 @@ router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEME
     }
 
     const designationValue = designation != null ? String(designation).trim() || null : null;
+    const dateOfJoiningRaw = req.body?.dateOfJoining ?? req.body?.date_of_joining;
+    const dateOfJoiningValue =
+      dateOfJoiningRaw != null && String(dateOfJoiningRaw).trim()
+        ? String(dateOfJoiningRaw).trim().slice(0, 10)
+        : null;
+    if (dateOfJoiningValue && !/^\d{4}-\d{2}-\d{2}$/.test(dateOfJoiningValue)) {
+      return res.status(400).json({ message: 'dateOfJoining must be YYYY-MM-DD' });
+    }
     const isRegistered = true;
     const passwordhash = bcrypt.hashSync(password || `Temp@${Date.now()}_${code}`, 10);
 
     const result = await pool.query(
       `
-      INSERT INTO employees (employeecode, name, email, passwordhash, department, designation, role, isregistered, mustchangepassword)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      INSERT INTO employees (employeecode, name, email, passwordhash, department, designation, date_of_joining, role, isregistered, mustchangepassword)
+      VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::date, CURRENT_DATE), $8, $9, $10)
       RETURNING id
     `,
       [
@@ -112,6 +120,7 @@ router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEME
         passwordhash,
         department || null,
         designationValue,
+        dateOfJoiningValue,
         normalizedRole,
         isRegistered,
         false,
@@ -335,6 +344,57 @@ router.get('/attendance/daily', requirePermission(PERMISSION_MODULES.ATTENDANCE)
     return res.json({ date, records });
   } catch (err) {
     console.error('GET /admin/attendance/daily:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+const ATTENDANCE_STATUS_OPTIONS = ['present', 'halfday', 'absent', 'leave'];
+
+function hoursForAttendanceStatus(status) {
+  if (status === 'present') return 8;
+  if (status === 'halfday') return 4;
+  return 0;
+}
+
+router.patch('/attendance/daily/status', requirePermission(PERMISSION_MODULES.ATTENDANCE), async (req, res) => {
+  try {
+    const employeeId = Number(req.body?.employeeId ?? req.body?.employeeid);
+    const date = String(req.body?.date || '').slice(0, 10);
+    const status = String(req.body?.status || '').toLowerCase().trim();
+    if (!Number.isFinite(employeeId) || employeeId <= 0) {
+      return res.status(400).json({ message: 'employeeId is required' });
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ message: 'date is required (YYYY-MM-DD)' });
+    }
+    if (!ATTENDANCE_STATUS_OPTIONS.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status' });
+    }
+
+    const emp = await pool.query('SELECT id FROM employees WHERE id = $1', [employeeId]);
+    if (!emp.rows[0]) return res.status(404).json({ message: 'Employee not found' });
+
+    const totalhours = hoursForAttendanceStatus(status);
+    await pool.query(
+      `
+        INSERT INTO attendancelogs (employeeid, date, totalhours, status)
+        VALUES ($1, $2::date, $3, $4)
+        ON CONFLICT (employeeid, date) DO UPDATE SET
+          status = EXCLUDED.status,
+          totalhours = EXCLUDED.totalhours
+      `,
+      [employeeId, date, totalhours, status]
+    );
+
+    await logAudit(req.user.id, 'ATTENDANCE_STATUS_UPDATED', 'attendancelogs', {
+      employeeId,
+      date,
+      status,
+    });
+
+    return res.json({ message: 'Attendance status updated', employeeId, date, status });
+  } catch (err) {
+    console.error('PATCH /admin/attendance/daily/status:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });

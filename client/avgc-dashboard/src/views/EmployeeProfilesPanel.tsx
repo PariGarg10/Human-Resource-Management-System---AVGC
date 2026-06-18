@@ -209,6 +209,10 @@ export function EmployeeProfilesPanel({ scope = 'all' }: { scope?: 'all' | 'same
                 <dt className="stat-label">Department</dt>
                 <dd style={{ margin: 0 }}>{detail.person.department || '—'}</dd>
               </div>
+              <div>
+                <dt className="stat-label">Date of joining</dt>
+                <dd style={{ margin: 0 }}>{detail.person.dateOfJoining || '—'}</dd>
+              </div>
               {hasEmployeeAccess(user?.role) && detail.person.id === user?.id ? (
                 <div>
                   <dt className="stat-label">Reporting team lead</dt>

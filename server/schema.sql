@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS employees (
   location TEXT,
   bio TEXT,
   profilephotourl TEXT,
+  date_of_joining DATE,
   createdat TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 

@@ -790,6 +790,7 @@ document.getElementById('addEmployeeForm').addEventListener('submit', async (e) 
         email: document.getElementById('newEmpEmail').value.trim(),
         password: document.getElementById('newEmpPassword').value.trim(),
         designation: document.getElementById('newEmpDesignation')?.value?.trim() || null,
+        dateOfJoining: document.getElementById('newEmpJoinDate')?.value || undefined,
         role: document.getElementById('newEmpRole').value
       })
     });
@@ -1027,9 +1028,23 @@ document.getElementById('newManagerForm')?.addEventListener('submit', async (e) 
 async function loadAdminDailyAttendance() {
   const date = document.getElementById('dailyDate').value;
   const data = await api(`/api/admin/attendance/daily?date=${date}`);
+  const statusOptions = ['present', 'halfday', 'absent', 'leave'];
   document.getElementById('dailyBody').innerHTML = data.records
     .map(
-      (row) => `
+      (row) => {
+        const currentStatus = String(row.status || 'absent').toLowerCase();
+        const statusCell =
+          currentStatus === 'holiday'
+            ? HRMS.badge(row.status)
+            : `<select class="admin-attendance-status" data-employee-id="${row.employeeid}" data-attendance-date="${date}" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);min-width:120px;">
+                ${statusOptions
+                  .map(
+                    (s) =>
+                      `<option value="${s}"${s === currentStatus ? ' selected' : ''}>${s}</option>`
+                  )
+                  .join('')}
+              </select>`;
+        return `
     <tr>
       <td>${row.employeecode}</td>
       <td>${row.name}</td>
@@ -1037,10 +1052,37 @@ async function loadAdminDailyAttendance() {
       <td>${formatDateTime(row.punchin)}</td>
       <td>${formatDateTime(row.punchout)}</td>
       <td>${row.totalhours ?? '—'}</td>
-      <td>${HRMS.badge(row.status)}</td>
-    </tr>`
+      <td>${statusCell}</td>
+    </tr>`;
+      }
     )
     .join('');
+
+  document.getElementById('dailyBody').querySelectorAll('.admin-attendance-status').forEach((sel) => {
+    sel.addEventListener('change', async () => {
+      const employeeId = Number(sel.getAttribute('data-employee-id'));
+      const attendanceDate = sel.getAttribute('data-attendance-date');
+      const status = sel.value;
+      const previous = sel.dataset.prev || status;
+      sel.disabled = true;
+      try {
+        await api('/api/admin/attendance/daily/status', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employeeId, date: attendanceDate, status }),
+        });
+        sel.dataset.prev = status;
+        HRMS.toast('Attendance status updated', 'success');
+        await loadAdminDailyAttendance();
+      } catch (e) {
+        sel.value = previous;
+        HRMS.toast(e.message || 'Could not update status', 'error');
+      } finally {
+        sel.disabled = false;
+      }
+    });
+    sel.dataset.prev = sel.value;
+  });
 }
 document.getElementById('loadDailyBtn').addEventListener('click', () => loadAdminDailyAttendance().catch((e) => HRMS.toast(e.message, 'error')));
 

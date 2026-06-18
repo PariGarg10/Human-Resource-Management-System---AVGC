@@ -125,6 +125,10 @@ async function runSchema() {
       uploaded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
   `);
+  await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS date_of_joining DATE');
+  await pool.query(
+    'UPDATE employees SET date_of_joining = createdat::date WHERE date_of_joining IS NULL AND createdat IS NOT NULL'
+  );
   await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS designation TEXT');
   await pool.query(
     'ALTER TABLE employees ADD COLUMN IF NOT EXISTS reporting_to_id INTEGER REFERENCES employees(id) ON DELETE SET NULL'

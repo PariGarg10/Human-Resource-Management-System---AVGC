@@ -9,6 +9,7 @@ export type EmployeeUser = {
   reportingToId?: number | null;
   mustchangepassword?: boolean;
   dateOfBirth?: string | null;
+  dateOfJoining?: string | null;
   phone?: string | null;
   location?: string | null;
   bio?: string | null;
@@ -28,6 +29,7 @@ export type UserProfile = {
   designation?: string | null;
   reportingToId?: number | null;
   dateOfBirth?: string | null;
+  dateOfJoining?: string | null;
   phone?: string | null;
   location?: string | null;
   bio?: string | null;

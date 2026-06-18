@@ -68,6 +68,7 @@ function personFromRow(row) {
     employeecode: row.employeecode || null,
     phone: row.phone || null,
     location: row.location || null,
+    dateOfJoining: row.date_of_joining || (row.createdat ? String(row.createdat).slice(0, 10) : null),
     dateOfBirth: row.dateofbirth || null,
     bio: row.bio || null,
     profilePhotoUrl: resolveEmployeePhotoUrl(row),

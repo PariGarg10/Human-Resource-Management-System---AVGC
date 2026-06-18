@@ -465,15 +465,13 @@ export function AdminPerformancePanel() {
             <p className="stat-sub perf-settings-help">
               Map year-end scores (0–100) to a rating label and 1–5 value. When you run{' '}
               <strong>Compute annual ratings</strong>, each employee&apos;s annual score is matched to a band.
-              Increment % and bonus % are reference values for year-end outcomes (salary increment guidance and
-              variable bonus as % of annual CTC).
+              Bonus % is a reference value for year-end variable bonus as % of annual CTC.
             </p>
             <div className="perf-band-header stat-sub">
               <span>Band</span>
               <span>Min</span>
               <span>Max</span>
               <span>Rating (1–5)</span>
-              <span>Increment %</span>
               <span>Bonus %</span>
             </div>
             {bands.map((b, i) => (
@@ -482,7 +480,6 @@ export function AdminPerformancePanel() {
                 <input type="number" min={0} max={100} value={b.minScore} onChange={(e) => setBandNumber(i, 'minScore', e.target.value)} placeholder="Min" />
                 <input type="number" min={0} max={100} value={b.maxScore} onChange={(e) => setBandNumber(i, 'maxScore', e.target.value)} placeholder="Max" />
                 <input type="number" min={0} max={5} value={b.ratingValue} onChange={(e) => setBandNumber(i, 'ratingValue', e.target.value)} placeholder="Rating" />
-                <input type="number" min={0} max={100} value={b.incrementPercent} onChange={(e) => setBandNumber(i, 'incrementPercent', e.target.value)} placeholder="Increment %" />
                 <input type="number" min={0} max={100} value={b.bonusPercent} onChange={(e) => setBandNumber(i, 'bonusPercent', e.target.value)} placeholder="Bonus %" />
               </div>
             ))}

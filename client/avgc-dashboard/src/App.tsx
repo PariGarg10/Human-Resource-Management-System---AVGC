@@ -380,6 +380,7 @@ export default function App() {
           reportingToId: p.reportingToId ?? emp.reportingToId ?? null,
           employeecode: p.employeecode ?? emp.employeecode,
           dateOfBirth: p.dateOfBirth,
+          dateOfJoining: p.dateOfJoining,
           phone: p.phone,
           location: p.location,
           bio: p.bio,

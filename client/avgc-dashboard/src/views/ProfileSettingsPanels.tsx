@@ -29,6 +29,7 @@ export function ProfilePanel({
   const [bankAccountName, setBankAccountName] = useState('');
   const [bankAccountNumber, setBankAccountNumber] = useState('');
   const [bankIfsc, setBankIfsc] = useState('');
+  const [dateOfJoining, setDateOfJoining] = useState('');
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const blobRef = useRef<string | null>(null);
@@ -54,6 +55,7 @@ export function ProfilePanel({
       setBankAccountName(p.bankAccountName || '');
       setBankAccountNumber(p.bankAccountNumber || '');
       setBankIfsc(p.bankIfsc || '');
+      setDateOfJoining(p.dateOfJoining || '');
       setPreviewUrl(p.profilePhotoUrl || null);
       setFile(null);
     },
@@ -225,6 +227,10 @@ export function ProfilePanel({
             <div className="profile-identity-tile">
               <span className="profile-identity-label">Employee ID</span>
               <strong>{user?.employeecode || '—'}</strong>
+            </div>
+            <div className="profile-identity-tile">
+              <span className="profile-identity-label">Date of joining</span>
+              <strong>{dateOfJoining || '—'}</strong>
             </div>
           </div>
         </aside>
