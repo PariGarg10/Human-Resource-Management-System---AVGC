@@ -4,7 +4,18 @@
 (function () {
   window.HRMS = window.HRMS || {};
 
-  const COLORS = ['#ed1d24', '#697279', '#ebebec', '#ffffff'];
+  const COLORS = [
+    '#ed1d24',
+    '#ff6b35',
+    '#f7c948',
+    '#22c55e',
+    '#3b82f6',
+    '#a855f7',
+    '#ec4899',
+    '#06b6d4',
+    '#ffffff',
+    '#fbbf24',
+  ];
 
   HRMS.fireConfettiBurst = function fireConfettiBurst(origin) {
     const canvas = document.createElement('canvas');
@@ -21,29 +32,29 @@
       return;
     }
 
-    const ox = origin?.x ?? window.innerWidth * 0.12;
-    const oy = origin?.y ?? window.innerHeight * 0.45;
-    const count = 140;
+    const ox = origin?.x ?? window.innerWidth * 0.5;
+    const oy = origin?.y ?? window.innerHeight * 0.42;
+    const count = 280;
     const particles = Array.from({ length: count }, () => {
       const angle = Math.random() * Math.PI * 2;
-      const speed = 7 + Math.random() * 14;
+      const speed = 10 + Math.random() * 22;
       return {
         x: ox,
         y: oy,
         vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 5,
-        w: 10 + Math.random() * 12,
-        h: 6 + Math.random() * 10,
+        vy: Math.sin(angle) * speed - 8,
+        w: 14 + Math.random() * 18,
+        h: 8 + Math.random() * 16,
         rot: Math.random() * Math.PI,
-        vr: (Math.random() - 0.5) * 0.45,
+        vr: (Math.random() - 0.5) * 0.55,
         color: COLORS[Math.floor(Math.random() * COLORS.length)],
         life: 1,
-        decay: 0.008 + Math.random() * 0.008,
+        decay: 0.006 + Math.random() * 0.007,
       };
     });
 
     let frame = 0;
-    const maxFrames = 150;
+    const maxFrames = 200;
 
     function tick() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -51,7 +62,7 @@
       for (const p of particles) {
         if (p.life <= 0) continue;
         alive += 1;
-        p.vy += 0.18;
+        p.vy += 0.22;
         p.x += p.vx;
         p.y += p.vy;
         p.rot += p.vr;

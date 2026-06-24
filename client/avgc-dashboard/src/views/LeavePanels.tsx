@@ -30,6 +30,17 @@ function dateOnly(value: string) {
   return value ? value.slice(0, 10) : '—';
 }
 
+function dateRangeIncludesSunday(from: string, to: string) {
+  if (!from || !to) return false;
+  const start = new Date(`${from}T12:00:00`);
+  const end = new Date(`${to}T12:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) return false;
+  for (let day = new Date(start); day <= end; day.setDate(day.getDate() + 1)) {
+    if (day.getDay() === 0) return true;
+  }
+  return false;
+}
+
 export function LeaveApplyPanel() {
   const { user } = useUser();
   const showTeamLeadReporting = hasEmployeeAccess(user?.role);
@@ -77,6 +88,14 @@ export function LeaveApplyPanel() {
     setSuccessMsg(null);
     if (showTeamLeadReporting && teamLeads.length > 0 && !reportingToId) {
       toast('Please select your reporting team lead', 'error');
+      return;
+    }
+    if (from && to && from > to) {
+      toast('End date must be on or after start date', 'error');
+      return;
+    }
+    if (dateRangeIncludesSunday(from, to)) {
+      toast('Leave cannot include Sundays. Please choose dates that exclude Sunday.', 'error');
       return;
     }
     setSubmitting(true);

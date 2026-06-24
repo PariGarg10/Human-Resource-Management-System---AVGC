@@ -2,7 +2,7 @@ import { type FormEvent, useState } from 'react';
 import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
 
-export function PasswordGate({ message }: { message?: string }) {
+export function PasswordGate({ message, onboarding }: { message?: string; onboarding?: boolean }) {
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
 
@@ -29,10 +29,14 @@ export function PasswordGate({ message }: { message?: string }) {
       className="rounded-xl border border-amber-200 bg-amber-50 p-6 shadow-sm"
       role="alert"
     >
-      <h2 className="text-lg font-semibold text-amber-950">Password update required</h2>
+      <h2 className="text-lg font-semibold text-amber-950">
+        {onboarding ? 'Step 1 — Set your password' : 'Password update required'}
+      </h2>
       <p className="mt-2 text-sm text-amber-900">
         {message ||
-          'Change your password to continue. After updating, sign in again with your new password.'}
+          (onboarding
+            ? 'Welcome aboard! Choose a permanent password before continuing onboarding. After updating, sign in again with your new password.'
+            : 'Change your password to continue. After updating, sign in again with your new password.')}
       </p>
       <form onSubmit={onSubmit} className="mt-6 grid max-w-lg gap-4 sm:grid-cols-2">
         <label className="text-sm font-medium text-slate-800 sm:col-span-2">

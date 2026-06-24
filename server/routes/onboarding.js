@@ -7,15 +7,16 @@ const {
 } = require('../middleware/auth');
 const {
   TASK_KEYS,
-  IT_SETUP_ITEMS,
   ensureOnboardingTasks,
   syncProfileTask,
   checkAndCompleteOnboarding,
   mapTaskRow,
   progressFromTasks,
-  profileCompletionPercentage,
-  defaultItMeta,
+  missingOnboardingDocuments,
+  getProfileCompletionGaps,
+  buildOnboardingBlockers,
 } = require('../utils/onboardingHelpers');
+const { CATEGORY_LABELS } = require('../utils/employeeDocuments');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -49,7 +50,7 @@ async function loadOnboardingPayload(employeeId) {
     `,
     [employeeId]
   );
-  const tasks = tasksRes.rows.map(mapTaskRow);
+  const tasks = tasksRes.rows.map(mapTaskRow).filter((t) => TASK_KEYS.includes(t.taskKey));
 
   const peersRes = await pool.query(
     `
@@ -67,6 +68,13 @@ async function loadOnboardingPayload(employeeId) {
 
   const videoRes = await pool.query(`SELECT video_url FROM posh_config WHERE id = 1`);
   const completed = await checkAndCompleteOnboarding(employeeId);
+  const { missingFields, missingDocKeys } = await getProfileCompletionGaps(employeeId);
+  const missingDocs = missingDocKeys;
+  const missingDocuments = missingDocs.map((key) => ({
+    key,
+    label: CATEGORY_LABELS[key] || key,
+  }));
+  const onboardingBlockers = buildOnboardingBlockers(tasks, missingFields, missingDocuments);
 
   return {
     employeeId: emp.id,
@@ -74,9 +82,11 @@ async function loadOnboardingPayload(employeeId) {
     department: emp.department,
     onboardingCompleted: Boolean(emp.onboarding_completed || completed),
     profileCompletionPercentage: profilePct,
+    missingProfileFields: missingFields,
+    missingDocuments,
+    onboardingBlockers,
     progressPercent: progressFromTasks(tasks),
     tasks,
-    itSetupItems: IT_SETUP_ITEMS,
     departmentPeers: peersRes.rows.map((r) => ({
       id: r.id,
       name: r.name,
@@ -100,7 +110,9 @@ router.get('/admin/summary', requirePortalAdmin, async (req, res) => {
                (
                  SELECT COUNT(*) FILTER (WHERE ot.status = 'completed')::float
                  / NULLIF(COUNT(*)::float, 0) * 100
-                 FROM onboarding_tasks ot WHERE ot.employee_id = e.id
+                 FROM onboarding_tasks ot
+                 WHERE ot.employee_id = e.id
+                   AND ot.task_key = ANY(ARRAY['profile_complete','policy_read','posh_training','meet_team'])
                ) AS progress_percent
         FROM employees e
         WHERE e.role IN ('employee', 'manager')
@@ -145,9 +157,16 @@ router.get('/admin/export.csv', requirePortalAdmin, async (_req, res) => {
                COALESCE(e.onboarding_completed, FALSE) AS onboarding_completed,
                (
                  SELECT COUNT(*) FILTER (WHERE ot.status = 'completed')
-                 FROM onboarding_tasks ot WHERE ot.employee_id = e.id
+                 FROM onboarding_tasks ot
+                 WHERE ot.employee_id = e.id
+                   AND ot.task_key = ANY(ARRAY['profile_complete','policy_read','posh_training','meet_team'])
                ) AS tasks_done,
-               (SELECT COUNT(*) FROM onboarding_tasks ot WHERE ot.employee_id = e.id) AS tasks_total
+               (
+                 SELECT COUNT(*)
+                 FROM onboarding_tasks ot
+                 WHERE ot.employee_id = e.id
+                   AND ot.task_key = ANY(ARRAY['profile_complete','policy_read','posh_training','meet_team'])
+               ) AS tasks_total
         FROM employees e
         WHERE e.role IN ('employee', 'manager')
           AND COALESCE(e.isregistered, TRUE) = TRUE
@@ -327,7 +346,6 @@ router.patch('/:employeeId/task', async (req, res) => {
     const employeeId = Number(req.params.employeeId);
     const taskKey = String(req.body?.taskKey || '').trim();
     const status = String(req.body?.status || 'completed').toLowerCase();
-    const meta = req.body?.meta;
 
     if (!Number.isFinite(employeeId)) {
       return res.status(400).json({ message: 'Invalid employee id' });
@@ -354,29 +372,7 @@ router.patch('/:employeeId/task', async (req, res) => {
       }
     }
 
-    if (taskKey === 'it_setup' && meta?.items) {
-      const allChecked = IT_SETUP_ITEMS.every((i) => Boolean(meta.items[i.key]));
-      if (!allChecked) {
-        await pool.query(
-          `
-            UPDATE onboarding_tasks
-            SET meta = $3::jsonb, status = 'pending', completed_at = NULL
-            WHERE employee_id = $1 AND task_key = $2
-          `,
-          [employeeId, taskKey, JSON.stringify({ items: meta.items })]
-        );
-        const payload = await loadOnboardingPayload(employeeId);
-        return res.json(payload);
-      }
-      await pool.query(
-        `
-          UPDATE onboarding_tasks
-          SET meta = $3::jsonb, status = 'completed', completed_at = NOW()
-          WHERE employee_id = $1 AND task_key = $2
-        `,
-        [employeeId, taskKey, JSON.stringify({ items: meta.items })]
-      );
-    } else if (status === 'completed') {
+    if (status === 'completed') {
       await pool.query(
         `
           UPDATE onboarding_tasks

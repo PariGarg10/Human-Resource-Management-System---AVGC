@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type MouseEvent } from 'react';
 import { clampPortalYear, currentPortalYear, MIN_PORTAL_YEAR } from '@/lib/yearMin';
 import { api } from '@/lib/api';
 import { calendarDayAbbrev } from '@/lib/attendanceLabels';
@@ -58,10 +58,37 @@ function holidayTypeLabel(type: HolidayRow['type']) {
   return 'Optional';
 }
 
+function CalendarDayTooltip({ cell }: { cell: Cell }) {
+  return (
+    <div className="attendance-calendar-tooltip" role="tooltip">
+      {cell.holidayLabel ? <p className="attendance-calendar-tooltip-holiday">{cell.holidayLabel}</p> : null}
+      <p>
+        Check-in:{' '}
+        {cell.punchin ? (
+          <span>{formatTime(cell.punchin)}</span>
+        ) : (
+          <span className="attendance-calendar-missing">Not checked in</span>
+        )}
+      </p>
+      <p>
+        Check-out:{' '}
+        {cell.punchout ? (
+          <span>{formatTime(cell.punchout)}</span>
+        ) : (
+          <span className="attendance-calendar-missing">Not checked out</span>
+        )}
+      </p>
+      {cell.totalhours != null ? <p className="attendance-calendar-tooltip-hours">{cell.totalhours}h logged</p> : null}
+    </div>
+  );
+}
+
 export function CalendarPanel() {
   const [month, setMonth] = useState(() => new Date().getMonth() + 1);
   const [year, setYear] = useState(() => currentPortalYear());
   const [cells, setCells] = useState<Cell[]>([]);
+  const [hovered, setHovered] = useState<Cell | null>(null);
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
 
   const build = useCallback(async (m: number, y: number) => {
     try {
@@ -146,14 +173,8 @@ export function CalendarPanel() {
     if (c.kind === 'weekend') {
       return 'attendance-calendar-day opacity-30 border border-transparent';
     }
-    if (c.kind === 'holiday_national') {
-      return 'attendance-calendar-day border-l-[3px] border-l-[#697279] bg-[rgba(235,235,236,0.95)]';
-    }
-    if (c.kind === 'holiday_festival') {
-      return 'attendance-calendar-day border-l-[3px] border-l-[#697279] bg-[rgba(105,114,121,0.12)]';
-    }
-    if (c.kind === 'holiday_optional') {
-      return 'attendance-calendar-day border-l-[3px] border-l-[#697279] bg-[rgba(235,235,236,0.9)]';
+    if (c.kind === 'holiday_national' || c.kind === 'holiday_festival' || c.kind === 'holiday_optional') {
+      return 'attendance-calendar-day cal-day-holiday';
     }
     if (c.kind === 'present') return 'attendance-calendar-day cal-day-present';
     if (c.kind === 'halfday') return 'attendance-calendar-day cal-day-halfday';
@@ -183,14 +204,15 @@ export function CalendarPanel() {
     return '';
   }
 
-  function cellTitle(c: Cell) {
-    if (c.kind === 'empty') return '';
-    const parts = [c.dateStr];
-    if (c.holidayLabel) parts.push(c.holidayLabel);
-    if (c.punchin) parts.push(`In: ${formatTime(c.punchin)}`);
-    if (c.punchout) parts.push(`Out: ${formatTime(c.punchout)}`);
-    if (c.totalhours != null) parts.push(`${c.totalhours}h`);
-    return parts.join(' · ');
+  function showTooltip(e: MouseEvent<HTMLDivElement>, c: Cell) {
+    if (c.kind === 'empty' || c.kind === 'weekend') return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHovered(c);
+    setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top - 8 });
+  }
+
+  function hideTooltip() {
+    setHovered(null);
   }
 
   const atMinMonth =
@@ -239,10 +261,10 @@ export function CalendarPanel() {
             <span className="legend-dot" style={{ background: C.absent }} /> Absent
           </span>
           <span>
-            <span className="legend-dot" style={{ background: C.halfday, boxShadow: `inset 0 0 0 1px ${C.halfdayBorder}` }} /> Half Day
+            <span className="legend-dot" style={{ background: C.halfday, boxShadow: `inset 0 0 0 1px ${C.halfdayBorder}` }} /> Half day
           </span>
           <span>
-            <span className="legend-dot" style={{ background: '#697279', opacity: 0.45 }} /> Holiday
+            <span className="legend-dot" style={{ background: '#9ca3af' }} /> Holiday
           </span>
           <span>
             <span className="legend-dot" style={{ background: C.leave }} /> Leave
@@ -261,7 +283,12 @@ export function CalendarPanel() {
           c.kind === 'empty' ? (
             <div key={`pad-${idx}`} className="attendance-calendar-day bg-transparent" aria-hidden />
           ) : (
-            <div key={c.dateStr || `w-${idx}`} title={cellTitle(c)} className={cellClasses(c)}>
+            <div
+              key={c.dateStr || `w-${idx}`}
+              className={cellClasses(c)}
+              onMouseEnter={(e) => showTooltip(e, c)}
+              onMouseLeave={hideTooltip}
+            >
               <span className="day-num">{c.day}</span>
               {c.kind !== 'weekend' && (
                 <span className="day-meta" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 0 }}>
@@ -269,13 +296,6 @@ export function CalendarPanel() {
                     <span className="day-dot" style={{ background: dotColor(c) }} />
                     <span className="day-label">{label(c)}</span>
                   </span>
-                  {c.punchin ? (
-                    <span className="day-punch" style={{ fontSize: '0.55rem', lineHeight: 1.2, opacity: 0.85 }}>
-                      {formatTime(c.punchin)}
-                      {c.punchout ? `–${formatTime(c.punchout)}` : ''}
-                      {c.totalhours != null ? ` · ${c.totalhours}h` : ''}
-                    </span>
-                  ) : null}
                 </span>
               )}
             </div>
@@ -283,7 +303,16 @@ export function CalendarPanel() {
         )}
       </div>
 
-      <p className="attendance-calendar-hint">Hover a day for check-in/out times.</p>
+      {hovered ? (
+        <div
+          className="attendance-calendar-tooltip-portal"
+          style={{ left: tooltipPos.x, top: tooltipPos.y }}
+        >
+          <CalendarDayTooltip cell={hovered} />
+        </div>
+      ) : null}
+
+      <p className="attendance-calendar-hint">Hover a day for check-in and check-out times.</p>
     </div>
   );
 }

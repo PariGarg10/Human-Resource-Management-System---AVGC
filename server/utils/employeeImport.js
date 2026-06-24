@@ -3,7 +3,18 @@ const XLSX = require('xlsx');
 const EMPLOYEE_IMPORT_HEADERS = {
   name: ['name', 'employee name', 'full name', 'emp name', 'staff name'],
   email: ['email', 'email address', 'e mail', 'mail', 'work email'],
-  role: ['role', 'designation', 'position', 'user role', 'employee type'],
+  password: ['password', 'pwd', 'pass', 'initial password', 'login password'],
+  designation: ['designation', 'title', 'job title', 'position'],
+  dateOfJoining: [
+    'date of joining',
+    'date of join',
+    'joining date',
+    'join date',
+    'doj',
+    'date joined',
+  ],
+  portalRole: ['portal role', 'portal_role', 'role', 'user role', 'employee type'],
+  // Legacy optional columns (still accepted)
   employeecode: [
     'emp code',
     'employee code',
@@ -11,7 +22,6 @@ const EMPLOYEE_IMPORT_HEADERS = {
     'employee id',
     'emp id',
     'code',
-    'id',
     'staff id',
   ],
   department: ['department', 'dept', 'division'],
@@ -24,6 +34,22 @@ function normalizeImportHeader(value) {
     .replace(/[._-]+/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function parseJoiningDate(value) {
+  if (value == null || value === '') return null;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  const raw = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const dmY = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (dmY) {
+    const day = dmY[1].padStart(2, '0');
+    const month = dmY[2].padStart(2, '0');
+    return `${dmY[3]}-${month}-${day}`;
+  }
+  return null;
 }
 
 function parseEmployeeImportFile(filePath) {
@@ -43,12 +69,18 @@ function parseEmployeeImportFile(filePath) {
     if (idx !== -1) columnIndex[field] = idx;
   }
 
-  const required = ['name', 'email', 'employeecode'];
+  const required = ['name', 'email', 'password', 'designation', 'dateOfJoining', 'portalRole'];
   const missing = required.filter((field) => columnIndex[field] == null);
   if (missing.length > 0) {
-    throw new Error(
-      `Missing required column(s): ${missing.map((f) => (f === 'employeecode' ? 'Employee Code' : f.charAt(0).toUpperCase() + f.slice(1))).join(', ')}`
-    );
+    const labels = {
+      name: 'Name',
+      email: 'Email',
+      password: 'Password',
+      designation: 'Designation',
+      dateOfJoining: 'Date of joining',
+      portalRole: 'Portal role',
+    };
+    throw new Error(`Missing required column(s): ${missing.map((f) => labels[f] || f).join(', ')}`);
   }
 
   const rows = matrix
@@ -59,20 +91,41 @@ function parseEmployeeImportFile(filePath) {
       email: String(row[columnIndex.email] || '')
         .trim()
         .toLowerCase(),
-      role: String(row[columnIndex.role] || '').trim().toLowerCase(),
-      employeecode: String(row[columnIndex.employeecode] || '').trim(),
+      password: String(row[columnIndex.password] || '').trim(),
+      designation:
+        columnIndex.designation != null ? String(row[columnIndex.designation] || '').trim() || null : null,
+      dateOfJoining:
+        columnIndex.dateOfJoining != null ? parseJoiningDate(row[columnIndex.dateOfJoining]) : null,
+      dateOfJoiningInvalid:
+        columnIndex.dateOfJoining != null &&
+        String(row[columnIndex.dateOfJoining] || '').trim() !== '' &&
+        parseJoiningDate(row[columnIndex.dateOfJoining]) == null,
+      portalRole: String(row[columnIndex.portalRole] || '').trim().toLowerCase(),
+      employeecode:
+        columnIndex.employeecode != null ? String(row[columnIndex.employeecode] || '').trim() : '',
       department:
         columnIndex.department != null ? String(row[columnIndex.department] || '').trim() || null : null,
     }))
-    .filter((row) => row.name || row.email || row.employeecode);
+    .filter(
+      (row) =>
+        row.name ||
+        row.email ||
+        row.password ||
+        row.designation ||
+        row.portalRole ||
+        row.employeecode
+    );
 
   return {
     rows,
     mappedFields: {
       name: matrix[headerIndex][columnIndex.name],
       email: matrix[headerIndex][columnIndex.email],
-      role: matrix[headerIndex][columnIndex.role],
-      employeecode: matrix[headerIndex][columnIndex.employeecode],
+      password: matrix[headerIndex][columnIndex.password],
+      designation: columnIndex.designation != null ? matrix[headerIndex][columnIndex.designation] : null,
+      dateOfJoining:
+        columnIndex.dateOfJoining != null ? matrix[headerIndex][columnIndex.dateOfJoining] : null,
+      portalRole: matrix[headerIndex][columnIndex.portalRole],
     },
   };
 }
@@ -107,11 +160,15 @@ async function validateEmployeeRows(pool, rows) {
   for (const row of rows) {
     if (isJunkRow(row)) continue;
 
-    const role = normalizeImportedRole(row.role);
+    const role = normalizeImportedRole(row.portalRole);
     const issues = [];
     if (!row.name) issues.push('Name is required');
     if (!row.email) issues.push('Email is required');
-    if (!row.employeecode) issues.push('Employee Code is required (or enable auto-generate on import)');
+    if (!row.password) issues.push('Password is required');
+    if (!row.portalRole) issues.push('Portal role is required');
+    if (row.dateOfJoiningInvalid) {
+      issues.push('Date of joining must be DD/MM/YYYY or YYYY-MM-DD');
+    }
 
     let status = 'new';
     if (issues.length) {
@@ -119,20 +176,27 @@ async function validateEmployeeRows(pool, rows) {
       invalidCount += 1;
     } else {
       const byEmail = await pool.query('SELECT id, name FROM employees WHERE email = $1', [row.email]);
-      const byCode = await pool.query('SELECT id FROM employees WHERE employeecode = $1', [row.employeecode]);
       if (byEmail.rows[0]) {
         status = 'exists';
         existingCount += 1;
-        if (byCode.rows[0] && byCode.rows[0].id !== byEmail.rows[0].id) {
-          issues.push('Email exists but employee code belongs to someone else');
-          status = 'invalid';
-          existingCount -= 1;
-          invalidCount += 1;
+        if (row.employeecode) {
+          const byCode = await pool.query('SELECT id FROM employees WHERE employeecode = $1', [row.employeecode]);
+          if (byCode.rows[0] && byCode.rows[0].id !== byEmail.rows[0].id) {
+            issues.push('Employee code belongs to another person');
+            status = 'invalid';
+            existingCount -= 1;
+            invalidCount += 1;
+          }
         }
-      } else if (byCode.rows[0]) {
-        issues.push('Employee code already used');
-        status = 'invalid';
-        invalidCount += 1;
+      } else if (row.employeecode) {
+        const byCode = await pool.query('SELECT id FROM employees WHERE employeecode = $1', [row.employeecode]);
+        if (byCode.rows[0]) {
+          issues.push('Employee code already used');
+          status = 'invalid';
+          invalidCount += 1;
+        } else {
+          newCount += 1;
+        }
       } else {
         newCount += 1;
       }
@@ -141,6 +205,7 @@ async function validateEmployeeRows(pool, rows) {
     preview.push({
       ...row,
       role,
+      employeecode: row.employeecode || '(auto)',
       status,
       issues: issues.join('; '),
     });
@@ -154,4 +219,5 @@ module.exports = {
   normalizeImportedRole,
   isJunkRow,
   validateEmployeeRows,
+  parseJoiningDate,
 };

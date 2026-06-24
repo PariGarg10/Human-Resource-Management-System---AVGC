@@ -1,37 +1,38 @@
-import { useEffect, useState } from 'react';
-import { runConfettiBurst } from '@/lib/celebration';
+import { useEffect, useRef } from 'react';
+import { runConfettiBurstLight } from '@/lib/celebration';
 
 type Props = {
   firstName: string;
   onEnterPortal: () => void;
 };
 
-const UNLOCK_STEPS = [
-  'Profile verified',
-  'Policies acknowledged',
-  'POSH training complete',
-  'Team introductions',
-  'IT setup done',
-];
-
 export function OnboardingCompleteCelebration({ firstName, onEnterPortal }: Props) {
-  const [step, setStep] = useState(0);
+  const enteredRef = useRef(false);
 
   useEffect(() => {
-    runConfettiBurst();
-    const hrms = window as Window & { HRMS?: { fireConfettiBurst?: () => void } };
-    hrms.HRMS?.fireConfettiBurst?.();
-  }, []);
+    runConfettiBurstLight();
+    const timer = window.setTimeout(() => {
+      if (enteredRef.current) return;
+      enteredRef.current = true;
+      onEnterPortal();
+    }, 1400);
+    return () => window.clearTimeout(timer);
+  }, [onEnterPortal]);
 
-  useEffect(() => {
-    if (step >= UNLOCK_STEPS.length) return;
-    const t = window.setTimeout(() => setStep((s) => s + 1), 380);
-    return () => window.clearTimeout(t);
-  }, [step]);
+  function enterNow() {
+    if (enteredRef.current) return;
+    enteredRef.current = true;
+    onEnterPortal();
+  }
 
   return (
-    <div className="onboarding-complete-overlay" role="dialog" aria-modal="true" aria-labelledby="onboarding-complete-title">
-      <div className="onboarding-complete-card">
+    <div
+      className="onboarding-complete-overlay onboarding-complete-overlay--light"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboarding-complete-title"
+    >
+      <div className="onboarding-complete-card onboarding-complete-card--compact">
         <div className="onboarding-complete-badge" aria-hidden="true">
           ✓
         </div>
@@ -39,29 +40,10 @@ export function OnboardingCompleteCelebration({ firstName, onEnterPortal }: Prop
           You&apos;re all set, {firstName}!
         </h2>
         <p className="onboarding-complete-body">
-          You&apos;ve finished every onboarding step. Your full employee portal is ready — dashboard, leave,
-          attendance, and everything else is now unlocked.
+          Your full employee portal is unlocking — dashboard, leave, attendance, and more.
         </p>
-        <ul className="onboarding-complete-checklist" aria-label="Completed steps">
-          {UNLOCK_STEPS.map((label, idx) => (
-            <li
-              key={label}
-              className={idx < step ? 'onboarding-complete-checklist__item--done' : ''}
-            >
-              <span className="onboarding-complete-check" aria-hidden="true">
-                {idx < step ? '✓' : '·'}
-              </span>
-              {label}
-            </li>
-          ))}
-        </ul>
-        <button
-          type="button"
-          className="btn btn-primary onboarding-complete-cta"
-          disabled={step < UNLOCK_STEPS.length}
-          onClick={onEnterPortal}
-        >
-          {step < UNLOCK_STEPS.length ? 'Unlocking your portal…' : 'Enter your portal →'}
+        <button type="button" className="btn btn-primary onboarding-complete-cta" onClick={enterNow}>
+          Continue →
         </button>
       </div>
     </div>

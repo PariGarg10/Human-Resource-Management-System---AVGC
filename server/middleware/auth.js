@@ -165,6 +165,27 @@ function requirePortalAdmin(req, res, next) {
   return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
 }
 
+/** Any active admin account (portal session, admin role, or linked admins row). */
+async function requireAnyAdmin(req, res, next) {
+  if (!req.user) {
+    return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
+  }
+  if (req.user.adminId) return next();
+  const role = String(req.user.role || '').toLowerCase().trim();
+  if (isAdminRole(role) || isFounderUser(req.user)) return next();
+  try {
+    const { rows } = await pool.query(
+      'SELECT id FROM admins WHERE employee_id = $1 AND is_active = TRUE LIMIT 1',
+      [req.user.id]
+    );
+    if (rows[0]) return next();
+  } catch (err) {
+    console.error('requireAnyAdmin lookup failed:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+  return res.status(403).json({ message: 'Forbidden: insufficient permissions' });
+}
+
 function isFounderUser(user) {
   const role = String(user?.role || '').toLowerCase().trim();
   const name = String(user?.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -209,6 +230,7 @@ module.exports = {
   enforceForcePasswordChange,
   requireRoles,
   requirePortalAdmin,
+  requireAnyAdmin,
   requireAdminOrFounder,
   isFounderUser,
   enforcePasswordChange,

@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { PortalUserIdentity } from '@/components/PortalUserIdentity';
 import { usePortalShell } from '@/hooks/usePortalShell';
 import { useUser } from '@/context/UserContext';
-import { EMPLOYEE_NAV_SECTIONS, type NavSection, type PortalNavId } from '@/lib/portalNav';
+import { EMPLOYEE_NAV_SECTIONS, type NavItem, type NavSection, type PortalNavId } from '@/lib/portalNav';
 
 type Props = {
   activeNav: PortalNavId;
@@ -12,6 +12,7 @@ type Props = {
   rolePill?: string;
   sidebarRoleClass?: string;
   navSections?: NavSection[];
+  profileMenuItems?: NavItem[];
   onNavigate: (id: PortalNavId) => void;
 };
 
@@ -23,19 +24,18 @@ export function PortalAppShell({
   portalLabel = 'Employee',
   rolePill = 'Employee',
   navSections = EMPLOYEE_NAV_SECTIONS,
+  profileMenuItems = [],
   onNavigate,
 }: Props) {
-  const { user, avatarOverride } = useUser();
+  const { user } = useUser();
   usePortalShell(activeNav, user, onNavigate);
 
   const displayName = user?.name || user?.email || 'Employee';
-  const initial = (displayName.trim()[0] || 'E').toUpperCase();
-  const photo = avatarOverride || user?.profilePhotoUrl || null;
 
   useEffect(() => {
     const lucide = (window as unknown as { lucide?: { createIcons?: () => void } }).lucide;
     lucide?.createIcons?.();
-  }, [activeNav, photo, displayName]);
+  }, [activeNav, displayName]);
 
   useEffect(() => {
     const breadcrumb = document.getElementById('breadcrumbCurrent');
@@ -53,19 +53,6 @@ export function PortalAppShell({
           </div>
         </div>
         <div className="sidebar-profile">
-          {photo ? (
-            <img
-              id="sidebarAvatar"
-              src={photo}
-              alt=""
-              className="sidebar-avatar"
-              style={{ objectFit: 'cover', borderRadius: '50%' }}
-            />
-          ) : (
-            <div className="sidebar-avatar" id="sidebarAvatar">
-              {initial}
-            </div>
-          )}
           <div className="sidebar-user-meta">
             <PortalUserIdentity user={user} variant="sidebar" />
             <div className="sidebar-user-name" id="sidebarUserName" hidden>
@@ -183,9 +170,26 @@ export function PortalAppShell({
                   alt=""
                   style={{ borderRadius: '50%', objectFit: 'cover' }}
                 />
-                <span id="navProfileEmail">{user?.email || '—'}</span>
+                <span id="navProfileEmail">{displayName}</span>
               </button>
               <div className="profile-dropdown">
+                {profileMenuItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    data-profile-nav={item.id}
+                    className={`profile-dropdown-item${activeNav === item.id ? ' is-active' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.currentTarget.closest('.profile-dropdown-wrap')?.classList.remove('is-open');
+                      onNavigate(item.id);
+                    }}
+                  >
+                    <span className="nav-icon" data-lucide={item.icon} />
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+                {profileMenuItems.length > 0 ? <div className="profile-dropdown-divider" aria-hidden="true" /> : null}
                 <button type="button" id="dropdownLogout" className="profile-dropdown-logout">
                   <span className="nav-icon" data-lucide="log-out" />
                   <span>Sign out</span>

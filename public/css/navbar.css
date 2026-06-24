@@ -357,6 +357,33 @@ body.has-floating-sidebar .navbar-logo {
   background: var(--bg);
 }
 
+.profile-dropdown-item {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  color: var(--text) !important;
+  font-weight: 500;
+}
+
+.profile-dropdown-item.is-active {
+  background: rgba(230, 57, 70, 0.12);
+  color: var(--text-primary, #111111);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--red, #ed1d24);
+}
+
+.profile-dropdown-item .nav-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.profile-dropdown-divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--border);
+}
+
 .profile-dropdown-logout {
   display: flex !important;
   align-items: center;

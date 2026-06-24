@@ -2,6 +2,11 @@ const crypto = require('crypto');
 const bcrypt = require('bcrypt');
 const { pool } = require('../db');
 const { sendPasswordResetEmail } = require('./email');
+const {
+  normalizeEmail,
+  passwordResetDeliveryEmail,
+  EMAIL_LOOKUP_WHERE,
+} = require('./companyEmail');
 
 const TOKEN_BYTES = 32;
 const EXPIRY_MINUTES = 15;
@@ -9,7 +14,7 @@ const RATE_LIMIT_MAX = 3;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 
 const GENERIC_SUCCESS =
-  'If this email exists, a reset link has been sent to your inbox';
+  'If this email exists, a reset link has been sent to your @avgcstudios.com inbox';
 
 function hashToken(rawToken) {
   return crypto.createHash('sha256').update(String(rawToken)).digest('hex');
@@ -17,10 +22,6 @@ function hashToken(rawToken) {
 
 function generateRawToken() {
   return crypto.randomBytes(TOKEN_BYTES).toString('hex');
-}
-
-function normalizeEmail(email) {
-  return String(email || '').trim().toLowerCase();
 }
 
 function mapEmployeeUserType(role) {
@@ -40,7 +41,7 @@ async function resolveAccountByEmail(email) {
     `
       SELECT id, name, email, employee_id, is_active
       FROM admins
-      WHERE lower(trim(email)) = $1
+      WHERE ${EMAIL_LOOKUP_WHERE}
       LIMIT 1
     `,
     [normalized]
@@ -53,6 +54,7 @@ async function resolveAccountByEmail(email) {
       userId: admin.id,
       name: admin.name,
       email: admin.email,
+      deliveryEmail: passwordResetDeliveryEmail(admin.email),
       employeeId: admin.employee_id,
     };
   }
@@ -61,7 +63,7 @@ async function resolveAccountByEmail(email) {
     `
       SELECT id, name, email, role
       FROM employees
-      WHERE lower(trim(email)) = $1
+      WHERE ${EMAIL_LOOKUP_WHERE}
       LIMIT 1
     `,
     [normalized]
@@ -74,6 +76,7 @@ async function resolveAccountByEmail(email) {
     userId: employee.id,
     name: employee.name,
     email: employee.email,
+    deliveryEmail: passwordResetDeliveryEmail(employee.email),
     employeeId: employee.id,
   };
 }
@@ -118,7 +121,7 @@ async function createAndSendResetToken(account) {
   );
 
   await sendPasswordResetEmail({
-    to: account.email,
+    to: account.deliveryEmail || passwordResetDeliveryEmail(account.email),
     name: account.name,
     rawToken,
   });
@@ -227,6 +230,7 @@ function validatePasswordStrength(password) {
 module.exports = {
   GENERIC_SUCCESS,
   normalizeEmail,
+  passwordResetDeliveryEmail,
   resolveAccountByEmail,
   requestPasswordReset,
   resetPasswordWithToken,

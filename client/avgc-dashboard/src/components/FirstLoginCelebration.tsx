@@ -63,20 +63,10 @@ export function FirstLoginCelebration({ userId, firstName, onboardingGated, onCl
             className="btn btn-primary"
             disabled={busy}
             onClick={() => {
-              dismiss('onboarding').catch(() => undefined);
-            }}
-          >
-            Start Onboarding
-          </button>
-          <button
-            type="button"
-            className="btn btn-outline"
-            disabled={busy}
-            onClick={() => {
               dismiss(onboardingGated ? 'onboarding' : 'dashboard').catch(() => undefined);
             }}
           >
-            {onboardingGated ? 'Skip to onboarding' : 'Go to Dashboard'}
+            {onboardingGated ? 'Start onboarding' : 'Go to dashboard'}
           </button>
         </div>
       </div>

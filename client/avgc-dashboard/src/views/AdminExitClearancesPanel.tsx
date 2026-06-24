@@ -27,6 +27,11 @@ type ClearanceItem = {
   };
 };
 
+function clearanceTabLabel(tab: 'it' | 'finance' | 'admin') {
+  if (tab === 'it') return 'IT';
+  return tab.charAt(0).toUpperCase() + tab.slice(1);
+}
+
 export function AdminExitClearancesPanel() {
   const [mainTab, setMainTab] = useState<'review' | 'clearances' | 'letters'>('review');
   const [clearTab, setClearTab] = useState<'it' | 'finance' | 'admin'>('it');
@@ -182,7 +187,7 @@ export function AdminExitClearancesPanel() {
 
   return (
     <div className="panel admin-exit-clearances">
-      <h2 className="panel-title">Exit workflow</h2>
+      <h2 className="panel-title">Exit Formalities</h2>
       <div className="exit-admin-tabs">
         {(['review', 'clearances', 'letters'] as const).map((t) => (
           <button
@@ -277,12 +282,12 @@ export function AdminExitClearancesPanel() {
                 className={`btn btn-sm ${clearTab === t ? 'btn-primary' : 'btn-outline'}`}
                 onClick={() => setClearTab(t)}
               >
-                {t.toUpperCase()}
+                {clearanceTabLabel(t)}
               </button>
             ))}
           </div>
           {clearances.filter((i) => i.status === 'pending').length === 0 ? (
-            <p className="stat-sub">No pending {clearTab} clearances.</p>
+            <p className="stat-sub">No pending {clearanceTabLabel(clearTab)} clearances.</p>
           ) : (
             <div className="exit-approval-list">
               {clearances
@@ -337,7 +342,7 @@ export function AdminExitClearancesPanel() {
                         }
                         onClick={() => approveClearance(item.clearanceId)}
                       >
-                        Approve {clearTab.toUpperCase()} clearance
+                        Approve {clearanceTabLabel(clearTab)} clearance
                       </button>
                     </div>
                   </article>

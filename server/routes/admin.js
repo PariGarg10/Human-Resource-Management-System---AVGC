@@ -14,6 +14,7 @@ const { logAudit } = require('../utils/audit');
 const { calculateTotalHours, getAttendanceStatus } = require('../utils/attendance');
 const { generateEmployeeCode } = require('../utils/employeeCode');
 const { getEffectiveAttendanceStatus } = require('../utils/attendanceView');
+const { approvedLeaveEmployeeIdsForDate } = require('../utils/attendanceLeaveLookup');
 const { filterUpcomingBirthdays } = require('../utils/birthdays');
 const { getHolidayDatesSet, isHolidayDate } = require('../utils/holidaysRange');
 const { createNotification, broadcastToEmployeesAndManagers } = require('../utils/notifications');
@@ -50,12 +51,82 @@ const {
   isJunkRow,
   validateEmployeeRows,
 } = require('../utils/employeeImport');
+const {
+  parseManagerAssignmentFile,
+  validateManagerAssignmentRows,
+  resolveEmployeeByCode,
+  resolveReportingManager,
+  normalizeEmpCode,
+  isJunkRow: isManagerImportJunkRow,
+  canBeReportingManager,
+  canHaveReportingManager,
+} = require('../utils/managerAssignmentImport');
 
 router.use(authMiddleware);
 router.use(enforcePasswordChange);
 router.use(requireAdminAccess);
 
 const EMPLOYEE_PORTAL_ROLES = new Set(['employee', 'manager']);
+
+async function assignEmployeeToManager(managerId, employeeId) {
+  const managerResult = await pool.query(
+    `SELECT id, role FROM employees WHERE id = $1 AND role IN ('manager', 'admin', 'founder', 'it_head')`,
+    [managerId]
+  );
+  const employeeResult = await pool.query(
+    `SELECT id, role FROM employees WHERE id = $1 AND role IN ('employee', 'admin', 'manager')`,
+    [employeeId]
+  );
+  const manager = managerResult.rows[0];
+  const employee = employeeResult.rows[0];
+  if (!manager || !employee) {
+    throw new Error('Manager or employee not found');
+  }
+  if (!canBeReportingManager(manager.role)) {
+    throw new Error('Reporting manager must be a manager or admin');
+  }
+  if (!canHaveReportingManager(employee.role)) {
+    throw new Error('Selected person cannot be assigned a reporting manager');
+  }
+  if (manager.id === employee.id) {
+    throw new Error('Employee cannot report to themselves');
+  }
+  await pool.query('DELETE FROM manageremployees WHERE employeeid = $1', [employeeId]);
+  await pool.query('INSERT INTO manageremployees (managerid, employeeid) VALUES ($1, $2)', [
+    managerId,
+    employeeId,
+  ]);
+  await pool.query('UPDATE employees SET reporting_to_id = $1 WHERE id = $2', [managerId, employeeId]);
+}
+
+async function resolveManagerAndEmployeeIds(body) {
+  let managerid = body.managerid != null && body.managerid !== '' ? Number(body.managerid) : null;
+  let employeeid = body.employeeid != null && body.employeeid !== '' ? Number(body.employeeid) : null;
+
+  const managerCode =
+    body.managerCode || body.managercode || body.managerEmployeecode || body.manager_employeecode;
+  const employeeCode =
+    body.employeeCode || body.employeecode || body.employeeEmployeecode || body.employee_employeecode;
+
+  if ((!managerid || !Number.isFinite(managerid)) && managerCode) {
+    const mgr = await resolveReportingManager(pool, managerCode);
+    if (!mgr) throw new Error('Manager not found for emp code or name');
+    if (!canBeReportingManager(mgr.role)) {
+      throw new Error('Reporting manager must be a manager or admin');
+    }
+    managerid = mgr.id;
+  }
+  if ((!employeeid || !Number.isFinite(employeeid)) && employeeCode) {
+    const emp = await resolveEmployeeByCode(pool, employeeCode);
+    if (!emp) throw new Error('Employee not found for emp code');
+    if (!canHaveReportingManager(emp.role)) {
+      throw new Error('Selected person cannot be assigned a reporting manager');
+    }
+    employeeid = emp.id;
+  }
+
+  return { managerid, employeeid };
+}
 
 router.get('/session', (req, res) => {
   return res.json({
@@ -109,8 +180,8 @@ router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEME
 
     const result = await pool.query(
       `
-      INSERT INTO employees (employeecode, name, email, passwordhash, department, designation, date_of_joining, role, isregistered, mustchangepassword)
-      VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::date, CURRENT_DATE), $8, $9, $10)
+      INSERT INTO employees (employeecode, name, email, passwordhash, department, designation, date_of_joining, role, isregistered, mustchangepassword, force_password_change)
+      VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::date, CURRENT_DATE), $8, $9, $10, $10)
       RETURNING id
     `,
       [
@@ -123,7 +194,7 @@ router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEME
         dateOfJoiningValue,
         normalizedRole,
         isRegistered,
-        false,
+        true,
       ]
     );
 
@@ -318,28 +389,19 @@ router.get('/attendance/daily', requirePermission(PERMISSION_MODULES.ATTENDANCE)
     );
     const isHoliday = await isHolidayDate(date);
 
-    const records = [];
-    for (const row of rowsResult.rows) {
-      const leaveResult = await pool.query(
-        `
-        SELECT 1 FROM leaves
-        WHERE employeeid = $1 AND status = 'approved' AND $2::date BETWEEN fromdate AND todate
-        LIMIT 1
-      `,
-        [row.employeeid, date]
-      );
+    const employeeIds = rowsResult.rows.map((r) => r.employeeid);
+    const onLeaveIds = await approvedLeaveEmployeeIdsForDate(employeeIds, date);
 
-      records.push({
-        ...row,
-        status: isHoliday
-          ? 'holiday'
-          : getEffectiveAttendanceStatus({
-              totalhours: row.totalhours,
-              status: row.status,
-              hasApprovedLeave: leaveResult.rows.length > 0,
-            }),
-      });
-    }
+    const records = rowsResult.rows.map((row) => ({
+      ...row,
+      status: isHoliday
+        ? 'holiday'
+        : getEffectiveAttendanceStatus({
+            totalhours: row.totalhours,
+            status: row.status,
+            hasApprovedLeave: onLeaveIds.has(row.employeeid),
+          }),
+    }));
 
     return res.json({ date, records });
   } catch (err) {
@@ -844,8 +906,8 @@ router.post('/managers', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMEN
     const generatedCode = await generateEmployeeCode();
     const result = await pool.query(
       `
-      INSERT INTO employees (employeecode, name, email, passwordhash, department, role, isregistered, mustchangepassword)
-      VALUES ($1, $2, $3, $4, $5, 'manager', TRUE, FALSE)
+      INSERT INTO employees (employeecode, name, email, passwordhash, department, role, isregistered, mustchangepassword, force_password_change)
+      VALUES ($1, $2, $3, $4, $5, 'manager', TRUE, TRUE, TRUE)
       RETURNING id
     `,
       [generatedCode, trimmedName, normalizedEmail, passwordhash, dept]
@@ -891,22 +953,28 @@ router.delete('/managers/:id', requirePermission(PERMISSION_MODULES.EMPLOYEE_MAN
 
 router.post('/manager-assignments', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
   try {
-    const { managerid, employeeid } = req.body;
+    const { managerid, employeeid } = await resolveManagerAndEmployeeIds(req.body);
     if (!managerid || !employeeid) {
-      return res.status(400).json({ message: 'managerid and employeeid are required' });
+      return res.status(400).json({
+        message: 'Manager and employee emp codes are required (managerCode and employeeCode)',
+      });
     }
 
-    const managerResult = await pool.query("SELECT id FROM employees WHERE id = $1 AND role = 'manager'", [managerid]);
-    const employeeResult = await pool.query("SELECT id FROM employees WHERE id = $1 AND role = 'employee'", [employeeid]);
-    if (!managerResult.rows[0] || !employeeResult.rows[0]) {
-      return res.status(404).json({ message: 'Manager or employee not found' });
+    const existing = await pool.query(
+      'SELECT managerid FROM manageremployees WHERE employeeid = $1 LIMIT 1',
+      [employeeid]
+    );
+    if (existing.rows[0]?.managerid === managerid) {
+      return res.json({ message: 'Employee is already assigned to this manager', alreadyAssigned: true });
     }
 
-    await pool.query('DELETE FROM manageremployees WHERE employeeid = $1', [employeeid]);
-    await pool.query('INSERT INTO manageremployees (managerid, employeeid) VALUES ($1, $2)', [managerid, employeeid]);
+    await assignEmployeeToManager(managerid, employeeid);
     await logAudit(req.user.id, 'MANAGER_ASSIGNED', 'manageremployees', { managerid, employeeid });
     return res.json({ message: 'Employee assigned to manager' });
   } catch (err) {
+    if (err.message && !err.code) {
+      return res.status(400).json({ message: err.message });
+    }
     console.error('POST /admin/manager-assignments:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
   }
@@ -914,25 +982,68 @@ router.post('/manager-assignments', requirePermission(PERMISSION_MODULES.EMPLOYE
 
 router.post('/manager-assignments/bulk', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
   try {
-    const { managerid, employeeids } = req.body;
-    if (!managerid || !Array.isArray(employeeids)) {
-      return res.status(400).json({ message: 'managerid and employeeids[] are required' });
+    let managerid = req.body.managerid != null && req.body.managerid !== '' ? Number(req.body.managerid) : null;
+    const managerCode =
+      req.body.managerCode || req.body.managercode || req.body.managerEmployeecode || req.body.manager_employeecode;
+    if ((!managerid || !Number.isFinite(managerid)) && managerCode) {
+      const mgr = await resolveReportingManager(pool, managerCode);
+      if (!mgr) return res.status(404).json({ message: 'Manager not found for emp code or name' });
+      if (!canBeReportingManager(mgr.role)) {
+        return res.status(400).json({ message: 'Reporting manager must be a manager or admin' });
+      }
+      managerid = mgr.id;
+    }
+    if (!managerid) {
+      return res.status(400).json({ message: 'managerCode is required' });
     }
 
-    const managerResult = await pool.query("SELECT id FROM employees WHERE id = $1 AND role = 'manager'", [managerid]);
-    if (!managerResult.rows[0]) return res.status(404).json({ message: 'Manager not found' });
+    const employeeCodes = Array.isArray(req.body.employeeCodes)
+      ? req.body.employeeCodes.map((c) => normalizeEmpCode(c)).filter(Boolean)
+      : [];
+    const employeeids = Array.isArray(req.body.employeeids)
+      ? req.body.employeeids.map((id) => Number(id)).filter((n) => Number.isFinite(n) && n > 0)
+      : [];
 
-    const summary = { total: employeeids.length, assigned: 0, failed: 0, errors: [] };
+    const targets = [];
+    for (const code of employeeCodes) {
+      const emp = await resolveEmployeeByCode(pool, code);
+      if (!emp) {
+        targets.push({ code, error: 'Employee not found' });
+      } else if (!canHaveReportingManager(emp.role)) {
+        targets.push({ code, error: 'Cannot assign a reporting manager to this person' });
+      } else {
+        targets.push({ employeeid: emp.id, code });
+      }
+    }
     for (const employeeid of employeeids) {
+      targets.push({ employeeid });
+    }
+
+    const summary = { total: targets.length, assigned: 0, failed: 0, skipped: 0, errors: [] };
+    for (const target of targets) {
+      if (target.error) {
+        summary.failed += 1;
+        summary.errors.push({ employeecode: target.code, error: target.error });
+        continue;
+      }
       try {
-        const employeeResult = await pool.query("SELECT id FROM employees WHERE id = $1 AND role = 'employee'", [employeeid]);
-        if (!employeeResult.rows[0]) throw new Error('Employee not found');
-        await pool.query('DELETE FROM manageremployees WHERE employeeid = $1', [employeeid]);
-        await pool.query('INSERT INTO manageremployees (managerid, employeeid) VALUES ($1, $2)', [managerid, employeeid]);
+        const existing = await pool.query(
+          'SELECT managerid FROM manageremployees WHERE employeeid = $1 LIMIT 1',
+          [target.employeeid]
+        );
+        if (existing.rows[0]?.managerid === managerid) {
+          summary.skipped += 1;
+          continue;
+        }
+        await assignEmployeeToManager(managerid, target.employeeid);
         summary.assigned += 1;
       } catch (error) {
         summary.failed += 1;
-        summary.errors.push({ employeeid, error: error.message || 'Assignment failed' });
+        summary.errors.push({
+          employeeid: target.employeeid,
+          employeecode: target.code,
+          error: error.message || 'Assignment failed',
+        });
       }
     }
 
@@ -947,12 +1058,12 @@ router.get('/manager-assignments', requirePermission(PERMISSION_MODULES.EMPLOYEE
   try {
     const { department, search } = req.query;
     let query = `
-      SELECT e.id AS employeeid, e.name AS employeename, e.email AS employeeemail, e.department,
-             m.id AS managerid, m.name AS managername, m.email AS manageremail
+      SELECT e.id AS employeeid, e.employeecode AS employeecode, e.name AS employeename, e.email AS employeeemail, e.department,
+             m.id AS managerid, m.employeecode AS managercode, m.name AS managername, m.email AS manageremail
       FROM employees e
       LEFT JOIN manageremployees me ON me.employeeid = e.id
       LEFT JOIN employees m ON m.id = me.managerid
-      WHERE e.role = 'employee'
+      WHERE e.role IN ('employee', 'admin', 'manager')
     `;
     const params = [];
     let paramIndex = 1;
@@ -971,7 +1082,10 @@ router.get('/manager-assignments', requirePermission(PERMISSION_MODULES.EMPLOYEE
 
     const assignmentsResult = await pool.query(query, params);
     const managersResult = await pool.query(
-      "SELECT id, employeecode, name, email, department FROM employees WHERE role = 'manager' ORDER BY name"
+      `SELECT id, employeecode, name, email, department, role, designation
+       FROM employees
+       WHERE role IN ('manager', 'admin', 'founder', 'it_head')
+       ORDER BY name`
     );
 
     return res.json({ assignments: assignmentsResult.rows, managers: managersResult.rows });
@@ -985,6 +1099,7 @@ router.delete('/manager-assignments/:employeeid', requirePermission(PERMISSION_M
   try {
     const employeeid = Number(req.params.employeeid);
     await pool.query('DELETE FROM manageremployees WHERE employeeid = $1', [employeeid]);
+    await pool.query('UPDATE employees SET reporting_to_id = NULL WHERE id = $1', [employeeid]);
     await logAudit(req.user.id, 'MANAGER_UNASSIGNED', 'manageremployees', { employeeid });
     return res.json({ message: 'Manager assignment removed' });
   } catch (err) {
@@ -992,6 +1107,100 @@ router.delete('/manager-assignments/:employeeid', requirePermission(PERMISSION_M
     return res.status(500).json({ message: 'Internal server error' });
   }
 });
+
+router.post(
+  '/manager-assignments/import/preview',
+  requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT),
+  upload.single('file'),
+  async (req, res) => {
+    if (!req.file) return res.status(400).json({ message: 'Excel file is required' });
+
+    try {
+      const parsed = parseManagerAssignmentFile(req.file.path);
+      const validation = await validateManagerAssignmentRows(pool, parsed.rows);
+      fs.unlink(req.file.path, () => {});
+      return res.json({
+        totalrows: parsed.rows.length,
+        mappedFields: parsed.mappedFields,
+        validCount: validation.validCount,
+        invalidCount: validation.invalidCount,
+        preview: validation.preview.slice(0, 100),
+      });
+    } catch (error) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ message: error.message || 'Unable to parse file' });
+    }
+  }
+);
+
+router.post(
+  '/manager-assignments/import',
+  requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT),
+  upload.single('file'),
+  async (req, res) => {
+    if (!req.file) return res.status(400).json({ message: 'Excel file is required' });
+
+    let parsed;
+    try {
+      parsed = parseManagerAssignmentFile(req.file.path);
+    } catch (error) {
+      fs.unlink(req.file.path, () => {});
+      return res.status(400).json({ message: error.message || 'Unable to parse file' });
+    }
+
+    try {
+      const summary = {
+        totalrows: parsed.rows.length,
+        assigned: 0,
+        failed: 0,
+        errors: [],
+      };
+
+      for (const row of parsed.rows) {
+        if (isManagerImportJunkRow(row)) continue;
+        try {
+          const reportingValue = row.reportingManagerValue || row.reportingManagerCode;
+          if (!row.employeecode || !reportingValue) {
+            throw new Error('Emp code and reporting manager are required');
+          }
+          const employee = await resolveEmployeeByCode(pool, row.employeecode);
+          const manager = await resolveReportingManager(pool, reportingValue);
+          if (!employee) throw new Error('Employee not found for emp code');
+          if (!canHaveReportingManager(employee.role)) {
+            throw new Error('Selected person cannot be assigned a reporting manager');
+          }
+          if (!manager) throw new Error('Reporting manager not found (check name or code)');
+          if (!canBeReportingManager(manager.role)) {
+            throw new Error('Reporting manager must be a manager or admin');
+          }
+          if (employee.id === manager.id) throw new Error('Employee cannot report to themselves');
+
+          await assignEmployeeToManager(manager.id, employee.id);
+          summary.assigned += 1;
+        } catch (error) {
+          summary.failed += 1;
+          summary.errors.push({
+            row: row.rowNumber,
+            employeecode: row.employeecode,
+            reportingManagerCode: row.reportingManagerValue || row.reportingManagerCode,
+            error: error.message || 'Assignment failed',
+          });
+        }
+      }
+
+      fs.unlink(req.file.path, () => {});
+      await logAudit(req.user.id, 'MANAGER_ASSIGNMENTS_IMPORTED', 'manageremployees', {
+        assigned: summary.assigned,
+        failed: summary.failed,
+      });
+      return res.json(summary);
+    } catch (err) {
+      fs.unlink(req.file.path, () => {});
+      console.error('POST /admin/manager-assignments/import:', err.message);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+);
 
 router.get('/leave-entitlements', requirePermission(PERMISSION_MODULES.LEAVE_MANAGEMENT), async (req, res) => {
   try {
@@ -1088,7 +1297,7 @@ router.get('/leaves', requirePermission(PERMISSION_MODULES.LEAVE_MANAGEMENT), as
       query += ' WHERE l.status = $1';
       params.push(status);
     }
-    query += ' ORDER BY l.createdat DESC';
+    query += ' ORDER BY l.createdat DESC LIMIT 200';
 
     const leavesResult = await pool.query(query, params);
     return res.json({ leaves: leavesResult.rows });
@@ -1410,7 +1619,6 @@ router.post('/import-employees', requirePermission(PERMISSION_MODULES.IMPORT_DAT
   try {
     const rows = parsed.rows;
     const onDuplicate = String(req.body?.onDuplicate || req.query?.onDuplicate || 'skip').toLowerCase();
-    const autoCode = req.body?.autoCode === true || req.body?.autoCode === 'true';
 
     const summary = {
       totalrows: rows.length,
@@ -1429,38 +1637,71 @@ router.post('/import-employees', requirePermission(PERMISSION_MODULES.IMPORT_DAT
 
         const name = row.name;
         const email = row.email;
-        const role = normalizeImportedRole(row.role);
+        const role = normalizeImportedRole(row.portalRole);
         let employeecode = row.employeecode;
         const department = row.department || null;
+        const designation = row.designation || null;
+        const dateOfJoining = row.dateOfJoining || null;
+        const password = row.password;
 
         if (!name || !email) {
           throw new Error('Name and Email are required');
         }
+        if (!password) {
+          throw new Error('Password is required');
+        }
+        if (!row.portalRole) {
+          throw new Error('Portal role is required');
+        }
+        if (row.dateOfJoiningInvalid) {
+          throw new Error('Date of joining must be DD/MM/YYYY or YYYY-MM-DD');
+        }
         if (!employeecode) {
-          if (autoCode) {
-            employeecode = await generateEmployeeCode();
-          } else {
-            throw new Error('Employee Code is required (or turn on auto-generate codes)');
-          }
+          employeecode = await generateEmployeeCode();
         }
 
         const emailCheck = await pool.query('SELECT id FROM employees WHERE email = $1', [email]);
         if (emailCheck.rows[0]) {
           if (onDuplicate === 'update') {
-            const codeCheck = await pool.query(
-              'SELECT id FROM employees WHERE employeecode = $1 AND id != $2',
-              [employeecode, emailCheck.rows[0].id]
-            );
-            if (codeCheck.rows[0]) {
-              throw new Error('Employee code already used by another person');
+            const existingId = emailCheck.rows[0].id;
+            if (row.employeecode) {
+              const codeCheck = await pool.query(
+                'SELECT id FROM employees WHERE employeecode = $1 AND id != $2',
+                [employeecode, existingId]
+              );
+              if (codeCheck.rows[0]) {
+                throw new Error('Employee code already used by another person');
+              }
+            } else {
+              const existingCode = await pool.query('SELECT employeecode FROM employees WHERE id = $1', [
+                existingId,
+              ]);
+              employeecode = existingCode.rows[0]?.employeecode || employeecode;
             }
             await pool.query(
               `
               UPDATE employees
-              SET name = $1, employeecode = $2, role = $3, department = COALESCE($4, department)
-              WHERE id = $5
+              SET name = $1,
+                  employeecode = $2,
+                  role = $3,
+                  department = COALESCE($4, department),
+                  designation = COALESCE($5, designation),
+                  date_of_joining = COALESCE($6::date, date_of_joining),
+                  passwordhash = $7,
+                  mustchangepassword = TRUE,
+                  force_password_change = TRUE
+              WHERE id = $8
             `,
-              [name, employeecode, role, department, emailCheck.rows[0].id]
+              [
+                name,
+                employeecode,
+                role,
+                department,
+                designation,
+                dateOfJoining,
+                bcrypt.hashSync(password, 10),
+                emailCheck.rows[0].id,
+              ]
             );
             summary.updated += 1;
             continue;
@@ -1477,13 +1718,13 @@ router.post('/import-employees', requirePermission(PERMISSION_MODULES.IMPORT_DAT
           throw new Error('Duplicate employee code');
         }
 
-        const pwd = bcrypt.hashSync(`Temp@${Date.now()}_${employeecode}`, 10);
+        const pwd = bcrypt.hashSync(password, 10);
         await pool.query(
           `
-          INSERT INTO employees (employeecode, name, email, passwordhash, department, role, isregistered, mustchangepassword)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE)
+          INSERT INTO employees (employeecode, name, email, passwordhash, department, designation, date_of_joining, role, isregistered, mustchangepassword, force_password_change)
+          VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::date, CURRENT_DATE), $8, $9, TRUE, TRUE)
         `,
-          [employeecode, name, email, pwd, department, role, true]
+          [employeecode, name, email, pwd, department, designation, dateOfJoining, role, true]
         );
 
         summary.successfulimports += 1;
@@ -1525,7 +1766,9 @@ router.post('/import-employees/preview', requirePermission(PERMISSION_MODULES.IM
 
 router.get('/import-history', requirePermission(PERMISSION_MODULES.IMPORT_DATA), async (_req, res) => {
   try {
-    const { rows: history } = await pool.query('SELECT * FROM importhistory ORDER BY createdat DESC');
+    const { rows: history } = await pool.query(
+      'SELECT * FROM importhistory ORDER BY createdat DESC LIMIT 100'
+    );
     return res.json({ history });
   } catch (err) {
     console.error('GET /admin/import-history:', err.message);

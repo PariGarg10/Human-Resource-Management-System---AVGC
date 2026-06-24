@@ -29,7 +29,7 @@
 <body>
   <div class="app-shell" style="min-height:100vh;width:100%;">
     <main class="managers-page">
-      <a class="back-link" href="/admin/dashboard" id="backDash">← Back to admin dashboard</a>
+      <a class="back-link" href="/admin/dashboard" id="backDash">← Back</a>
       <header class="manager-directory-hero">
         <h1>Managers</h1>
         <button type="button" class="btn btn-outline btn-sm" id="logoutBtn">Sign out</button>
@@ -136,6 +136,16 @@
       }
 
       document.getElementById('managerSearch').addEventListener('input', filterList);
+
+      document.getElementById('backDash').addEventListener('click', function (e) {
+        e.preventDefault();
+        var prev = sessionStorage.getItem('hrms-last-nav-section');
+        if (window.history.length > 1) {
+          window.history.back();
+          return;
+        }
+        window.location.href = prev ? '/admin/dashboard#' + prev : '/admin/dashboard';
+      });
 
       api('/api/managers')
         .then(function (data) {

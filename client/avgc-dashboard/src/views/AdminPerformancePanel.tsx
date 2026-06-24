@@ -68,8 +68,128 @@ function statusPill(uiStatus: string) {
   );
 }
 
+type Analysis = {
+  year: number;
+  totalEmployees: number;
+  quarterlyTrend: {
+    quarter: number;
+    label: string;
+    avgScore: number | null;
+    completedReviews: number;
+    completionPercent: number;
+  }[];
+  ratingDistribution: Record<string, number>;
+};
+
+function RatingDistributionChart({ distribution }: { distribution: Record<string, number> }) {
+  const maxDist = Math.max(1, ...[1, 2, 3, 4, 5].map((n) => distribution[String(n)] || 0));
+  const total = [1, 2, 3, 4, 5].reduce((sum, n) => sum + (distribution[String(n)] || 0), 0);
+
+  return (
+    <div className="perf-analysis-rating">
+      <div className="perf-rating-dist perf-rating-dist--analysis">
+        {[1, 2, 3, 4, 5].map((n) => {
+          const count = distribution[String(n)] || 0;
+          return (
+            <div key={n} className="perf-rating-dist-col">
+              <div className="perf-rating-dist-bar-wrap">
+                <div
+                  className="perf-rating-dist-bar"
+                  style={{ height: `${(count / maxDist) * 100}%` }}
+                  title={`${count} reviews`}
+                />
+              </div>
+              <span>{n}</span>
+              <span className="perf-rating-dist-count">{count}</span>
+            </div>
+          );
+        })}
+      </div>
+      <p className="stat-sub perf-analysis-rating-note">
+        {total > 0 ? `${total} completed reviews across all quarters in this year` : 'No locked reviews yet for this year'}
+      </p>
+    </div>
+  );
+}
+
+function OrgPerformanceLineChart({
+  trend,
+}: {
+  trend: Analysis['quarterlyTrend'];
+}) {
+  const width = 640;
+  const height = 260;
+  const pad = { top: 24, right: 24, bottom: 40, left: 44 };
+  const innerW = width - pad.left - pad.right;
+  const innerH = height - pad.top - pad.bottom;
+  const scores = trend.map((t) => t.avgScore).filter((v): v is number => v != null);
+  const maxScore = scores.length ? Math.max(100, ...scores) : 100;
+  const minScore = scores.length ? Math.min(0, ...scores) : 0;
+  const range = Math.max(1, maxScore - minScore);
+
+  const points = trend.map((t, i) => {
+    const x = pad.left + (i / Math.max(1, trend.length - 1)) * innerW;
+    const y =
+      t.avgScore == null
+        ? null
+        : pad.top + innerH - ((t.avgScore - minScore) / range) * innerH;
+    return { ...t, x, y };
+  });
+
+  const linePath = points
+    .filter((p) => p.y != null)
+    .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`)
+    .join(' ');
+
+  return (
+    <div className="perf-analysis-line-wrap">
+      <svg viewBox={`0 0 ${width} ${height}`} className="perf-analysis-line-chart" role="img" aria-label="Quarterly average performance scores">
+        {[0, 25, 50, 75, 100].map((tick) => {
+          const y = pad.top + innerH - ((tick - minScore) / range) * innerH;
+          return (
+            <g key={tick}>
+              <line x1={pad.left} y1={y} x2={width - pad.right} y2={y} className="perf-analysis-grid-line" />
+              <text x={pad.left - 8} y={y + 4} className="perf-analysis-axis-label" textAnchor="end">
+                {tick}
+              </text>
+            </g>
+          );
+        })}
+        {points.map((p) => (
+          <text key={p.quarter} x={p.x} y={height - 12} className="perf-analysis-axis-label" textAnchor="middle">
+            {p.label}
+          </text>
+        ))}
+        {linePath ? <path d={linePath} className="perf-analysis-line" fill="none" /> : null}
+        {points.map((p) =>
+          p.y != null ? (
+            <g key={`dot-${p.quarter}`}>
+              <circle cx={p.x} cy={p.y} r={6} className="perf-analysis-dot" />
+              <text x={p.x} y={p.y - 12} className="perf-analysis-score-label" textAnchor="middle">
+                {p.avgScore}
+              </text>
+            </g>
+          ) : (
+            <text key={`empty-${p.quarter}`} x={p.x} y={pad.top + innerH / 2} className="perf-analysis-empty-label" textAnchor="middle">
+              —
+            </text>
+          )
+        )}
+      </svg>
+      <div className="perf-analysis-completion-row">
+        {trend.map((t) => (
+          <div key={t.quarter} className="perf-analysis-completion-chip">
+            <strong>{t.completionPercent}%</strong>
+            <span>{t.label} completion</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function AdminPerformancePanel() {
-  const [tab, setTab] = useState<'overview' | 'config' | 'annual'>('overview');
+  const [tab, setTab] = useState<'overview' | 'config' | 'annual' | 'analysis'>('overview');
   const [year, setYear] = useState(new Date().getFullYear());
   const [quarter, setQuarter] = useState(Math.floor(new Date().getMonth() / 3) + 1);
   const [loading, setLoading] = useState(true);
@@ -80,6 +200,7 @@ export function AdminPerformancePanel() {
   const [newCategory, setNewCategory] = useState('');
 
   const [overview, setOverview] = useState<Overview | null>(null);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [selected, setSelected] = useState<OverviewEmployee | null>(null);
 
   function setBandNumber(index: number, field: keyof Pick<Band, 'minScore' | 'maxScore' | 'ratingValue' | 'incrementPercent' | 'bonusPercent'>, raw: string) {
@@ -121,17 +242,23 @@ export function AdminPerformancePanel() {
     setOverview(data);
   }, [year, quarter]);
 
+  const loadAnalysis = useCallback(async () => {
+    const data = await api<Analysis>(`/api/performance/admin/analysis?year=${year}`);
+    setAnalysis(data);
+  }, [year]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       if (tab === 'overview') await loadOverview();
+      else if (tab === 'analysis') await loadAnalysis();
       else if (tab === 'config' || tab === 'annual') await loadConfig();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Load failed', 'error');
     } finally {
       setLoading(false);
     }
-  }, [tab, loadOverview, loadConfig]);
+  }, [tab, loadOverview, loadAnalysis, loadConfig]);
 
   useEffect(() => {
     load().catch(() => {});
@@ -279,9 +406,15 @@ export function AdminPerformancePanel() {
     window.open(`/api/performance/admin/export/${year}`, '_blank');
   }
 
-  const maxDist = Math.max(1, ...Object.values(overview?.ratingDistribution || {}));
   const cycleInitialized = Boolean(overview?.cycle?.initialized);
   const cycleStopped = overview?.cycle?.status === 'STOPPED';
+
+  const tabLabels: Record<typeof tab, string> = {
+    overview: 'Cycle dashboard',
+    config: 'Settings',
+    annual: 'Year-end',
+    analysis: 'Analysis',
+  };
 
   return (
     <div className="panel admin-performance perf-admin">
@@ -304,14 +437,14 @@ export function AdminPerformancePanel() {
       </div>
 
       <div className="perf-main-tabs">
-        {(['overview', 'config', 'annual'] as const).map((t) => (
+        {(['overview', 'config', 'annual', 'analysis'] as const).map((t) => (
           <button
             key={t}
             type="button"
             className={`perf-main-tab${tab === t ? ' is-active' : ''}`}
             onClick={() => setTab(t)}
           >
-            {t === 'overview' ? 'Cycle dashboard' : t === 'config' ? 'Settings' : 'Year-end'}
+            {tabLabels[t]}
           </button>
         ))}
       </div>
@@ -353,7 +486,7 @@ export function AdminPerformancePanel() {
               </div>
             </div>
 
-            <div className="perf-admin-bento">
+            <div className="perf-admin-bento perf-admin-bento--full">
               <div className="perf-admin-bento-main panel">
                 <div className="perf-admin-table-head">
                   <p className="perf-goal-eyebrow">All employees · {overview.cycleLabel}</p>
@@ -419,45 +552,28 @@ export function AdminPerformancePanel() {
                   </button>
                 </div>
               </div>
-
-              <div className="perf-admin-bento-side">
-                <div className="panel perf-admin-side-card">
-                  <p className="perf-goal-eyebrow">Status breakdown</p>
-                  <ul className="perf-status-breakdown">
-                    {overview.statusBreakdown.map((s) => (
-                      <li key={s.key}>
-                        <div className="perf-status-breakdown-row">
-                          <span>{s.label}</span>
-                          <span>{s.count} · {s.percent}%</span>
-                        </div>
-                        <div className="perf-status-breakdown-bar">
-                          <span className={`perf-status-bar-fill perf-status-bar-fill--${s.key}`} style={{ width: `${s.percent}%` }} />
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="panel perf-admin-side-card">
-                  <p className="perf-goal-eyebrow">Rating distribution</p>
-                  <p className="stat-sub">Final ratings across completed reviews</p>
-                  <div className="perf-rating-dist">
-                    {[1, 2, 3, 4, 5].map((n) => (
-                      <div key={n} className="perf-rating-dist-col">
-                        <div className="perf-rating-dist-bar-wrap">
-                          <div
-                            className="perf-rating-dist-bar"
-                            style={{ height: `${((overview.ratingDistribution[String(n)] || 0) / maxDist) * 100}%` }}
-                          />
-                        </div>
-                        <span>{n}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         )
+      ) : tab === 'analysis' && analysis ? (
+        <div className="perf-admin-analysis">
+          <div className="panel perf-analysis-card">
+            <div className="perf-admin-table-head">
+              <div>
+                <p className="perf-goal-eyebrow">Organization performance</p>
+                <h3 className="panel-title" style={{ marginBottom: 4 }}>Quarterly trend · {analysis.year}</h3>
+              </div>
+              <span className="stat-sub">{analysis.totalEmployees} active employees</span>
+            </div>
+            <OrgPerformanceLineChart trend={analysis.quarterlyTrend} />
+          </div>
+          <div className="panel perf-analysis-card">
+            <p className="perf-goal-eyebrow">Rating distribution</p>
+            <h3 className="panel-title" style={{ marginBottom: 4 }}>Final ratings · {analysis.year}</h3>
+            <p className="stat-sub">Distribution across all locked quarterly reviews for the year</p>
+            <RatingDistributionChart distribution={analysis.ratingDistribution} />
+          </div>
+        </div>
       ) : tab === 'config' ? (
         <>
           <div className="panel" style={{ marginBottom: 14 }}>

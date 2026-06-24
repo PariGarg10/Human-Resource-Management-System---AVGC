@@ -12,6 +12,7 @@ export type PortalNavId =
   | 'leave-apply'
   | 'leave-history'
   | 'teams'
+  | 'employee-directory'
   | 'live-activities'
   | 'team-attendance'
   | 'leave-approval'
@@ -46,6 +47,7 @@ const SHARED_WORKSPACE: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
   { id: 'calendar', label: 'Calendar', icon: 'calendar' },
   { id: 'holiday-calendar', label: 'Holiday Calendar', icon: 'calendar-days' },
+  { id: 'employee-directory', label: 'Employee directory', icon: 'contact' },
 ];
 
 const SHARED_TIME: NavItem[] = [
@@ -72,6 +74,19 @@ const SHARED_ACCOUNT: NavItem[] = [
   { id: 'profile', label: 'Profile', icon: 'user-circle' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
 ];
+
+/** Profile chip menu (top-right) — not shown in the left sidebar. */
+export const PROFILE_MENU_ITEMS: NavItem[] = [
+  ...SHARED_ACCOUNT,
+  { id: 'exit', label: 'Exit / Resignation', icon: 'log-out' },
+];
+
+export function profileMenuItemsForContext(options: { onboardingGated?: boolean } = {}): NavItem[] {
+  if (options.onboardingGated) {
+    return PROFILE_MENU_ITEMS.filter((item) => item.id === 'profile');
+  }
+  return PROFILE_MENU_ITEMS;
+}
 
 const MANAGER_ONLY_CONTROLS: NavItem[] = [
   { id: 'team-attendance', label: 'Team attendance', icon: 'users-round' },
@@ -118,7 +133,9 @@ export const MANAGER_NAV_SECTIONS: NavSection[] = [
     key: 'people',
     label: 'People',
     icon: 'users-round',
-    items: [{ id: 'teams', label: 'Organization chart', icon: 'network' }],
+    items: [
+      { id: 'teams', label: 'Organization chart', icon: 'network' },
+    ],
   },
   {
     key: 'time-attendance',
@@ -137,12 +154,6 @@ export const MANAGER_NAV_SECTIONS: NavSection[] = [
   MANAGER_PERFORMANCE,
   SHARED_LIVE_ACTIVITIES,
   SHARED_SOCIAL,
-  {
-    key: 'account',
-    label: 'Account',
-    icon: 'circle-user',
-    items: SHARED_ACCOUNT,
-  },
 ];
 
 export const EMPLOYEE_NAV_SECTIONS: NavSection[] = [
@@ -156,7 +167,9 @@ export const EMPLOYEE_NAV_SECTIONS: NavSection[] = [
     key: 'people',
     label: 'People',
     icon: 'users-round',
-    items: [{ id: 'teams', label: 'Organization chart', icon: 'network' }],
+    items: [
+      { id: 'teams', label: 'Organization chart', icon: 'network' },
+    ],
   },
   {
     key: 'time-attendance',
@@ -169,12 +182,6 @@ export const EMPLOYEE_NAV_SECTIONS: NavSection[] = [
   EMPLOYEE_PERFORMANCE,
   SHARED_LIVE_ACTIVITIES,
   SHARED_SOCIAL,
-  {
-    key: 'account',
-    label: 'Account',
-    icon: 'circle-user',
-    items: [...SHARED_ACCOUNT, { id: 'exit', label: 'Exit / Resignation', icon: 'log-out' }],
-  },
 ];
 
 export const PORTAL_PAGE_TITLES: Record<PortalNavId, string> = {
@@ -189,6 +196,7 @@ export const PORTAL_PAGE_TITLES: Record<PortalNavId, string> = {
   'leave-apply': 'Leave Management',
   'leave-history': 'Leave history',
   teams: 'Organization chart',
+  'employee-directory': 'Employee directory',
   'live-activities': 'Live activities',
   'team-attendance': 'Team attendance',
   'leave-approval': 'Leave approval',
@@ -212,7 +220,7 @@ export function navSectionsForRole(role: PortalRole): NavSection[] {
 }
 
 /** Nav items reachable while onboarding is incomplete (employee portal). */
-export const ONBOARDING_ALLOWED_NAV: PortalNavId[] = ['onboarding', 'profile', 'teams'];
+export const ONBOARDING_ALLOWED_NAV: PortalNavId[] = ['onboarding', 'profile', 'teams', 'employee-directory'];
 
 export const ONBOARDING_GATE_NAV_SECTIONS: NavSection[] = [
   {
@@ -225,13 +233,10 @@ export const ONBOARDING_GATE_NAV_SECTIONS: NavSection[] = [
     key: 'teams',
     label: 'Team',
     icon: 'users',
-    items: [{ id: 'teams', label: 'Organization chart', icon: 'network' }],
-  },
-  {
-    key: 'account',
-    label: 'Account',
-    icon: 'circle-user',
-    items: [{ id: 'profile', label: 'Profile', icon: 'user-circle' }],
+    items: [
+      { id: 'teams', label: 'Organization chart', icon: 'network' },
+      { id: 'employee-directory', label: 'Employee directory', icon: 'contact' },
+    ],
   },
 ];
 

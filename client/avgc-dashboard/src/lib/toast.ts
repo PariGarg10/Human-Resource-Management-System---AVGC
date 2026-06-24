@@ -6,7 +6,7 @@ function ensureToastShell() {
     style = document.createElement('style');
     style.id = 'avgc-toast-style';
     style.textContent =
-      '@keyframes avgcToastIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}@keyframes avgcToastOut{to{opacity:0;transform:translateY(-6px)}}';
+      '@keyframes avgcToastIn{from{opacity:0;transform:translateY(-12px) scale(0.96)}to{opacity:1;transform:none}}@keyframes avgcToastOut{to{opacity:0;transform:translateY(-8px) scale(0.98)}}';
     document.head.appendChild(style);
   }
   let root = document.getElementById('avgc-toast-root');
@@ -19,7 +19,7 @@ function ensureToastShell() {
     document.body.appendChild(root);
   }
   root.style.cssText =
-    'position:fixed;top:72px;right:12px;left:12px;z-index:2147483646;display:flex;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:none;box-sizing:border-box;';
+    'position:fixed;top:50%;left:50%;right:auto;transform:translate(-50%,-50%);z-index:2147483646;display:flex;flex-direction:column;align-items:center;gap:12px;pointer-events:none;box-sizing:border-box;width:min(92vw,560px);';
   return root;
 }
 
@@ -32,17 +32,19 @@ function showDomToast(message: string, type: 'success' | 'error' | 'info') {
   const border = isErr ? '2px solid #ed1d24' : 'none';
   el.style.cssText = [
     'pointer-events:auto',
-    'max-width:min(100%,420px)',
-    'padding:14px 18px',
-    'border-radius:6px',
+    'width:100%',
+    'max-width:560px',
+    'padding:18px 24px',
+    'border-radius:12px',
     `background:${bg}`,
     `border:${border}`,
     'color:#ffffff',
     'font-family:Verdana,Geneva,sans-serif',
-    'font-size:14px',
-    'font-weight:600',
+    'font-size:16px',
+    'font-weight:700',
     'line-height:1.45',
-    'box-shadow:0 12px 40px rgba(0,0,0,0.25)',
+    'text-align:center',
+    'box-shadow:0 24px 64px rgba(0,0,0,0.35)',
     'animation:avgcToastIn 0.28s ease forwards',
   ].join(';');
   el.textContent = message;

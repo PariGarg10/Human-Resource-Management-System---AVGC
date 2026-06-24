@@ -7,6 +7,7 @@ const { authMiddleware, enforceForcePasswordChange, requirePortalAdmin } = requi
 const { getUploadsRoot } = require('../utils/storagePaths');
 const { extractTextFromFile } = require('../utils/policyTextExtract');
 const { PLATFORM_GUIDE } = require('../utils/platformGuide');
+const { retrieveRelevantPolicyContext } = require('../utils/policyContextRetrieval');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -34,12 +35,14 @@ const upload = multer({
 const SYSTEM_PROMPT = `You are Maya, a warm and friendly HR assistant at AVGC Studios. You help employees with company policies AND with using the AVGC HRMS portal.
 
 How to respond:
+- Understand intent even when the user writes casually, with typos, shorthand, or indirect phrasing — rephrase their question internally if needed, then answer.
 - Treat every message as real conversation: greetings, thanks, worries, casual statements, and full questions all deserve a natural reply.
 - Empathize briefly when someone sounds stressed or unsure, then guide them helpfully.
-- For policy topics (leave, attendance, WFH, conduct, benefits, holidays), answer using ONLY the policy documents in the context block when available.
-- For portal / platform questions (where to click, how to apply leave, find payslips, complete onboarding, use performance reviews), use the AVGC portal guide in the context block. Give step-by-step directions referencing sidebar menu names.
-- If something is not covered, say so kindly and suggest HR or their manager.
-- Keep replies concise (usually 2–4 short paragraphs). Plain language, occasional warmth.
+- For policy topics (leave, attendance, WFH, conduct, benefits, holidays, notice period, probation, etc.), answer using the policy document excerpts in the context block. Quote specific rules when helpful. If multiple documents cover the topic, synthesize them.
+- For portal / platform questions (where to click, how to apply leave, find payslips, complete onboarding, use performance reviews, employee directory, org chart), use the AVGC portal guide in the context block. Give step-by-step directions referencing exact sidebar menu names.
+- If the user asks broadly ("tell me everything", "what are all the policies"), give a structured overview from the policy documents — main sections and key points — and invite follow-up questions.
+- If something is not covered in the provided context, say so kindly and suggest HR or their manager. Do not invent policy rules.
+- Keep replies clear and scannable (short paragraphs or bullet lists when listing several items). Plain language, occasional warmth.
 - Do not mention being an AI unless asked. You work with the AVGC HR team.`;
 
 function firstNameFromUser(user) {
@@ -48,38 +51,31 @@ function firstNameFromUser(user) {
   return raw.split(/\s+/)[0] || '';
 }
 
+function isGreetingOnly(message) {
+  const m = String(message || '').trim();
+  return /^(hi|hello|hey|hiya|good morning|good afternoon|good evening|namaste|yo)\b[!.,?\s]*$/i.test(m);
+}
+
 function tryLocalReply(message, firstName) {
   const m = String(message || '').toLowerCase().trim();
   const hi = firstName ? ` ${firstName}` : '';
   if (/^(hi|hello|hey|hiya|good morning|good afternoon|good evening|namaste|yo)\b/.test(m)) {
-    return `Hey${hi}! I'm Maya from AVGC HR — happy to chat. Ask me anything about leave, attendance, or company policies, or just tell me what's on your mind and I'll point you in the right direction.`;
+    return `Hey${hi}! I'm Maya from AVGC HR — happy to chat. Ask me anything about company policies, leave rules, or how to use this portal, and I'll help you out.`;
   }
   if (/^(thanks|thank you|thx|ty|appreciate)/.test(m)) {
     return `You're welcome${hi}! If anything else comes up about policies or HR stuff, I'm right here.`;
   }
   if (/^(bye|goodbye|see you|gtg)/.test(m)) {
-    return `Take care${hi}! Drop by anytime you need help with AVGC policies.`;
-  }
-  if (/(just joined|new here|new employee|first day|onboarding)/.test(m)) {
-    return `Welcome aboard${hi}! Start with **Onboarding** in the sidebar — that unlocks the rest of the portal. I can walk you through leave, attendance, profile setup, or any policy. What would you like to tackle first?`;
-  }
-  if (/(how do i|where (is|do|can)|how to|navigate|portal|dashboard|apply leave|payslip|attendance|profile|onboarding|performance|self.?assessment)/.test(m)) {
-    return `Happy to guide you${hi}! Open the matching item in the left sidebar — e.g. **Leave Management** to apply leave, **Attendance** for your log, **Payroll & payslips** for salary info, **Performance** during review cycles. Tell me what you're trying to do and I'll give you the exact steps.`;
-  }
-  if (/(confused|don't understand|not sure|help me|what should i)/.test(m)) {
-    return `No worries${hi} — happy to help. Tell me a bit more about what you're trying to figure out (leave, attendance, holidays, etc.) and I'll walk you through what our policies say.`;
+    return `Take care${hi}! Drop by anytime you need help with AVGC policies or the portal.`;
   }
   return null;
 }
 
-async function loadPolicyContext() {
+async function loadPolicyContext(userMessage) {
   const { rows } = await pool.query(
     `SELECT filename, content FROM policy_chat_documents ORDER BY uploaded_at DESC`
   );
-  const combined = rows.map((r) => `--- ${r.filename} ---\n${r.content || ''}`).join('\n\n');
-  if (!combined.trim()) return '';
-  const max = 6000;
-  return combined.length > max ? combined.slice(0, max) : combined;
+  return retrieveRelevantPolicyContext(rows, userMessage);
 }
 
 function normalizeHistory(raw) {
@@ -128,7 +124,7 @@ async function askClaude(userMessage, policyContext, history, firstName) {
 
 async function buildReply(userMessage, policyContext, history, firstName) {
   const local = tryLocalReply(userMessage, firstName);
-  if (local && history.length === 0) return local;
+  if (local && isGreetingOnly(userMessage)) return local;
 
   const fromClaude = await askClaude(userMessage, policyContext, history, firstName);
   if (fromClaude) return fromClaude;
@@ -153,7 +149,7 @@ router.post('/chat', async (req, res) => {
     if (!userMessage) return res.status(400).json({ message: 'message is required' });
     if (!sessionId) return res.status(400).json({ message: 'sessionId is required' });
 
-    const policyContext = await loadPolicyContext();
+    const policyContext = await loadPolicyContext(userMessage);
     const firstName = firstNameFromUser(req.user);
     const answer = await buildReply(userMessage, policyContext, history, firstName);
     return res.json({ answer, sessionId });

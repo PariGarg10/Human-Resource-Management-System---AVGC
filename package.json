@@ -9,6 +9,8 @@
     "dev:vite": "cd client/avgc-dashboard && npm run dev:vite",
     "build": "npm run build:dashboard",
     "db:init": "node server/initDb.js",
+    "db:check": "node scripts/check-db-connection.js",
+    "db:local": "node scripts/setup-local-db.js",
     "db:reset-super-admin": "node server/scripts/reset-super-admin.js",
     "essl:bridge": "node server/scripts/essl-bridge.js",
     "essl:bridge:ping": "node server/scripts/essl-bridge-ping.js",

@@ -94,7 +94,7 @@ export function FloatingPolicyChatbot({ initialOpen = false }: { initialOpen?: b
       setTyping(true);
       requestAnimationFrame(scrollToBottom);
 
-      const minTypingMs = 450 + Math.min(message.length * 8, 900);
+      const minTypingMs = 180 + Math.min(message.length * 4, 350);
       const started = Date.now();
 
       try {
@@ -175,7 +175,7 @@ export function FloatingPolicyChatbot({ initialOpen = false }: { initialOpen?: b
             </button>
           </div>
           <p className="policy-chat-disclaimer">
-            Answers are based on AVGC policy documents. For personal cases, contact HR.
+            Answers use your uploaded policy documents and the AVGC portal guide. For personal cases, contact HR.
           </p>
           <div className="policy-chat-messages" ref={listRef}>
             {messages.map((m) => (

@@ -1,6 +1,6 @@
 const express = require('express');
 const { pool } = require('../db');
-const { authMiddleware, enforceForcePasswordChange, requirePortalAdmin } = require('../middleware/auth');
+const { authMiddleware, enforceForcePasswordChange, requireAnyAdmin } = require('../middleware/auth');
 const {
   ensureSocialTournamentTables,
   isPortalAdminUser,
@@ -46,7 +46,24 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/admin', requirePortalAdmin, async (_req, res) => {
+router.get('/manage-access', async (req, res) => {
+  try {
+    if (!req.user) return res.json({ allowed: false });
+    if (req.user.adminId) return res.json({ allowed: true });
+    const role = String(req.user.role || '').toLowerCase().trim();
+    if (isPortalAdminUser(req.user)) return res.json({ allowed: true });
+    const { rows } = await pool.query(
+      'SELECT id FROM admins WHERE employee_id = $1 AND is_active = TRUE LIMIT 1',
+      [req.user.id]
+    );
+    return res.json({ allowed: Boolean(rows[0]) });
+  } catch (err) {
+    console.error('GET /social-tournaments/manage-access:', err.message);
+    return res.json({ allowed: false });
+  }
+});
+
+router.get('/admin', requireAnyAdmin, async (_req, res) => {
   try {
     await ensureSocialTournamentTables();
     const result = await pool.query(
@@ -88,7 +105,7 @@ router.get('/admin', requirePortalAdmin, async (_req, res) => {
   }
 });
 
-router.post('/', requirePortalAdmin, async (req, res) => {
+router.post('/', requireAnyAdmin, async (req, res) => {
   try {
     await ensureSocialTournamentTables();
     const gameId = parseGameId(req.body?.gameId);
@@ -157,7 +174,7 @@ router.post('/:id/scores', async (req, res) => {
   }
 });
 
-router.patch('/:id/end', requirePortalAdmin, async (req, res) => {
+router.patch('/:id/end', requireAnyAdmin, async (req, res) => {
   try {
     await ensureSocialTournamentTables();
     const id = Number.parseInt(req.params.id, 10);

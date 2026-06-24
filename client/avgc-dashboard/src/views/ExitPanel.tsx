@@ -45,11 +45,12 @@ function clearanceStatus(clearances: Clearance[], type: string) {
   return clearances.find((c) => c.clearanceType === type)?.status || 'pending';
 }
 
-function ExitRequestForm({ onSubmitted }: { onSubmitted: () => void }) {
+function ExitRequestForm({ onSubmitted, embedded = false }: { onSubmitted: () => void; embedded?: boolean }) {
   const [exitType, setExitType] = useState('resignation');
   const [reason, setReason] = useState('');
   const [lwd, setLwd] = useState('');
   const [busy, setBusy] = useState(false);
+  const [showAcknowledgement, setShowAcknowledgement] = useState(false);
 
   async function submit(ev: React.FormEvent) {
     ev.preventDefault();
@@ -60,8 +61,7 @@ function ExitRequestForm({ onSubmitted }: { onSubmitted: () => void }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ exitType, reason, requestedLastWorkingDay: lwd }),
       });
-      toast('Exit request submitted — HR will review shortly', 'success');
-      onSubmitted();
+      setShowAcknowledgement(true);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Could not submit request', 'error');
     } finally {
@@ -69,13 +69,40 @@ function ExitRequestForm({ onSubmitted }: { onSubmitted: () => void }) {
     }
   }
 
+  function closeAcknowledgement() {
+    setShowAcknowledgement(false);
+    onSubmitted();
+  }
+
   return (
-    <div className="panel exit-request-form">
-      <h2 className="panel-title">Submit exit request</h2>
+    <>
+      {showAcknowledgement ? (
+        <div className="exit-ack-overlay" role="dialog" aria-modal="true" aria-labelledby="exit-ack-title">
+          <div className="exit-ack-card">
+            <p className="exit-ack-eyebrow">Thank you for sharing</p>
+            <h3 id="exit-ack-title" className="exit-ack-title">
+              We&apos;ll take it from here
+            </h3>
+            <p className="exit-ack-body">
+              It is with a heavy heart that we acknowledge your decision to move on. It has been a genuine
+              pleasure having you as part of the team, and your contributions will be remembered. We will now
+              initiate the exit formalities from our end and keep you informed of the next steps. Wishing you
+              all the very best for the exciting journey ahead.
+            </p>
+            <button type="button" className="btn btn-primary btn-sm exit-ack-btn" onClick={closeAcknowledgement}>
+              Understood
+            </button>
+          </div>
+        </div>
+      ) : null}
+      <div className={embedded ? 'exit-request-form exit-request-form--embedded' : 'panel exit-request-form'}>
+      {!embedded ? <h2 className="panel-title">Submit exit request</h2> : null}
+      {!embedded ? (
       <p className="stat-sub">
         Tell HR about your separation. Once approved, you&apos;ll enter your notice period and complete
         exit formalities.
       </p>
+      ) : null}
       <form className="exit-form" onSubmit={submit}>
         <label className="form-group">
           <span>Exit type</span>
@@ -102,10 +129,11 @@ function ExitRequestForm({ onSubmitted }: { onSubmitted: () => void }) {
         </div>
       </form>
     </div>
+    </>
   );
 }
 
-export function ExitPanel() {
+export function ExitPanel({ embedded = false }: { embedded?: boolean }) {
   const [request, setRequest] = useState<ExitRequest | null>(null);
   const [pendingReview, setPendingReview] = useState(false);
   const [ktTasks, setKtTasks] = useState<KtTask[]>([]);
@@ -196,7 +224,9 @@ export function ExitPanel() {
   }
 
   if (loading) {
-    return (
+    return embedded ? (
+      <p className="stat-sub">Loading exit details…</p>
+    ) : (
       <div className="panel">
         <p className="stat-sub">Loading exit portal…</p>
       </div>
@@ -204,12 +234,12 @@ export function ExitPanel() {
   }
 
   if (!request) {
-    return <ExitRequestForm onSubmitted={load} />;
+    return <ExitRequestForm embedded={embedded} onSubmitted={load} />;
   }
 
   if (pendingReview) {
     return (
-      <div className="panel exit-portal">
+      <div className={embedded ? 'exit-portal exit-portal--embedded' : 'panel exit-portal'}>
         <h2 className="panel-title">Exit request pending HR review</h2>
         <p className="stat-sub">
           Type: <strong>{request.exitType}</strong> · Requested last day:{' '}

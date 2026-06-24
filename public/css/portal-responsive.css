@@ -49,7 +49,9 @@ body {
 .content-area:has(> .org-teams-viewport),
 .content-area:has(> .holiday-calendar-viewport),
 .content-area:has(> .profile-viewport),
-.content-area:has(> .admin-people-viewport) {
+.content-area:has(> .admin-people-viewport),
+.content-area:has(> .employee-directory-viewport),
+.content-area:has(> .view-section.employee-directory-viewport.is-active) {
   max-width: 100%;
 }
 

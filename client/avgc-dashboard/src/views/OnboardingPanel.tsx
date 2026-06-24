@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { api } from '@/lib/api';
 import type { PortalNavId } from '@/lib/portalNav';
@@ -11,14 +12,18 @@ type Task = {
   meta?: { items?: Record<string, boolean>; score?: number } | null;
 };
 
+type OnboardingTaskKey = 'profile_complete' | 'policy_read' | 'posh_training' | 'meet_team';
+
 type OnboardingData = {
   employeeName: string;
   department?: string | null;
   onboardingCompleted: boolean;
   profileCompletionPercentage: number;
+  missingProfileFields?: { key: string; label: string }[];
+  missingDocuments?: { key: string; label: string }[];
+  onboardingBlockers?: { taskKey: string; title: string; details: string[] }[];
   progressPercent: number;
   tasks: Task[];
-  itSetupItems: { key: string; label: string }[];
   departmentPeers: { id: number; name: string; designation?: string }[];
   poshVideoUrl?: string | null;
 };
@@ -43,8 +48,50 @@ type Props = {
   onOnboardingCompleted?: (options?: { celebrate?: boolean }) => void;
 };
 
+const ONBOARDING_TASKS: { key: OnboardingTaskKey; title: string; important?: boolean }[] = [
+  { key: 'profile_complete', title: 'Complete your profile' },
+  { key: 'policy_read', title: 'Read company policies' },
+  { key: 'posh_training', title: 'POSH training', important: true },
+  { key: 'meet_team', title: 'Meet your team' },
+];
+
 function taskStatus(tasks: Task[], key: string) {
   return tasks.find((t) => t.taskKey === key)?.status || 'pending';
+}
+
+function ProfileIncompleteList({
+  missingProfileFields,
+  missingDocuments,
+  profileCompletionPercentage,
+}: {
+  missingProfileFields: { key: string; label: string }[];
+  missingDocuments: { key: string; label: string }[];
+  profileCompletionPercentage: number;
+}) {
+  const hasGaps = missingProfileFields.length > 0 || missingDocuments.length > 0;
+  if (!hasGaps) {
+    return <p className="stat-sub onboarding-profile-complete-note">All profile requirements are complete.</p>;
+  }
+
+  return (
+    <div className="onboarding-profile-gaps">
+      <p className="onboarding-profile-gaps-title">
+        Profile {profileCompletionPercentage}% complete — still needed:
+      </p>
+      <ul className="onboarding-checklist">
+        {missingProfileFields.map((field) => (
+          <li key={field.key} className="onboarding-checklist-item onboarding-checklist-item--pending">
+            {field.label}
+          </li>
+        ))}
+        {missingDocuments.map((doc) => (
+          <li key={doc.key} className="onboarding-checklist-item onboarding-checklist-item--pending">
+            {doc.label} <span className="onboarding-checklist-hint">(upload in Profile → documents)</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 function PolicyModal({
@@ -189,7 +236,11 @@ function PoshTraining({
   }
 
   if (completed) {
-    return <p className="stat-sub"><StatusBadge status="approved" /> POSH training completed</p>;
+    return (
+      <p className="stat-sub">
+        <StatusBadge status="completed" /> POSH training completed
+      </p>
+    );
   }
 
   return (
@@ -255,7 +306,7 @@ export function OnboardingPanel({ user, onNavigate, onOnboardingCompleted }: Pro
   const [data, setData] = useState<OnboardingData | null>(null);
   const [loading, setLoading] = useState(true);
   const [policyOpen, setPolicyOpen] = useState(false);
-  const [itItems, setItItems] = useState<Record<string, boolean>>({});
+  const [openTask, setOpenTask] = useState<OnboardingTaskKey | null>(null);
 
   const employeeId = user?.id;
 
@@ -268,8 +319,6 @@ export function OnboardingPanel({ user, onNavigate, onOnboardingCompleted }: Pro
     try {
       const res = await api<OnboardingData>(`/api/onboarding/${employeeId}`);
       setData(res);
-      const itTask = res.tasks.find((t) => t.taskKey === 'it_setup');
-      setItItems(itTask?.meta?.items || {});
       if (res.onboardingCompleted) onOnboardingCompleted?.();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Could not load onboarding', 'error');
@@ -282,14 +331,26 @@ export function OnboardingPanel({ user, onNavigate, onOnboardingCompleted }: Pro
     load().catch(() => {});
   }, [load]);
 
+  useEffect(() => {
+    const refresh = () => {
+      load().catch(() => undefined);
+    };
+    window.addEventListener('focus', refresh);
+    window.addEventListener('hrms:employee-updated', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('hrms:employee-updated', refresh);
+    };
+  }, [load]);
+
   const completeTask = useCallback(
-    async (taskKey: string, meta?: { items?: Record<string, boolean> }) => {
+    async (taskKey: string) => {
       if (!employeeId) return;
       try {
         const res = await api<OnboardingData>(`/api/onboarding/${employeeId}/task`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ taskKey, status: 'completed', meta }),
+          body: JSON.stringify({ taskKey, status: 'completed' }),
         });
         setData(res);
         if (res.onboardingCompleted) {
@@ -308,11 +369,6 @@ export function OnboardingPanel({ user, onNavigate, onOnboardingCompleted }: Pro
   );
 
   const tasks = data?.tasks || [];
-  const profileDone = taskStatus(tasks, 'profile_complete') === 'completed';
-  const policyDone = taskStatus(tasks, 'policy_read') === 'completed';
-  const poshDone = taskStatus(tasks, 'posh_training') === 'completed';
-  const teamDone = taskStatus(tasks, 'meet_team') === 'completed';
-  const itDone = taskStatus(tasks, 'it_setup') === 'completed';
 
   const poshEmbed = useMemo(() => {
     const url = data?.poshVideoUrl || '';
@@ -323,6 +379,106 @@ export function OnboardingPanel({ user, onNavigate, onOnboardingCompleted }: Pro
     if (url.includes('youtube.com/embed/')) return url;
     return url || null;
   }, [data?.poshVideoUrl]);
+
+  const tasksLeft = ONBOARDING_TASKS.filter(
+    (task) => taskStatus(tasks, task.key) !== 'completed'
+  ).length;
+
+  function toggleTask(key: OnboardingTaskKey) {
+    setOpenTask((current) => (current === key ? null : key));
+  }
+
+  function renderTaskBody(key: OnboardingTaskKey) {
+    if (!data) return null;
+
+    switch (key) {
+      case 'profile_complete':
+        return (
+          <>
+            <p className="stat-sub">
+              Fill in your personal details, emergency contact, and bank information. Upload{' '}
+              <strong>Aadhar card</strong>, <strong>PAN card</strong>, and{' '}
+              <strong>Cancelled cheque/ Passbook</strong> under Profile → documents (all required).
+            </p>
+            <ProfileIncompleteList
+              missingProfileFields={data.missingProfileFields || []}
+              missingDocuments={data.missingDocuments || []}
+              profileCompletionPercentage={data.profileCompletionPercentage}
+            />
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate('profile')}>
+              Go to Profile
+            </button>
+          </>
+        );
+      case 'policy_read':
+        return (
+          <>
+            <p className="stat-sub">
+              Review AVGC Studios HR policies, code of conduct, and leave policies. Questions? Chat with{' '}
+              <strong>Maya</strong> (the policy assistant in the bottom-right corner).
+            </p>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              disabled={taskStatus(tasks, 'policy_read') === 'completed'}
+              onClick={() => setPolicyOpen(true)}
+            >
+              Open policy documents
+            </button>
+          </>
+        );
+      case 'posh_training':
+        return (
+          <>
+            <p className="stat-sub">
+              Mandatory training as per POSH Act 2013. All employees must complete this.
+            </p>
+            {employeeId ? (
+              <PoshTraining
+                employeeId={employeeId}
+                embedUrl={poshEmbed}
+                completed={taskStatus(tasks, 'posh_training') === 'completed'}
+                onComplete={() => load()}
+              />
+            ) : null}
+          </>
+        );
+      case 'meet_team':
+        return (
+          <>
+            <p className="stat-sub">
+              {data.department
+                ? `Colleagues in ${data.department}:`
+                : 'See who you will be working with.'}
+            </p>
+            {data.departmentPeers.length > 0 ? (
+              <ul className="onboarding-peers">
+                {data.departmentPeers.map((p) => (
+                  <li key={p.id}>
+                    <strong>{p.name}</strong>
+                    {p.designation ? <span className="stat-sub"> · {p.designation}</span> : null}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="stat-sub">Team list will appear when colleagues are in your department.</p>
+            )}
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => {
+                completeTask('meet_team').catch(() => undefined);
+                onNavigate('teams');
+              }}
+            >
+              View org chart
+            </button>
+          </>
+        );
+      default:
+        return null;
+    }
+  }
 
   if (loading || !data) {
     return (
@@ -336,13 +492,13 @@ export function OnboardingPanel({ user, onNavigate, onOnboardingCompleted }: Pro
     return (
       <div className="panel onboarding-done-panel">
         <h2 className="panel-title">Onboarding complete</h2>
-        <p className="stat-sub">You&apos;ve finished all onboarding tasks. Your portal is unlocking…</p>
+        <p className="stat-sub">Opening your full portal…</p>
       </div>
     );
   }
 
   const firstName = data.employeeName?.split(/\s+/)[0] || 'there';
-  const tasksLeft = 5 - Math.round((data.progressPercent / 100) * 5);
+  const blockers = data.onboardingBlockers || [];
 
   return (
     <div className="onboarding-page">
@@ -353,6 +509,27 @@ export function OnboardingPanel({ user, onNavigate, onOnboardingCompleted }: Pro
           Work through the checklist below — once everything is done, we&apos;ll unlock your full employee
           portal. Take your time; we&apos;re glad you&apos;re here.
         </p>
+        {blockers.length > 0 ? (
+          <div className="onboarding-blockers" role="status">
+            <p className="onboarding-blockers-title">Still blocking onboarding:</p>
+            <ul className="onboarding-blockers-list">
+              {blockers.map((blocker) => (
+                <li key={blocker.taskKey}>
+                  <strong>{blocker.title}</strong>
+                  {blocker.details.length > 0 ? (
+                    <ul className="onboarding-blockers-details">
+                      {blocker.details.map((detail) => (
+                        <li key={detail}>{detail}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className="stat-sub"> — not completed yet</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         <div className="onboarding-progress-wrap">
           <div className="onboarding-progress-label">
             <span>
@@ -363,131 +540,59 @@ export function OnboardingPanel({ user, onNavigate, onOnboardingCompleted }: Pro
                 <span className="stat-sub"> · finishing up…</span>
               )}
             </span>
-            {data.profileCompletionPercentage < 100 ? (
+            {data.profileCompletionPercentage < 100 &&
+            taskStatus(tasks, 'profile_complete') !== 'completed' ? (
               <span className="stat-sub">Profile: {data.profileCompletionPercentage}%</span>
             ) : null}
           </div>
-          <div className="onboarding-progress-track" role="progressbar" aria-valuenow={data.progressPercent} aria-valuemin={0} aria-valuemax={100}>
-            <div
-              className="onboarding-progress-fill"
-              style={{ width: `${data.progressPercent}%` }}
-            />
+          <div
+            className="onboarding-progress-track"
+            role="progressbar"
+            aria-valuenow={data.progressPercent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div className="onboarding-progress-fill" style={{ width: `${data.progressPercent}%` }} />
           </div>
         </div>
       </div>
 
-      <div className="onboarding-task-grid">
-        <article className="onboarding-task-card panel">
-          <div className="onboarding-task-head">
-            <h3>Complete your profile</h3>
-            <StatusBadge status={profileDone ? 'approved' : 'pending'} />
-          </div>
-          <p className="stat-sub">
-            Fill in your personal details, emergency contact, and bank information.
-          </p>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => onNavigate('profile')}>
-            Go to Profile
-          </button>
-        </article>
+      <div className="panel onboarding-task-list-panel">
+        <ul className="onboarding-task-list">
+          {ONBOARDING_TASKS.map((task) => {
+            const completed = taskStatus(tasks, task.key) === 'completed';
+            const isOpen = openTask === task.key;
 
-        <article className="onboarding-task-card panel">
-          <div className="onboarding-task-head">
-            <h3>Read company policies</h3>
-            <StatusBadge status={policyDone ? 'approved' : 'pending'} />
-          </div>
-          <p className="stat-sub">
-            Review AVGC Studios HR policies, code of conduct, and leave policies. Questions? Chat with{' '}
-            <strong>Maya</strong> (the policy assistant in the bottom-right corner).
-          </p>
-          <button
-            type="button"
-            className="btn btn-outline btn-sm"
-            disabled={policyDone}
-            onClick={() => setPolicyOpen(true)}
-          >
-            Open policy documents
-          </button>
-        </article>
-
-        <article className="onboarding-task-card panel onboarding-task-card--posh">
-          <div className="onboarding-task-head">
-            <h3>
-              POSH training <span className="onboarding-important-badge">Important</span>
-            </h3>
-            <StatusBadge status={poshDone ? 'approved' : 'pending'} />
-          </div>
-          <p className="stat-sub">
-            Mandatory training as per POSH Act 2013. All employees must complete this.
-          </p>
-          {employeeId ? (
-            <PoshTraining
-              employeeId={employeeId}
-              embedUrl={poshEmbed}
-              completed={poshDone}
-              onComplete={() => load()}
-            />
-          ) : null}
-        </article>
-
-        <article className="onboarding-task-card panel">
-          <div className="onboarding-task-head">
-            <h3>Meet your team</h3>
-            <StatusBadge status={teamDone ? 'approved' : 'pending'} />
-          </div>
-          <p className="stat-sub">
-            {data.department
-              ? `Colleagues in ${data.department}:`
-              : 'See who you will be working with.'}
-          </p>
-          {data.departmentPeers.length > 0 ? (
-            <ul className="onboarding-peers">
-              {data.departmentPeers.map((p) => (
-                <li key={p.id}>
-                  <strong>{p.name}</strong>
-                  {p.designation ? <span className="stat-sub"> · {p.designation}</span> : null}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="stat-sub">Team list will appear when colleagues are in your department.</p>
-          )}
-          <button
-            type="button"
-            className="btn btn-outline btn-sm"
-            onClick={() => {
-              completeTask('meet_team').catch(() => undefined);
-              onNavigate('teams');
-            }}
-          >
-            View org chart
-          </button>
-        </article>
-
-        <article className="onboarding-task-card panel">
-          <div className="onboarding-task-head">
-            <h3>IT setup checklist</h3>
-            <StatusBadge status={itDone ? 'approved' : 'pending'} />
-          </div>
-          <ul className="onboarding-it-list">
-            {(data.itSetupItems || []).map((item) => (
-              <li key={item.key}>
-                <label className="exit-checkbox onboarding-it-checkbox">
-                  <input
-                    type="checkbox"
-                    checked={Boolean(itItems[item.key])}
-                    disabled={itDone}
-                    onChange={(e) => {
-                      const next = { ...itItems, [item.key]: e.target.checked };
-                      setItItems(next);
-                      completeTask('it_setup', { items: next }).catch(() => undefined);
-                    }}
-                  />
-                  {item.label}
-                </label>
+            return (
+              <li key={task.key} className={`onboarding-task-row${isOpen ? ' is-open' : ''}`}>
+                <button
+                  type="button"
+                  className="onboarding-task-row-btn"
+                  aria-expanded={isOpen}
+                  onClick={() => toggleTask(task.key)}
+                >
+                  <span className="onboarding-task-row-title">
+                    {task.title}
+                    {task.important ? (
+                      <span className="onboarding-important-badge">Important</span>
+                    ) : null}
+                  </span>
+                  <span className="onboarding-task-row-meta">
+                    <span
+                      className={`onboarding-task-status${
+                        completed ? ' onboarding-task-status--completed' : ' onboarding-task-status--pending'
+                      }`}
+                    >
+                      {completed ? 'Completed' : 'Pending'}
+                    </span>
+                    <ChevronDown size={18} className="onboarding-task-row-chevron" aria-hidden />
+                  </span>
+                </button>
+                {isOpen ? <div className="onboarding-task-body">{renderTaskBody(task.key)}</div> : null}
               </li>
-            ))}
-          </ul>
-        </article>
+            );
+          })}
+        </ul>
       </div>
 
       <PolicyModal

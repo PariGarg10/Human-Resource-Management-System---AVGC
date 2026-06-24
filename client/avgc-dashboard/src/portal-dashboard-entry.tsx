@@ -26,6 +26,7 @@ const ADMIN_NAV_MAP: Partial<Record<PortalNavId, string>> = {
   'asset-management': 'asset-management',
   'policies-and-links': 'policies-and-links',
   teams: 'teams',
+  'employee-directory': 'employee-directory',
   profile: 'profile',
   'live-activities': 'live-activity-links',
   'social-portal': 'company-social',
@@ -46,9 +47,12 @@ function PortalDashboardIsland() {
   useEffect(() => {
     const emp = readEmployee();
     if (!emp) return;
-    api<{ profile: UserProfile }>('/api/users/me')
-      .then((data) => {
-        const p = data.profile;
+    Promise.all([
+      api<{ profile: UserProfile }>('/api/users/me'),
+      api<{ record?: { punchin?: string | null; punchout?: string | null } | null }>('/api/attendance/today'),
+    ])
+      .then(([profileRes, att]) => {
+        const p = profileRes.profile;
         const merged: EmployeeUser = {
           ...emp,
           name: p.name,
@@ -66,21 +70,17 @@ function PortalDashboardIsland() {
         };
         localStorage.setItem('employee', JSON.stringify(merged));
         setUser(merged);
-        api<{ record?: { punchin?: string | null; punchout?: string | null } | null }>('/api/attendance/today')
-          .then((att) => {
-            const formatPunch = (value: string | null | undefined) => {
-              if (!value) return '—';
-              const d = new Date(value);
-              if (Number.isNaN(d.getTime())) return '—';
-              return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-            };
-            syncPortalUserIdentityDom(
-              merged,
-              formatPunch(att.record?.punchin),
-              formatPunch(att.record?.punchout)
-            );
-          })
-          .catch(() => syncPortalUserIdentityDom(merged, '—', '—'));
+        const formatPunch = (value: string | null | undefined) => {
+          if (!value) return '—';
+          const d = new Date(value);
+          if (Number.isNaN(d.getTime())) return '—';
+          return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+        };
+        syncPortalUserIdentityDom(
+          merged,
+          formatPunch(att.record?.punchin),
+          formatPunch(att.record?.punchout)
+        );
       })
       .catch(() => undefined);
   }, []);

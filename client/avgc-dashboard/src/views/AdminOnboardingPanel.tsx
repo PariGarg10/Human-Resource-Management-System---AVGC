@@ -13,10 +13,25 @@ type SummaryRow = {
   onboardingCompleted: boolean;
 };
 
+type TaskMeta = {
+  items?: Record<string, boolean>;
+  score?: number;
+} | null;
+
+type OnboardingTask = {
+  taskKey: string;
+  status: string;
+  completedAt?: string | null;
+  meta?: TaskMeta;
+};
+
 type Detail = {
   employeeName: string;
   progressPercent: number;
-  tasks: { taskKey: string; status: string }[];
+  profileCompletionPercentage?: number;
+  missingDocuments?: { key: string; label: string }[];
+  tasks: OnboardingTask[];
+  itSetupItems?: { key: string; label: string }[];
 };
 
 type PoshQuestion = {
@@ -31,11 +46,95 @@ type PoshQuestion = {
   is_active: boolean;
 };
 
+const TASK_LABELS: Record<string, string> = {
+  profile_complete: 'Profile complete',
+  policy_read: 'Policy read',
+  posh_training: 'POSH training',
+  meet_team: 'Meet team',
+  it_setup: 'IT setup',
+};
+
+function taskLabel(taskKey: string) {
+  return TASK_LABELS[taskKey] || taskKey.replace(/_/g, ' ');
+}
+
+function TaskResponseDetail({
+  task,
+  detail,
+}: {
+  task: OnboardingTask;
+  detail: Detail;
+}) {
+  if (task.taskKey === 'profile_complete') {
+    return (
+      <div className="onboarding-admin-task-response">
+        <p>
+          Profile completion: <strong>{detail.profileCompletionPercentage ?? 0}%</strong>
+        </p>
+        {detail.missingDocuments && detail.missingDocuments.length > 0 ? (
+          <p className="stat-sub">
+            Missing documents: {detail.missingDocuments.map((d) => d.label).join(', ')}
+          </p>
+        ) : (
+          <p className="stat-sub">All required documents uploaded.</p>
+        )}
+      </div>
+    );
+  }
+
+  if (task.taskKey === 'policy_read') {
+    return (
+      <p className="onboarding-admin-task-response stat-sub">
+        {task.status === 'completed'
+          ? 'Employee confirmed they have read company policies.'
+          : 'Policies not yet acknowledged.'}
+      </p>
+    );
+  }
+
+  if (task.taskKey === 'posh_training') {
+    const score = task.meta?.score;
+    return (
+      <p className="onboarding-admin-task-response stat-sub">
+        {score != null ? `Quiz score: ${score}/5` : 'POSH training not completed yet.'}
+      </p>
+    );
+  }
+
+  if (task.taskKey === 'meet_team') {
+    return (
+      <p className="onboarding-admin-task-response stat-sub">
+        {task.status === 'completed'
+          ? 'Employee marked meet-the-team as done.'
+          : 'Meet-the-team step not completed.'}
+      </p>
+    );
+  }
+
+  if (task.taskKey === 'it_setup') {
+    const items = detail.itSetupItems || [];
+    const checked = task.meta?.items || {};
+    return (
+      <ul className="onboarding-admin-task-response onboarding-admin-it-list">
+        {items.map((item) => (
+          <li key={item.key}>
+            <span>{item.label}</span>
+            <strong>{checked[item.key] ? 'Yes' : 'No'}</strong>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  return null;
+}
+
 export function AdminOnboardingPanel() {
   const [filter, setFilter] = useState<'all' | 'completed' | 'in_progress' | 'not_started'>('all');
   const [rows, setRows] = useState<SummaryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [selectedTaskKey, setSelectedTaskKey] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState('');
   const [questions, setQuestions] = useState<PoshQuestion[]>([]);
   const [qForm, setQForm] = useState({
@@ -81,6 +180,7 @@ export function AdminOnboardingPanel() {
     try {
       const data = await api<Detail>(`/api/onboarding/admin/${id}/detail`);
       setDetail(data);
+      setSelectedTaskKey(data.tasks[0]?.taskKey || null);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Could not load detail', 'error');
     }
@@ -150,6 +250,8 @@ export function AdminOnboardingPanel() {
     }
   }
 
+  const selectedTask = detail?.tasks.find((t) => t.taskKey === selectedTaskKey) || null;
+
   return (
     <div className="admin-onboarding">
       <div className="panel">
@@ -204,7 +306,7 @@ export function AdminOnboardingPanel() {
                       <td>{r.department || '—'}</td>
                       <td>{r.progressPercent}%</td>
                       <td>
-                        <StatusBadge status={r.onboardingCompleted ? 'approved' : 'pending'} />
+                        <StatusBadge status={r.onboardingCompleted ? 'completed' : 'pending'} />
                       </td>
                       <td>
                         <button
@@ -212,7 +314,7 @@ export function AdminOnboardingPanel() {
                           className="btn btn-outline btn-sm"
                           onClick={() => openDetail(r.id)}
                         >
-                          View tasks
+                          View tasks ({r.progressPercent}%)
                         </button>
                       </td>
                     </tr>
@@ -226,17 +328,34 @@ export function AdminOnboardingPanel() {
 
       {detail ? (
         <div className="panel">
-          <h3 className="panel-title">{detail.employeeName} — task status</h3>
-          <p className="stat-sub">{detail.progressPercent}% complete</p>
+          <h3 className="panel-title">{detail.employeeName} — onboarding tasks</h3>
+          <div className="onboarding-admin-progress-bar-wrap">
+            <div className="onboarding-admin-progress-bar" style={{ width: `${detail.progressPercent}%` }} />
+          </div>
+          <p className="stat-sub">{detail.progressPercent}% complete — click a task to view responses</p>
           <ul className="onboarding-admin-detail">
             {detail.tasks.map((t) => (
               <li key={t.taskKey}>
-                <span>{t.taskKey.replace(/_/g, ' ')}</span>
-                <StatusBadge status={t.status} />
+                <button
+                  type="button"
+                  className={`onboarding-admin-task-btn${selectedTaskKey === t.taskKey ? ' is-active' : ''}`}
+                  onClick={() => setSelectedTaskKey(t.taskKey)}
+                >
+                  <span>{taskLabel(t.taskKey)}</span>
+                  <StatusBadge status={t.status} />
+                </button>
               </li>
             ))}
           </ul>
-          <button type="button" className="btn btn-outline btn-sm" onClick={() => setDetail(null)}>
+          {selectedTask ? <TaskResponseDetail task={selectedTask} detail={detail} /> : null}
+          <button
+            type="button"
+            className="btn btn-outline btn-sm"
+            onClick={() => {
+              setDetail(null);
+              setSelectedTaskKey(null);
+            }}
+          >
             Close
           </button>
         </div>

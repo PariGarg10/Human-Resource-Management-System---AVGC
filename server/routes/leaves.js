@@ -14,6 +14,16 @@ router.use(enforcePasswordChange);
 const ALLOWED_TYPES = new Set(['Sick Leave', 'Casual Leave', 'Paid Leave', 'Work From Home']);
 const EMPLOYEE_SELF_SERVICE_ROLES = ['employee', 'manager', 'admin'];
 
+function leaveRangeIncludesSunday(fromdate, todate) {
+  const from = new Date(`${fromdate}T12:00:00`);
+  const to = new Date(`${todate}T12:00:00`);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) return false;
+  for (let day = new Date(from); day <= to; day.setDate(day.getDate() + 1)) {
+    if (day.getDay() === 0) return true;
+  }
+  return false;
+}
+
 async function activeAdminsExcept(userId) {
   const { rows } = await pool.query(
     `
@@ -200,6 +210,9 @@ router.post('/apply', requireRoles(...EMPLOYEE_SELF_SERVICE_ROLES), async (req, 
     }
     if (!ALLOWED_TYPES.has(leavetype)) {
       return res.status(400).json({ message: 'Invalid leave type' });
+    }
+    if (leaveRangeIncludesSunday(fromdate, todate)) {
+      return res.status(400).json({ message: 'Leave cannot include Sundays. Please adjust your date range.' });
     }
 
     const reportingRaw = reportingToId ?? reporting_to_id;

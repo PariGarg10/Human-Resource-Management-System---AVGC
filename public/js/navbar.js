@@ -31,6 +31,17 @@ HRMS.initProfileDropdown = function initProfileDropdown() {
       HRMS.refreshNavIcons(wrap);
     }
   });
+  wrap.querySelectorAll('[data-profile-nav]').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      wrap.classList.remove('is-open');
+      const section = btn.getAttribute('data-profile-nav');
+      const label = btn.textContent?.trim() || section;
+      if (window.HRMS?.navigatePortalSection) {
+        HRMS.navigatePortalSection(section, label);
+      }
+    });
+  });
   document.addEventListener('click', () => wrap.classList.remove('is-open'));
 };
 
@@ -68,11 +79,6 @@ HRMS.showProfilePhotoInitials = function showProfilePhotoInitials(name) {
     el.textContent = letter;
     el.classList.remove('hidden');
   });
-  const side = document.getElementById('sidebarAvatar');
-  if (side) {
-    side.innerHTML = '';
-    side.textContent = letter;
-  }
 };
 
 HRMS.applyProfilePhotoToDom = function applyProfilePhotoToDom(url, displayName) {
@@ -104,17 +110,6 @@ HRMS.applyProfilePhotoToDom = function applyProfilePhotoToDom(url, displayName) 
       '.profile-chip img, .navbar-avatar, .user-avatar, [data-avatar], #profileAvatar, #navAvatar, #profilePhotoPreview, #mgrProfilePhotoPreview'
     )
     .forEach(bindImg);
-
-  const side = document.getElementById('sidebarAvatar');
-  if (side) {
-    const img = document.createElement('img');
-    img.className = 'sidebar-avatar-img';
-    img.alt = '';
-    img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;';
-    bindImg(img);
-    side.innerHTML = '';
-    side.appendChild(img);
-  }
 };
 
 // ✅ Syncs all avatar <img> elements on the page from localStorage
@@ -176,7 +171,10 @@ HRMS.syncPortalUserIdentity = function syncPortalUserIdentity(user, punchIn, pun
   if (root) {
     root.innerHTML = `
       <p class="portal-user-identity-name">${escapeHtml(name)}</p>
-      <p class="portal-user-identity-line">${escapeHtml(designation)}</p>
+      <div class="portal-user-identity-labeled">
+        <span class="portal-user-identity-label">Designation</span>
+        <span class="portal-user-identity-value">${escapeHtml(designation)}</span>
+      </div>
       <p class="portal-user-identity-line">${escapeHtml(empId)}</p>
       <p class="portal-user-identity-line">${escapeHtml(punchIn || '—')}</p>
       <p class="portal-user-identity-line">${escapeHtml(punchOut || '—')}</p>
@@ -204,6 +202,14 @@ HRMS.loadPortalUserIdentity = async function loadPortalUserIdentity(apiFn) {
     punchOut = formatPunch(data.record && data.record.punchout);
   } catch (_e) {}
   HRMS.syncPortalUserIdentity(user, punchIn, punchOut);
+};
+
+HRMS.setNotificationBadge = function setNotificationBadge(count) {
+  const badge = document.getElementById('notificationBadge');
+  if (!badge) return;
+  const unread = Math.max(0, Number(count) || 0);
+  badge.textContent = unread > 9 ? '9+' : String(unread);
+  badge.classList.toggle('hidden', unread === 0);
 };
 
 HRMS.initNotificationBell = function initNotificationBell(apiFn) {
@@ -281,8 +287,9 @@ HRMS.initNotificationBell = function initNotificationBell(apiFn) {
   panel.addEventListener('mousedown', (e) => e.stopPropagation());
   document.addEventListener('click', () => panel.classList.remove('is-open'));
 
-  refresh();
-  setInterval(refresh, 60000);
+  setInterval(() => {
+    if (panel.classList.contains('is-open')) refresh();
+  }, 60000);
 };
 HRMS.initNavbarSearch = function initNavbarSearch(tableBodyIds) {
   const input = document.getElementById('globalSearch');

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { DashboardHome } from '@/components/dashboard/DashboardHome';
 import { FirstLoginCelebration } from '@/components/FirstLoginCelebration';
 import { OnboardingCompleteCelebration } from '@/components/OnboardingCompleteCelebration';
@@ -12,6 +12,7 @@ import {
   navSectionsForRole,
   ONBOARDING_GATE_NAV_SECTIONS,
   PORTAL_PAGE_TITLES,
+  profileMenuItemsForContext,
   type PortalNavId,
   type PortalRole,
 } from '@/lib/portalNav';
@@ -31,6 +32,7 @@ import {
   ManagerTeamAttendancePanel,
   OnboardingPanel,
   OrgTreePanel,
+  EmployeeDirectoryPanel,
   PerformancePanel,
   PlaceholderPanel,
   PoliciesPanel,
@@ -126,6 +128,14 @@ function renderPanel(
           </div>
         </LazyPanel>
       );
+    case 'employee-directory':
+      return (
+        <LazyPanel>
+          <div className="employee-directory-viewport">
+            <EmployeeDirectoryPanel />
+          </div>
+        </LazyPanel>
+      );
     case 'live-activities':
       return (
         <LazyPanel>
@@ -206,6 +216,11 @@ function renderPanel(
   }
 }
 
+function readNavFromLocation(): PortalNavId | null {
+  const hash = String(window.location.hash || '').replace(/^#/, '').trim();
+  return hash ? (hash as PortalNavId) : null;
+}
+
 function dashboardPathForRole(role: string): string {
   const r = role.toLowerCase().trim();
   if (r === 'admin' || r === 'founder') return '/admin/dashboard';
@@ -231,6 +246,8 @@ export default function App() {
   }, [portalRole, onboardingGated]);
 
   const [nav, setNav] = useState<PortalNavId>(() => {
+    const fromHash = readNavFromLocation();
+    if (fromHash) return fromHash;
     const emp = readEmployee();
     const role = detectPortalRole();
     if (emp && role === 'employee' && emp.onboardingCompleted !== true) {
@@ -246,18 +263,52 @@ export default function App() {
   const [showFirstLogin, setShowFirstLogin] = useState(false);
   const [showOnboardingCelebrate, setShowOnboardingCelebrate] = useState(false);
   const [portalUnlocking, setPortalUnlocking] = useState(false);
+  const navFromHistoryRef = useRef(false);
+
+  const applyPortalNav = useCallback(
+    (id: PortalNavId, options?: { skipHistory?: boolean }) => {
+      let next = id;
+      if (onboardingGated && !isOnboardingNavAllowed(next)) {
+        next = 'onboarding';
+      }
+      if (next === 'social-portal') {
+        (window as { HRMS?: { fireConfettiBurst?: (o?: { x: number; y: number }) => void } }).HRMS?.fireConfettiBurst?.();
+      }
+      setNav(next);
+      if (!options?.skipHistory && !navFromHistoryRef.current) {
+        try {
+          sessionStorage.setItem('hrms-last-nav-section', next);
+        } catch {
+          /* ignore */
+        }
+        const nextUrl = `${window.location.pathname}${window.location.search}#${next}`;
+        if (window.location.hash !== `#${next}`) {
+          window.history.pushState({ hrmsNav: next }, '', nextUrl);
+        }
+      }
+    },
+    [onboardingGated]
+  );
 
   const finishOnboardingUnlock = useCallback(() => {
+    setOnboardingIncomplete(false);
     setUser((prev) => {
       const next = prev ? { ...prev, onboardingCompleted: true } : prev;
       if (next) localStorage.setItem('employee', JSON.stringify(next));
       return next;
     });
-    setOnboardingIncomplete(false);
+    window.dispatchEvent(new CustomEvent('hrms:employee-updated'));
     setShowOnboardingCelebrate(false);
     setPortalUnlocking(true);
-    window.setTimeout(() => setNav('dashboard'), 350);
-    window.setTimeout(() => setPortalUnlocking(false), 1400);
+    setNav('dashboard');
+    try {
+      sessionStorage.setItem('hrms-last-nav-section', 'dashboard');
+    } catch {
+      /* ignore */
+    }
+    const nextUrl = `${window.location.pathname}${window.location.search}#dashboard`;
+    window.history.replaceState({ hrmsNav: 'dashboard' }, '', nextUrl);
+    window.setTimeout(() => setPortalUnlocking(false), 900);
   }, []);
 
   const handleOnboardingCompleted = useCallback(
@@ -273,17 +324,23 @@ export default function App() {
 
   const navigatePortal = useCallback(
     (id: PortalNavId) => {
-      if (onboardingGated && !isOnboardingNavAllowed(id)) {
-        setNav('onboarding');
-        return;
-      }
-      if (id === 'social-portal') {
-        (window as { HRMS?: { fireConfettiBurst?: (o?: { x: number; y: number }) => void } }).HRMS?.fireConfettiBurst?.();
-      }
-      setNav(id);
+      applyPortalNav(id);
     },
-    [onboardingGated]
+    [applyPortalNav]
   );
+
+  useEffect(() => {
+    const onPopState = () => {
+      const section = (window.history.state?.hrmsNav ||
+        String(window.location.hash || '').replace(/^#/, '').trim() ||
+        'dashboard') as PortalNavId;
+      navFromHistoryRef.current = true;
+      applyPortalNav(section, { skipHistory: true });
+      navFromHistoryRef.current = false;
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [applyPortalNav]);
 
   useEffect(() => {
     const onPortalNav = (event: Event) => {
@@ -316,6 +373,14 @@ export default function App() {
     if (path === '/manager/exit-clearances') {
       setNav('exit-clearances');
     }
+    if (path === '/manager/exit') {
+      setNav('exit');
+    }
+
+    const hashNav = readNavFromLocation();
+    if (hashNav) {
+      setNav(hashNav);
+    }
 
     const token = localStorage.getItem('token');
     if (!token) {
@@ -343,7 +408,7 @@ export default function App() {
     const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
     const allowedExtraPaths =
       portalRole === 'manager'
-        ? ['/profile', '/account/profile', '/manager/exit-clearances']
+        ? ['/profile', '/account/profile', '/manager/exit-clearances', '/manager/exit']
         : ['/profile', '/account/profile', '/employee/onboarding', '/employee/exit'];
     if (currentPath !== expectedPath && !allowedExtraPaths.includes(currentPath)) {
       window.location.replace(expectedPath);
@@ -363,10 +428,38 @@ export default function App() {
     if (emp.mustchangepassword) {
       setPasswordRequired(true);
     }
-    if (emp.isFirstLogin === true && portalRole === 'employee') {
+    if (emp.isFirstLogin === true && portalRole === 'employee' && !emp.mustchangepassword) {
       setShowFirstLogin(true);
     }
     setBooting(false);
+
+    const initialNav =
+      hashNav ||
+      (path === '/profile' || path === '/account/profile'
+        ? 'profile'
+        : path === '/employee/onboarding'
+          ? 'onboarding'
+          : path === '/employee/exit'
+            ? 'exit'
+            : path === '/manager/exit'
+              ? 'exit'
+            : path === '/manager/exit-clearances'
+              ? 'exit-clearances'
+              : emp.mustchangepassword && portalRole === 'employee'
+                ? 'onboarding'
+                : portalRole === 'employee' && emp.onboardingCompleted !== true
+                  ? 'onboarding'
+                  : 'dashboard');
+    window.history.replaceState(
+      { hrmsNav: initialNav },
+      '',
+      `${window.location.pathname}${window.location.search}#${initialNav}`
+    );
+    try {
+      sessionStorage.setItem('hrms-last-nav-section', initialNav);
+    } catch {
+      /* ignore */
+    }
 
     api<{ profile: UserProfile }>('/api/users/me')
       .then((data) => {
@@ -395,16 +488,24 @@ export default function App() {
         if (portalRole === 'employee') {
           const incomplete = p.onboardingCompleted !== true;
           setOnboardingIncomplete(incomplete);
-          if (incomplete) {
+          if (incomplete && !emp.mustchangepassword) {
             setNav((current) => (isOnboardingNavAllowed(current) ? current : 'onboarding'));
           }
         }
-        if (p.isFirstLogin === true && portalRole === 'employee') {
+        if (p.isFirstLogin === true && portalRole === 'employee' && !emp.mustchangepassword) {
           setShowFirstLogin(true);
         }
       })
       .catch(() => {});
 
+    api<{ force_password_change?: boolean }>('/api/auth/me')
+      .then((authMe) => {
+        if (authMe.force_password_change) {
+          setPasswordRequired(true);
+          setNav('onboarding');
+        }
+      })
+      .catch(() => {});
   }, [portalRole]);
 
   const onPasswordRequired = useCallback((msg?: string) => {
@@ -423,10 +524,11 @@ export default function App() {
   const pageTitle = PORTAL_PAGE_TITLES[nav] || 'Dashboard';
   const portalLabel = portalRole === 'manager' ? 'Manager' : 'Employee';
   const firstName = (user.name || 'there').trim().split(/\s+/)[0] || 'there';
+  const passwordBlocking = passwordRequired && portalRole === 'employee';
 
   return (
     <UserProvider value={{ user, setUser, avatarOverride, setAvatarOverride }}>
-      {showFirstLogin && user.id && portalRole === 'employee' ? (
+      {showFirstLogin && user.id && portalRole === 'employee' && !passwordRequired ? (
         <FirstLoginCelebration
           userId={user.id}
           firstName={firstName}
@@ -451,43 +553,48 @@ export default function App() {
         rolePill={portalLabel}
         sidebarRoleClass={portalRole === 'manager' ? 'manager' : 'employee'}
         navSections={navSections}
+        profileMenuItems={profileMenuItemsForContext({ onboardingGated })}
         onNavigate={navigatePortal}
       >
-        {passwordRequired && (
-          <div style={{ marginBottom: 16 }}>
-            <PasswordGate message={passwordMessage} />
+        {passwordBlocking ? (
+          <div className="onboarding-password-only">
+            <PasswordGate onboarding message={passwordMessage} />
           </div>
+        ) : (
+          <>
+            {onboardingGated && !showOnboardingCelebrate && (
+              <div className="onboarding-gate-banner" role="status">
+                <strong>Almost there!</strong> Finish every task below to unlock your full portal — dashboard, leave,
+                attendance, and more.
+              </div>
+            )}
+            <div
+              className={[
+                'portal-view-root',
+                nav === 'teams' ? 'portal-view-root--teams' : '',
+                nav === 'calendar' ? 'portal-view-root--calendar' : '',
+                nav === 'holiday-calendar' ? 'portal-view-root--holiday' : '',
+                nav === 'employee-directory' ? 'portal-view-root--directory' : '',
+                portalUnlocking ? 'portal-content--unlocking' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              {renderPanel(
+                nav,
+                user,
+                (u) => {
+                  setUser(u);
+                  if (u.onboardingCompleted) handleOnboardingCompleted({ celebrate: true });
+                },
+                navigatePortal,
+                onPasswordRequired,
+                portalRole,
+                handleOnboardingCompleted
+              )}
+            </div>
+          </>
         )}
-        {onboardingGated && !showOnboardingCelebrate && (
-          <div className="onboarding-gate-banner" role="status">
-            <strong>Almost there!</strong> Finish every task below to unlock your full portal — dashboard, leave,
-            attendance, and more.
-          </div>
-        )}
-        <div
-          className={[
-            'portal-view-root',
-            nav === 'teams' ? 'portal-view-root--teams' : '',
-            nav === 'calendar' ? 'portal-view-root--calendar' : '',
-            nav === 'holiday-calendar' ? 'portal-view-root--holiday' : '',
-            portalUnlocking ? 'portal-content--unlocking' : '',
-          ]
-            .filter(Boolean)
-            .join(' ')}
-        >
-          {renderPanel(
-            nav,
-            user,
-            (u) => {
-              setUser(u);
-              if (u.onboardingCompleted) handleOnboardingCompleted({ celebrate: true });
-            },
-            navigatePortal,
-            onPasswordRequired,
-            portalRole,
-            handleOnboardingCompleted
-          )}
-        </div>
       </PortalAppShell>
     </UserProvider>
   );

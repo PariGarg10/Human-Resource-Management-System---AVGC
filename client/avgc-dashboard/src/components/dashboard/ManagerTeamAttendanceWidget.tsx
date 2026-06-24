@@ -26,6 +26,7 @@ type ModalKind = 'present' | 'on-leave' | null;
 type Props = {
   onNavigate: (id: PortalNavId) => void;
   variant?: 'full' | 'footer';
+  summaryCounts?: { present: number; onLeave: number } | null;
 };
 
 function formatTime(value: string | null | undefined) {
@@ -51,8 +52,13 @@ function SkeletonTile() {
   );
 }
 
-export function ManagerTeamAttendanceWidget({ onNavigate, variant = 'full' }: Props) {
-  const [loading, setLoading] = useState(true);
+export function ManagerTeamAttendanceWidget({
+  onNavigate,
+  variant = 'full',
+  summaryCounts = null,
+}: Props) {
+  const [loading, setLoading] = useState(!summaryCounts || variant !== 'footer');
+  const [detailLoaded, setDetailLoaded] = useState(false);
   const [present, setPresent] = useState<DailyRecord[]>([]);
   const [onLeave, setOnLeave] = useState<TeamLeave[]>([]);
   const [upcoming, setUpcoming] = useState<TeamLeave[]>([]);
@@ -89,6 +95,7 @@ export function ManagerTeamAttendanceWidget({ onNavigate, variant = 'full' }: Pr
         .sort((a, b) => a.fromdate.localeCompare(b.fromdate))
         .slice(0, 5);
       setUpcoming(upcomingLeaves);
+      setDetailLoaded(true);
     } catch {
       setPresent([]);
       setOnLeave([]);
@@ -98,11 +105,26 @@ export function ManagerTeamAttendanceWidget({ onNavigate, variant = 'full' }: Pr
     }
   }, [today]);
 
-  useEffect(() => {
+  const ensureDetailLoaded = useCallback(() => {
+    if (detailLoaded) return;
     load().catch(() => {});
-  }, [load]);
+  }, [detailLoaded, load]);
+
+  useEffect(() => {
+    if (variant === 'footer' && summaryCounts) return;
+    load().catch(() => {});
+  }, [load, summaryCounts, variant]);
 
   const isFooter = variant === 'footer';
+  const presentCount =
+    summaryCounts && isFooter && !detailLoaded ? summaryCounts.present : present.length;
+  const onLeaveCount =
+    summaryCounts && isFooter && !detailLoaded ? summaryCounts.onLeave : onLeave.length;
+
+  const openModal = (kind: ModalKind) => {
+    ensureDetailLoaded();
+    setModal(kind);
+  };
 
   return (
     <>
@@ -135,18 +157,18 @@ export function ManagerTeamAttendanceWidget({ onNavigate, variant = 'full' }: Pr
                   <button
                     type="button"
                     className="manager-team-tile manager-team-tile--present manager-team-tile--inline"
-                    onClick={() => setModal('present')}
+                    onClick={() => openModal('present')}
                   >
                     <span className="manager-team-tile-label">Present</span>
-                    <strong className="manager-team-tile-count">{present.length}</strong>
+                    <strong className="manager-team-tile-count">{presentCount}</strong>
                   </button>
                   <button
                     type="button"
                     className="manager-team-tile manager-team-tile--leave manager-team-tile--inline"
-                    onClick={() => setModal('on-leave')}
+                    onClick={() => openModal('on-leave')}
                   >
                     <span className="manager-team-tile-label">On leave</span>
-                    <strong className="manager-team-tile-count">{onLeave.length}</strong>
+                    <strong className="manager-team-tile-count">{onLeaveCount}</strong>
                   </button>
                 </>
               )}
@@ -175,18 +197,18 @@ export function ManagerTeamAttendanceWidget({ onNavigate, variant = 'full' }: Pr
                   <button
                     type="button"
                     className="manager-team-tile manager-team-tile--present"
-                    onClick={() => setModal('present')}
+                    onClick={() => openModal('present')}
                   >
                     <span className="manager-team-tile-label">Present today</span>
-                    <strong className="manager-team-tile-count">{present.length}</strong>
+                    <strong className="manager-team-tile-count">{presentCount}</strong>
                   </button>
                   <button
                     type="button"
                     className="manager-team-tile manager-team-tile--leave"
-                    onClick={() => setModal('on-leave')}
+                    onClick={() => openModal('on-leave')}
                   >
                     <span className="manager-team-tile-label">On leave today</span>
-                    <strong className="manager-team-tile-count">{onLeave.length}</strong>
+                    <strong className="manager-team-tile-count">{onLeaveCount}</strong>
                   </button>
                 </>
               )}

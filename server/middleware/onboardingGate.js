@@ -10,6 +10,8 @@ function isOnboardingWhitelisted(path, method) {
   if (/^\/employees\/\d+(\/first-login)?$/.test(p)) return true;
   if (p.startsWith('/users/org-tree')) return true;
   if (p.startsWith('/users/org-directory')) return true;
+  if (p === '/users/employee-directory') return true;
+  if (method === 'GET' && /^\/users\/\d+$/.test(p)) return true;
   if (p.startsWith('/org-chart/')) return true;
   if (p.startsWith('/auth/change-password')) return true;
   if (p === '/policies' && method === 'GET') return true;

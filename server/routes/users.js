@@ -10,8 +10,9 @@ const {
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { buildOrgSections, personFromRow } = require('../utils/orgDirectory');
-const { buildOrgTree, scopeOrgTreeForViewer, sortTreeAlphabetically } = require('../utils/orgTree');
-const { isAdminRole, isManagerRole } = require('../constants/roles');
+const { buildEmployeeDirectory, DIRECTORY_EMPLOYEE_SELECT } = require('../utils/employeeDirectory');
+const { buildOrgTree, sortTreeAlphabetically, countTreePeople } = require('../utils/orgTree');
+const { fetchOrgChartSourceData } = require('../utils/orgChartData');
 const { ensurePersonalTasksTable, rowToTask, PRIORITIES, parseDueDateInput } = require('../utils/personalTasks');
 const { logAudit } = require('../utils/audit');
 const { ageFromDateOfBirth } = require('../utils/birthdays');
@@ -81,6 +82,23 @@ function rowToProfile(row) {
     bankAccountName: row.bank_account_name || null,
     bankAccountNumber: row.bank_account_number || null,
     bankIfsc: row.bank_ifsc || null,
+  };
+}
+
+function rowToPublicColleagueProfile(row) {
+  if (!row) return null;
+  const mapped = personFromRow(row);
+  return {
+    id: row.id,
+    employeecode: row.employeecode,
+    name: row.name,
+    email: row.email || null,
+    department: mapped.department,
+    role: mapped.role,
+    designation: mapped.designation || mapped.title || null,
+    phone: row.phone || null,
+    bio: row.bio || null,
+    profilePhotoUrl: mapped.profilePhotoUrl,
   };
 }
 
@@ -298,7 +316,7 @@ router.get('/org-directory', authMiddleware, enforcePasswordChange, async (_req,
              phone, location, dateofbirth, bio, date_of_joining, createdat,
              (profile_photo IS NOT NULL) AS has_profile_photo
       FROM employees
-      WHERE COALESCE(isregistered, TRUE) = TRUE AND COALESCE(is_active, TRUE) = TRUE
+      WHERE lower(trim(COALESCE(employment_status, 'active'))) <> 'exited'
       ORDER BY name ASC
     `
     );
@@ -317,48 +335,42 @@ router.get('/org-directory', authMiddleware, enforcePasswordChange, async (_req,
   }
 });
 
-router.get('/org-tree', authMiddleware, enforcePasswordChange, async (req, res) => {
+router.get('/employee-directory', authMiddleware, async (_req, res) => {
   try {
     await ensureProfilePhotoColumns();
     const [employeesResult, assignmentsResult] = await Promise.all([
-      pool.query(
-        `
-        SELECT id, employeecode, name, email, department, designation, role, reporting_to_id,
-               profilephotourl, phone, location,
-               (profile_photo IS NOT NULL) AS has_profile_photo
-        FROM employees
-        WHERE COALESCE(isregistered, TRUE) = TRUE AND COALESCE(is_active, TRUE) = TRUE
-        ORDER BY name ASC
-      `
-      ),
+      pool.query(DIRECTORY_EMPLOYEE_SELECT),
       pool.query('SELECT managerid, employeeid FROM manageremployees'),
     ]);
 
-    const tree = buildOrgTree(employeesResult.rows, assignmentsResult.rows);
+    const employees = buildEmployeeDirectory(employeesResult.rows, assignmentsResult.rows);
+    return res.json({
+      employees,
+      total: employees.length,
+      scope: 'organization',
+    });
+  } catch (err) {
+    console.error('GET /users/employee-directory:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/org-tree', authMiddleware, enforcePasswordChange, async (_req, res) => {
+  try {
+    await ensureProfilePhotoColumns();
+    const { employees, assignments } = await fetchOrgChartSourceData(pool);
+
+    const tree = buildOrgTree(employees, assignments);
     if (!tree) {
       return res.status(404).json({ message: 'No employees found to build org chart' });
     }
 
-    const viewerRow = employeesResult.rows.find((row) => row.id === req.user.id);
-    const tokenRole = String(req.user.role || '').toLowerCase().trim();
-    const viewerRole = viewerRow?.role || tokenRole || 'employee';
-    const wantFull = req.query.full === 'true' || req.query.full === '1';
-
-    let result = tree;
-    if (isAdminRole(viewerRole) || isAdminRole(tokenRole)) {
-      result = sortTreeAlphabetically(tree);
-    } else if (wantFull && isManagerRole(viewerRole)) {
-      result = sortTreeAlphabetically(tree);
-    } else {
-      result = scopeOrgTreeForViewer(
-        tree,
-        employeesResult.rows,
-        req.user.id,
-        assignmentsResult.rows
-      );
-    }
-
-    return res.json({ tree: result });
+    const result = sortTreeAlphabetically(tree);
+    return res.json({
+      tree: result,
+      totalEmployees: employees.length,
+      visibleInTree: countTreePeople(result),
+    });
   } catch (err) {
     console.error('GET /users/org-tree:', err.message, err.stack);
     return res.status(500).json({ message: 'Internal server error' });
@@ -504,7 +516,7 @@ router.delete('/my-tasks/:taskId', authMiddleware, enforcePasswordChange, async 
   }
 });
 
-router.get('/profile-photo/employee/:employeeId', authMiddleware, enforcePasswordChange, async (req, res) => {
+router.get('/profile-photo/employee/:employeeId', authMiddleware, async (req, res) => {
   try {
     const employeeId = Number(req.params.employeeId);
     if (!Number.isFinite(employeeId)) {
@@ -615,19 +627,40 @@ router.get('/me', authMiddleware, async (req, res) => {
 router.get('/:id', authMiddleware, async (req, res) => {
   try {
     const id = Number(req.params.id);
-    if (!Number.isFinite(id) || id !== req.user.id) {
-      return res.status(403).json({ message: 'You can only read your own profile' });
+    if (!Number.isFinite(id)) {
+      return res.status(404).json({ message: 'Not found' });
     }
+
+    const isSelf = id === req.user.id;
     const result = await pool.query(
-      `
+      isSelf
+        ? `
       SELECT id, employeecode, name, email, department, designation, role, reporting_to_id,
-             dateofbirth, phone, location, bio, profilephotourl, createdat, is_first_login
+             dateofbirth, phone, location, bio, profilephotourl, date_of_joining, createdat, is_first_login,
+             onboarding_completed, emergency_contact_name, emergency_contact_phone,
+             bank_account_name, bank_account_number, bank_ifsc,
+             (profile_photo IS NOT NULL) AS has_profile_photo
+      FROM employees WHERE id = $1
+    `
+        : `
+      SELECT id, employeecode, name, email, department, designation, role,
+             phone, bio, profilephotourl, createdat, employment_status,
+             (profile_photo IS NOT NULL) AS has_profile_photo
       FROM employees WHERE id = $1
     `,
-      [req.user.id]
+      [id]
     );
     const row = result.rows[0];
     if (!row) return res.status(404).json({ message: 'User not found' });
+
+    if (!isSelf) {
+      const status = String(row.employment_status || 'active').toLowerCase().trim();
+      if (status === 'exited') {
+        return res.status(404).json({ message: 'User not found' });
+      }
+      return res.json({ profile: rowToPublicColleagueProfile(row), public: true });
+    }
+
     return res.json({ profile: rowToProfile(row) });
   } catch (err) {
     console.error('GET /users/:id:', err.message);

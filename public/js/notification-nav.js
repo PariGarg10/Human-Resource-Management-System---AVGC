@@ -17,11 +17,12 @@
     'policies-and-links': 'policies-and-links',
     teams: 'teams',
     profile: 'profile',
+    settings: 'settings',
     'live-activities': 'live-activity-links',
     'social-portal': 'company-social',
     reports: 'reports',
     helpdesk: 'dashboard',
-    exit: 'exit-clearances',
+    exit: 'exit',
     'exit-clearances': 'exit-clearances',
   };
 
@@ -73,6 +74,7 @@
     if (msg.includes('attendance')) return 'attendance';
 
     if (t.startsWith('exit_') || t === 'exit_initiated' || t === 'exit_completed') {
+      if (msg.includes('your exit')) return 'exit';
       if (role === 'manager') return 'exit-clearances';
       if (role === 'admin' || role === 'founder' || role === 'it_head') return 'exit-clearances';
       return 'exit';

@@ -8,17 +8,18 @@ const EMPLOYEE_CATEGORIES = Object.freeze([
   'cancelled_cheque',
 ]);
 
-const ADMIN_CATEGORIES = Object.freeze(['payslip', 'form_16', 'appraisal_letter']);
+const ADMIN_CATEGORIES = Object.freeze(['payslip', 'form_16', 'appraisal_letter', 'others']);
 
 const CATEGORY_LABELS = Object.freeze({
   aadhar: 'Aadhar card',
   pan: 'PAN card',
   education: 'Educational certificates',
   work_experience: 'Work experience',
-  cancelled_cheque: 'Cancelled cheque',
+  cancelled_cheque: 'Cancelled cheque/ Passbook',
   payslip: 'Pay slip',
   form_16: 'Form 16',
   appraisal_letter: 'Appraisal letter',
+  others: 'Others',
 });
 
 let tableReady = false;

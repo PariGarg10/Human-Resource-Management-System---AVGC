@@ -42,24 +42,37 @@ export function GamingArena({ isAdminUser = false, feedSlot }: GamingArenaProps)
   const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [myScores, setMyScores] = useState<Record<string, number>>({});
   const [adminTournaments, setAdminTournaments] = useState<Tournament[]>([]);
+  const [canManageTournaments, setCanManageTournaments] = useState(isAdminUser);
   const [toast, setToast] = useState('');
   const [newTitle, setNewTitle] = useState('');
   const [newGame, setNewGame] = useState('minesweeper');
   const [showAdmin, setShowAdmin] = useState(false);
+
+  const tournamentAdmin = isAdminUser || canManageTournaments;
+
+  useEffect(() => {
+    if (isAdminUser) {
+      setCanManageTournaments(true);
+      return;
+    }
+    apiJson<{ allowed: boolean }>('/api/social-tournaments/manage-access')
+      .then((data) => setCanManageTournaments(Boolean(data.allowed)))
+      .catch(() => setCanManageTournaments(false));
+  }, [isAdminUser]);
 
   const load = useCallback(async () => {
     try {
       const data = await apiJson<{ tournaments: Tournament[]; myScores: Record<string, number> }>('/api/social-tournaments');
       setTournaments(data.tournaments || []);
       setMyScores(data.myScores || {});
-      if (isAdminUser) {
+      if (tournamentAdmin) {
         const admin = await apiJson<{ tournaments: Tournament[] }>('/api/social-tournaments/admin');
         setAdminTournaments(admin.tournaments || []);
       }
     } catch {
       /* ignore */
     }
-  }, [isAdminUser]);
+  }, [tournamentAdmin]);
 
   useEffect(() => {
     load();
@@ -163,7 +176,7 @@ export function GamingArena({ isAdminUser = false, feedSlot }: GamingArenaProps)
             {t === 'arcade' ? '🕹️ Arcade' : '📰 Feed'}
           </button>
         ))}
-        {isAdminUser && (
+        {tournamentAdmin && (
           <button
             type="button"
             onClick={() => setShowAdmin((v) => !v)}
@@ -178,7 +191,7 @@ export function GamingArena({ isAdminUser = false, feedSlot }: GamingArenaProps)
         )}
       </div>
 
-      {showAdmin && isAdminUser && (
+      {showAdmin && tournamentAdmin && (
         <div className="rounded-2xl border-2 border-red-200 bg-gradient-to-br from-red-50 to-orange-50 p-5 shadow-inner">
           <h3 className="text-lg font-black text-red-900">Admin — Create tournament</h3>
           <p className="mt-1 text-sm text-red-800">Pick a game. Everyone can play. Winner is revealed to admin only when you end the tournament.</p>

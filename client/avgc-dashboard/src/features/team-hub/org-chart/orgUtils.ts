@@ -98,6 +98,44 @@ export function allBranchIds(root: OrgTreeRoot): Set<string> {
   return ids;
 }
 
+/** Default admin org chart: show root through N management levels; collapse deeper branches. */
+export function computeCollapsedThroughManagementLevel(
+  root: OrgTreeRoot,
+  managementLevels: number
+): Set<string> {
+  const collapsed = new Set<string>();
+  if (managementLevels < 1) return collapsed;
+
+  const maxVisibleDepth = managementLevels - 1;
+
+  function walkPerson(node: OrgPerson, depth: number) {
+    if (node.children.length === 0) return;
+    if (depth >= maxVisibleDepth) {
+      collapsed.add(node.id);
+    }
+    for (const child of node.children) {
+      if (isCoparent(child)) {
+        walkCoparent(child, depth + 1);
+      } else {
+        walkPerson(child, depth + 1);
+      }
+    }
+  }
+
+  function walkCoparent(node: CoparentNode, depth: number) {
+    if (node.children.length === 0) return;
+    if (depth >= maxVisibleDepth) {
+      collapsed.add(node.id);
+    }
+    for (const child of node.children) {
+      walkPerson(child, depth + 1);
+    }
+  }
+
+  walkPerson(root, 0);
+  return collapsed;
+}
+
 /** Branch id used for expand/collapse when clicking a visible card. */
 export function getToggleBranchId(root: OrgTreeRoot, personId: string): string | null {
   if (root.id === personId && root.children.length > 0) return root.id;

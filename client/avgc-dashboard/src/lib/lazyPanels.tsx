@@ -24,6 +24,9 @@ export const LiveActivitiesPanel = lazy(() =>
 export const OrgTreePanel = lazy(() =>
   import('@/features/team-hub/OrgTreePanel').then((m) => ({ default: m.OrgTreePanel }))
 );
+export const EmployeeDirectoryPanel = lazy(() =>
+  import('@/views/EmployeeDirectoryPanel').then((m) => ({ default: m.EmployeeDirectoryPanel }))
+);
 export const LeaveApprovalPanel = lazy(() =>
   import('@/views/LeaveApprovalPanel').then((m) => ({ default: m.LeaveApprovalPanel }))
 );

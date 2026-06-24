@@ -8,7 +8,8 @@ const { logAudit } = require('../utils/audit');
 const { loadAdminPermissions, ALL_MODULES } = require('../utils/adminPermissions');
 const { generateEmployeeCode } = require('../utils/employeeCode');
 const { sendTemporaryPasswordEmail } = require('../utils/email');
-const { resetPasswordWithToken } = require('../utils/passwordReset');
+const { resetPasswordWithToken, resolveAccountByEmail } = require('../utils/passwordReset');
+const { passwordResetDeliveryEmail } = require('../utils/companyEmail');
 
 const router = express.Router();
 
@@ -21,7 +22,8 @@ const LOCK_MINUTES = 15;
 const TEMP_PASSWORD_LENGTH = 10;
 const TEMP_PASSWORD_HOURS = 24;
 const COOKIE_MAX_AGE = 8 * 60 * 60 * 1000;
-const GENERIC_FORGOT_MESSAGE = 'If the email is valid, password reset instructions have been sent.';
+const GENERIC_FORGOT_MESSAGE =
+  'If the email is valid, password reset instructions have been sent to your @avgcstudios.com inbox.';
 
 const loginAttemptsByIp = new Map();
 const forgotRequestsByEmail = new Map();
@@ -424,43 +426,62 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(429).json({ message: 'Too many reset requests. Try again later.' });
     }
 
-    const userRes = await pool.query(
-      `
-        SELECT id, name, email
-        FROM employees
-        WHERE lower(trim(email)) = $1
-        LIMIT 1
-      `,
-      [email]
-    );
-    const user = userRes.rows[0];
-    console.log('[ForgotPassword] User found:', !!user);
+    const account = await resolveAccountByEmail(email);
+    console.log('[ForgotPassword] Account found:', !!account);
 
-    if (user) {
+    if (account) {
       const tempPassword = generateTempPassword();
       console.log('[ForgotPassword] Temp password generated');
       const tempHash = await bcrypt.hash(tempPassword, 10);
       const expiry = new Date(Date.now() + TEMP_PASSWORD_HOURS * 60 * 60 * 1000);
+      const deliveryEmail = account.deliveryEmail || passwordResetDeliveryEmail(account.email);
 
-      await pool.query(
-        `
-          UPDATE employees
-          SET temp_password_hash = $2,
-              temp_password_expiry = $3,
-              force_password_change = TRUE,
-              mustchangepassword = TRUE,
-              failed_login_attempts = 0,
-              account_locked_until = NULL
-          WHERE id = $1
-        `,
-        [user.id, tempHash, expiry]
-      );
+      if (account.userType === 'admin') {
+        await pool.query(
+          `
+            UPDATE admins
+            SET passwordhash = $2,
+                mustchangepassword = TRUE
+            WHERE id = $1
+          `,
+          [account.userId, tempHash]
+        );
+        if (account.employeeId) {
+          await pool.query(
+            `
+              UPDATE employees
+              SET temp_password_hash = $2,
+                  temp_password_expiry = $3,
+                  force_password_change = TRUE,
+                  mustchangepassword = TRUE,
+                  failed_login_attempts = 0,
+                  account_locked_until = NULL
+              WHERE id = $1
+            `,
+            [account.employeeId, tempHash, expiry]
+          );
+        }
+      } else {
+        await pool.query(
+          `
+            UPDATE employees
+            SET temp_password_hash = $2,
+                temp_password_expiry = $3,
+                force_password_change = TRUE,
+                mustchangepassword = TRUE,
+                failed_login_attempts = 0,
+                account_locked_until = NULL
+            WHERE id = $1
+          `,
+          [account.userId, tempHash, expiry]
+        );
+      }
 
       try {
-        console.log('[ForgotPassword] Attempting to send email...');
+        console.log('[ForgotPassword] Attempting to send email to:', deliveryEmail);
         const result = await sendTemporaryPasswordEmail({
-          to: user.email,
-          firstName: firstName(user.name),
+          to: deliveryEmail,
+          firstName: firstName(account.name),
           tempPassword,
         });
         console.log('[ForgotPassword] Email send result:', result);
@@ -593,7 +614,7 @@ router.get('/me', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
       `
-        SELECT id, name, email, role, force_password_change, mustchangepassword
+        SELECT id, name, email, role, force_password_change, mustchangepassword, onboarding_completed
         FROM employees
         WHERE id = $1
         LIMIT 1
@@ -609,6 +630,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       email: user.email,
       role: user.role,
       force_password_change: Boolean(user.force_password_change || user.mustchangepassword),
+      onboardingCompleted: user.onboarding_completed === true,
     });
   } catch (err) {
     console.error('GET /auth/me:', err.message);

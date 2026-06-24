@@ -82,12 +82,15 @@ export function DashboardHome({ user, portalRole = 'employee', onNavigate, onPas
       const data = await api<{
         leaveBalance: LeaveBalanceRes | null;
         notifications: NotificationRow[];
+        unreadCount?: number;
         attendanceSummary: AttendanceSummary | null;
         managerSummary: ManagerDashboardSummary | null;
       }>('/api/dashboard/home');
 
       setLeaveBalance(data.leaveBalance);
       setNotifications(data.notifications || []);
+      const hrms = (window as { HRMS?: { setNotificationBadge?: (n: number) => void } }).HRMS;
+      hrms?.setNotificationBadge?.(data.unreadCount ?? data.notifications?.filter((n) => !n.isRead).length ?? 0);
       if (portalRole === 'manager' && data.managerSummary) {
         setManagerSummary(data.managerSummary);
         setSummary(data.managerSummary.todaysummary);
@@ -308,7 +311,20 @@ export function DashboardHome({ user, portalRole = 'employee', onNavigate, onPas
       </section>
 
       {isManager ? (
-        <ManagerTeamAttendanceWidget onNavigate={onNavigate} variant="footer" />
+        <ManagerTeamAttendanceWidget
+          onNavigate={onNavigate}
+          variant="footer"
+          summaryCounts={
+            managerSummary
+              ? {
+                  present:
+                    (managerSummary.todaysummary.present ?? 0) +
+                    (managerSummary.todaysummary.halfday ?? 0),
+                  onLeave: managerSummary.todaysummary.leave ?? 0,
+                }
+              : null
+          }
+        />
       ) : null}
     </div>
   );

@@ -11,9 +11,19 @@ type HolidayRow = {
 
 function typeLabel(type: string) {
   const t = (type || '').toLowerCase();
-  if (t === 'public') return 'Public';
+  if (t === 'national' || t === 'public') return 'National';
+  if (t === 'festival') return 'Festival';
   if (t === 'optional') return 'Optional';
-  return type || '—';
+  if (!type) return '—';
+  return type.charAt(0).toUpperCase() + type.slice(1);
+}
+
+function weekdayLabel(dateStr: string) {
+  const match = String(dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return '—';
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString(undefined, { weekday: 'long' });
 }
 
 export function HolidayCalendarPanel() {
@@ -52,9 +62,6 @@ export function HolidayCalendarPanel() {
               onChange={(e) => setYear(clampPortalYear(e.target.value))}
             />
           </label>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => load().catch(() => {})}>
-            Load
-          </button>
         </div>
       </div>
       <div className="holiday-calendar-table" style={{ marginTop: 16 }}>
@@ -62,6 +69,7 @@ export function HolidayCalendarPanel() {
           <thead>
             <tr>
               <th>Date</th>
+              <th>Day</th>
               <th>Holiday</th>
               <th>Type</th>
             </tr>
@@ -69,13 +77,13 @@ export function HolidayCalendarPanel() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={3} className="stat-sub">
+                <td colSpan={4} className="stat-sub">
                   Loading…
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={3} className="stat-sub">
+                <td colSpan={4} className="stat-sub">
                   No holidays found for this year.
                 </td>
               </tr>
@@ -83,10 +91,9 @@ export function HolidayCalendarPanel() {
               rows.map((h) => (
                 <tr key={`${h.date}-${h.holidayName}`}>
                   <td>{h.date}</td>
+                  <td>{weekdayLabel(h.date)}</td>
                   <td>{h.holidayName}</td>
-                  <td>
-                    <span className="badge">{typeLabel(h.type)}</span>
-                  </td>
+                  <td>{typeLabel(h.type)}</td>
                 </tr>
               ))
             )}

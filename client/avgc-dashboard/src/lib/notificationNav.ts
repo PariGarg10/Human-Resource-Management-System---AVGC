@@ -39,6 +39,7 @@ export function resolveNotificationNav(
   if (msg.includes('attendance')) return 'attendance';
 
   if (t.startsWith('exit_') || t === 'exit_initiated' || t === 'exit_completed') {
+    if (msg.includes('your exit')) return 'exit';
     if (r === 'manager') return 'exit-clearances';
     if (r === 'admin' || r === 'founder' || r === 'it_head') return 'exit-clearances';
     return 'exit';

@@ -10,7 +10,7 @@ function isIntern(row) {
 }
 
 function sortByName(a, b) {
-  return String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' });
+  return String(a?.name || '').localeCompare(String(b?.name || ''), undefined, { sensitivity: 'base' });
 }
 
 function normalizePersonName(name) {
@@ -39,6 +39,13 @@ function rootPriority(row) {
 }
 
 function pickRootRow(rows) {
+  const founderCeo = rows.find((row) => {
+    if (!isFounder(row)) return false;
+    const designation = String(row.designation || '').toLowerCase();
+    return designation.includes('founder') && designation.includes('ceo');
+  });
+  if (founderCeo) return founderCeo;
+
   const founderMatches = rows.filter((row) => isFounder(row));
   if (founderMatches.length > 0) {
     return founderMatches.sort((a, b) => rootPriority(b) - rootPriority(a) || a.id - b.id)[0];
@@ -87,123 +94,111 @@ function toOrgPerson(row, rootId) {
   };
 }
 
-function buildManagerTeam(managerRow, assigneeRows, byId, placed, rootId) {
-  const node = toOrgPerson(managerRow, rootId);
-  const teamLeads = assigneeRows.filter((row) => isTeamLeadDesignation(row.designation)).sort(sortByName);
-  const others = assigneeRows.filter((row) => !isTeamLeadDesignation(row.designation));
-  const claimed = new Set();
+function buildEmployeeToManagerMap(assignmentRows) {
+  const employeeToManager = new Map();
+  for (const link of assignmentRows || []) {
+    const managerId = Number(link.managerid);
+    const employeeId = Number(link.employeeid);
+    if (!Number.isFinite(managerId) || !Number.isFinite(employeeId)) continue;
+    employeeToManager.set(employeeId, managerId);
+  }
+  return employeeToManager;
+}
 
-  for (const leadRow of teamLeads) {
-    if (placed.has(leadRow.id)) continue;
-    placed.add(leadRow.id);
-    const leadNode = toOrgPerson(leadRow, rootId);
-    const reports = others
-      .filter((row) => row.reporting_to_id === leadRow.id)
-      .sort(sortByName);
-    for (const report of reports) {
-      if (placed.has(report.id)) continue;
-      placed.add(report.id);
-      claimed.add(report.id);
-      leadNode.children.push(toOrgPerson(report, rootId));
-    }
-    node.children.push(leadNode);
+function resolveParentId(row, rootId, employeeToManager, byId) {
+  if (!row || row.id === rootId) return null;
+
+  let parentId = employeeToManager.get(row.id);
+  if (parentId == null || parentId === row.id) {
+    parentId = row.reporting_to_id != null ? Number(row.reporting_to_id) : null;
+  }
+  if (!Number.isFinite(parentId) || parentId <= 0 || parentId === row.id) {
+    parentId = rootId;
+  }
+  if (!byId.has(parentId)) {
+    parentId = rootId;
+  }
+  return parentId;
+}
+
+function buildChildrenMap(rows, rootId, employeeToManager, byId) {
+  const childrenOf = new Map();
+  for (const row of rows) {
+    const parentId = resolveParentId(row, rootId, employeeToManager, byId);
+    if (parentId == null) continue;
+    if (!childrenOf.has(parentId)) childrenOf.set(parentId, []);
+    childrenOf.get(parentId).push(row.id);
+  }
+  for (const [, childIds] of childrenOf.entries()) {
+    childIds.sort((a, b) => sortByName(byId.get(a), byId.get(b)));
+  }
+  return childrenOf;
+}
+
+function buildNode(personId, rootId, byId, childrenOf, ancestry = new Set()) {
+  const row = byId.get(personId);
+  if (!row) return null;
+
+  const node = toOrgPerson(row, rootId);
+  if (ancestry.has(personId)) {
+    return node;
   }
 
-  for (const empRow of others.sort(sortByName)) {
-    if (placed.has(empRow.id) || claimed.has(empRow.id)) continue;
-    placed.add(empRow.id);
-    node.children.push(toOrgPerson(empRow, rootId));
-  }
-
+  const nextAncestry = new Set(ancestry);
+  nextAncestry.add(personId);
+  const childIds = childrenOf.get(personId) || [];
+  node.children = childIds.map((id) => buildNode(id, rootId, byId, childrenOf, nextAncestry)).filter(Boolean);
   return node;
+}
+
+function countTreePeople(node) {
+  if (!node) return 0;
+  let count = 1;
+  for (const child of node.children || []) {
+    count += countTreePeople(child);
+  }
+  return count;
 }
 
 /**
  * Build org chart tree from HRMS roles, manager assignments, and reporting_to_id.
+ * Every non-exited employee appears exactly once.
  */
+function collectPersonIds(node, ids = new Set()) {
+  if (!node) return ids;
+  if (node.type === 'coparent') {
+    for (const child of node.children || []) collectPersonIds(child, ids);
+    return ids;
+  }
+  const id = Number(node.employeeId ?? node.id);
+  if (Number.isFinite(id)) ids.add(id);
+  for (const child of node.children || []) collectPersonIds(child, ids);
+  return ids;
+}
+
 function buildOrgTree(employeeRows, assignmentRows) {
   const rows = employeeRows || [];
   if (!rows.length) return null;
 
   const byId = new Map(rows.map((row) => [row.id, row]));
-  const managerTeams = new Map();
-  for (const link of assignmentRows || []) {
-    const managerId = Number(link.managerid);
-    const employeeId = Number(link.employeeid);
-    if (!Number.isFinite(managerId) || !Number.isFinite(employeeId)) continue;
-    const list = managerTeams.get(managerId) || [];
-    list.push(employeeId);
-    managerTeams.set(managerId, list);
-  }
-
-  let rootRow = pickRootRow(rows);
-
+  const employeeToManager = buildEmployeeToManagerMap(assignmentRows);
+  const rootRow = pickRootRow(rows);
   const rootId = rootRow.id;
-  const root = toOrgPerson(rootRow, rootId);
+  const childrenOf = buildChildrenMap(rows, rootId, employeeToManager, byId);
+
   const placed = new Set([rootId]);
-
-  const topNodes = rows
-    .filter((row) => {
-      if (row.id === rootId || isDuplicateOfRoot(row, rootRow)) return false;
-      const reportsToRoot = !row.reporting_to_id || row.reporting_to_id === rootId;
-      if (!reportsToRoot) return false;
-      return isManagerRole(row.role) || isAdminRole(row.role) || isTeamLeadDesignation(row.designation);
-    })
-    .sort(sortByName);
-
-  for (const row of topNodes) {
-    if (placed.has(row.id)) continue;
-    placed.add(row.id);
-
-    const assigneeIds = managerTeams.get(row.id) || [];
-    const assigneeRows = assigneeIds.map((id) => byId.get(id)).filter(Boolean);
-
-    if (isManagerRole(row.role) || assigneeRows.length > 0) {
-      root.children.push(buildManagerTeam(row, assigneeRows, byId, placed, rootId));
-      continue;
-    }
-
-    root.children.push(toOrgPerson(row, rootId));
+  for (const row of rows) {
+    if (row.id === rootId) continue;
+    const parentId = resolveParentId(row, rootId, employeeToManager, byId);
+    if (parentId != null) placed.add(row.id);
+  }
+  for (const row of rows) {
+    if (row.id === rootId || placed.has(row.id)) continue;
+    if (!childrenOf.has(rootId)) childrenOf.set(rootId, []);
+    childrenOf.get(rootId).push(row.id);
   }
 
-  for (const [managerId, employeeIds] of managerTeams.entries()) {
-    if (placed.has(managerId)) continue;
-    const managerRow = byId.get(managerId);
-    if (!managerRow || !isManagerRole(managerRow.role) || isDuplicateOfRoot(managerRow, rootRow)) continue;
-    placed.add(managerId);
-    const assigneeRows = employeeIds.map((id) => byId.get(id)).filter(Boolean);
-    root.children.push(buildManagerTeam(managerRow, assigneeRows, byId, placed, rootId));
-  }
-
-  for (const row of rows.sort(sortByName)) {
-    if (placed.has(row.id) || isDuplicateOfRoot(row, rootRow)) continue;
-    const parentId = row.reporting_to_id;
-    if (!parentId || !byId.has(parentId)) continue;
-
-    function attachUnder(node, targetId, childNode) {
-      if (Number(node.employeeId) === targetId) {
-        node.children.push(childNode);
-        return true;
-      }
-      for (const child of node.children) {
-        if (attachUnder(child, targetId, childNode)) return true;
-      }
-      return false;
-    }
-
-    const childNode = toOrgPerson(row, rootId);
-    if (attachUnder(root, parentId, childNode)) {
-      placed.add(row.id);
-    }
-  }
-
-  for (const row of rows.sort(sortByName)) {
-    if (placed.has(row.id) || isDuplicateOfRoot(row, rootRow)) continue;
-    placed.add(row.id);
-    root.children.push(toOrgPerson(row, rootId));
-  }
-
-  return root;
+  return buildNode(rootId, rootId, byId, childrenOf, new Set());
 }
 
 function isCoparentNode(node) {
@@ -247,15 +242,15 @@ function getDirectReportIds(personId, rows, managerTeams) {
 }
 
 function getDirectManagerRow(viewer, rows, managerTeams) {
-  if (viewer.reporting_to_id) {
-    const manager = rows.find((row) => row.id === Number(viewer.reporting_to_id));
-    if (manager) return manager;
-  }
   for (const [managerId, employeeIds] of managerTeams.entries()) {
     if (employeeIds.includes(viewer.id)) {
       const manager = rows.find((row) => row.id === managerId);
       if (manager) return manager;
     }
+  }
+  if (viewer.reporting_to_id) {
+    const manager = rows.find((row) => row.id === Number(viewer.reporting_to_id));
+    if (manager) return manager;
   }
   return null;
 }
@@ -279,7 +274,6 @@ function buildPersonSubtree(row, rows, managerTeams, rootId, visiting = new Set(
 
 /**
  * Show only: direct manager (one up), self, and full subtree below self.
- * Uses reporting_to_id and manager assignment links. Hides peers and unrelated branches.
  */
 function scopeOrgTreeForViewer(fullTree, employeeRows, viewerEmployeeId, assignmentRows = []) {
   const viewerId = Number(viewerEmployeeId);
@@ -315,4 +309,7 @@ module.exports = {
   getDirectManagerRow,
   buildPersonSubtree,
   toOrgPerson,
+  countTreePeople,
+  collectPersonIds,
+  resolveParentId,
 };

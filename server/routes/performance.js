@@ -1350,6 +1350,80 @@ router.post('/admin/overrides', requirePortalAdmin, async (req, res) => {
   }
 });
 
+/** GET /api/performance/admin/analysis — org trends & rating distribution */
+router.get('/admin/analysis', requirePortalAdmin, async (req, res) => {
+  try {
+    const year = Number(req.query.year) || currentYear();
+    const { rows: empCountRows } = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM employees WHERE COALESCE(is_active, TRUE) = TRUE AND COALESCE(isregistered, TRUE) = TRUE`
+    );
+    const totalEmployees = empCountRows[0]?.total || 0;
+
+    const { rows: trendRows } = await pool.query(
+      `
+        SELECT quarter,
+          ROUND(AVG(admin_final_quarter_score) FILTER (WHERE status = 'LOCKED')::numeric, 1) AS avg_score,
+          COUNT(*) FILTER (WHERE status = 'LOCKED')::int AS completed_reviews
+        FROM performance_reviews
+        WHERE year = $1
+        GROUP BY quarter
+        ORDER BY quarter ASC
+      `,
+      [year]
+    );
+
+    const trendByQuarter = new Map(trendRows.map((r) => [Number(r.quarter), r]));
+    const quarterlyTrend = [1, 2, 3, 4].map((q) => {
+      const row = trendByQuarter.get(q);
+      const completed = row?.completed_reviews || 0;
+      return {
+        quarter: q,
+        label: `Q${q} ${year}`,
+        avgScore: row?.avg_score != null ? Number(row.avg_score) : null,
+        completedReviews: completed,
+        completionPercent: totalEmployees ? Math.round((completed / totalEmployees) * 100) : 0,
+      };
+    });
+
+    const { rows: ratingRows } = await pool.query(
+      `
+        SELECT admin_final_quarter_score, manager_overall_rating
+        FROM performance_reviews
+        WHERE year = $1 AND status = 'LOCKED'
+      `,
+      [year]
+    );
+
+    const ratingDistribution = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+    for (const row of ratingRows) {
+      let band = null;
+      if (row.manager_overall_rating != null) {
+        band = Math.round(Number(row.manager_overall_rating));
+      } else if (row.admin_final_quarter_score != null) {
+        const score = Number(row.admin_final_quarter_score);
+        if (score >= 90) band = 5;
+        else if (score >= 75) band = 4;
+        else if (score >= 60) band = 3;
+        else if (score >= 45) band = 2;
+        else band = 1;
+      }
+      if (band != null) {
+        const key = Math.min(5, Math.max(1, band));
+        ratingDistribution[key] = (ratingDistribution[key] || 0) + 1;
+      }
+    }
+
+    return res.json({
+      year,
+      totalEmployees,
+      quarterlyTrend,
+      ratingDistribution,
+    });
+  } catch (err) {
+    return handleErr(res, err);
+  }
+});
+
 /** Meta for all portals */
 router.get('/meta', async (_req, res) => {
   return res.json({ year: currentYear(), quarter: currentQuarter() });

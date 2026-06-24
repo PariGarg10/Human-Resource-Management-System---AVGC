@@ -2,7 +2,8 @@ const form = document.getElementById('forgotPasswordForm');
 const messageEl = document.getElementById('forgotMessage');
 const submitBtn = document.getElementById('forgotSubmitBtn');
 
-const SUCCESS_MSG = 'If this email exists, a reset link has been sent to your inbox';
+const SUCCESS_MSG =
+  'If this email exists, reset instructions have been sent to your @avgcstudios.com inbox';
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();

@@ -16,7 +16,6 @@ if (user.role !== 'admin' && !isFounderProfile(user)) {
 }
 
 HRMS.loadPortalUserIdentity(api).catch(() => HRMS.syncPortalUserIdentity(user, '—', '—'));
-document.getElementById('sidebarAvatar').textContent = (user.name || 'A').charAt(0).toUpperCase();
 document.getElementById('navProfileEmail').textContent = user.email || '';
 document.getElementById('dailyDate').value = new Date().toISOString().slice(0, 10);
 const attendanceImportDateEl = document.getElementById('attendanceImportDate');
@@ -149,13 +148,12 @@ async function loadUpcomingBirthdays() {
 
 async function loadAdminStats() {
   if (!document.getElementById('adminStatCards')) return;
-  const [empData, leaveData, hist] = await Promise.all([
-    api('/api/admin/employees'),
+  const [emps, leaveData, hist] = await Promise.all([
+    fetchAdminEmployees(),
     api('/api/admin/leaves?status=pending'),
-    api('/api/admin/import-history')
+    api('/api/admin/import-history'),
   ]);
   loadUpcomingBirthdays().catch(() => {});
-  const emps = empData.employees || [];
   const managers = emps.filter((e) => e.role === 'manager').length;
   const employees = emps.filter((e) => e.role === 'employee').length;
   const pending = (leaveData.leaves || []).length;
@@ -530,10 +528,12 @@ async function loadAdminReports(options = {}) {
 async function loadReportEmployeeFilter() {
   const select = document.getElementById('reportEmployeeFilter');
   if (!select) return;
-  const data = await api('/api/admin/employees');
-  select.innerHTML = '<option value="">All employees</option>' + (data.employees || [])
-    .map((emp) => `<option value="${emp.id}">${escapeHtml(emp.name)} (${escapeHtml(emp.employeecode || '—')})</option>`)
-    .join('');
+  const employees = await fetchAdminEmployees();
+  select.innerHTML =
+    '<option value="">All employees</option>' +
+    employees
+      .map((emp) => `<option value="${emp.id}">${escapeHtml(emp.name)} (${escapeHtml(emp.employeecode || '—')})</option>`)
+      .join('');
 }
 
 function selectedReportDef() {
@@ -577,6 +577,7 @@ async function removeEmployee(employeeId, employeeName) {
   if (!window.confirm(`Remove employee "${label}"? This cannot be undone.`)) return;
   await api(`/api/admin/employees/${employeeId}`, { method: 'DELETE' });
   HRMS.toast('Employee removed', 'success');
+  invalidateAdminEmployeesCache();
   await Promise.all([loadEmployees(), loadRoleManagement(), loadAdminStats()]);
   window.HRMS?.refreshTeamHubPanels?.();
 }
@@ -586,11 +587,31 @@ function portalRoleSelectValue(role) {
   return r === 'manager' || r === 'admin' || r === 'it_head' ? 'manager' : 'employee';
 }
 
+let adminEmployeesCache = null;
+let adminEmployeesCacheAt = 0;
+const ADMIN_EMPLOYEES_CACHE_MS = 60_000;
+
+function invalidateAdminEmployeesCache() {
+  adminEmployeesCache = null;
+  adminEmployeesCacheAt = 0;
+  leaveEntitlementEmployees = [];
+}
+
+async function fetchAdminEmployees(force = false) {
+  const now = Date.now();
+  if (!force && adminEmployeesCache && now - adminEmployeesCacheAt < ADMIN_EMPLOYEES_CACHE_MS) {
+    return adminEmployeesCache;
+  }
+  const data = await api('/api/admin/employees');
+  adminEmployeesCache = data.employees || [];
+  adminEmployeesCacheAt = now;
+  return adminEmployeesCache;
+}
+
 async function loadEmployees() {
   const body = document.getElementById('employeesBody');
   if (!body) return;
-  const data = await api('/api/admin/employees');
-  const employees = data.employees || [];
+  const employees = await fetchAdminEmployees();
   body.innerHTML = employees.length
     ? employees
         .map((emp) => {
@@ -642,6 +663,7 @@ async function loadEmployees() {
           body: JSON.stringify({ designation: input.value.trim() || null }),
         });
         HRMS.toast('Designation updated', 'success');
+        invalidateAdminEmployeesCache();
         await Promise.all([loadEmployees(), loadRoleManagement()]);
       } catch (e) {
         HRMS.toast(e.message || 'Could not update designation', 'error');
@@ -660,6 +682,7 @@ async function loadEmployees() {
           body: JSON.stringify({ role: select.value }),
         });
         HRMS.toast('Role updated', 'success');
+        invalidateAdminEmployeesCache();
         await loadEmployees();
         await loadRoleManagement();
       } catch (e) {
@@ -696,8 +719,8 @@ async function loadRoleManagement() {
   const msg = document.getElementById('rolesMessage');
   if (msg) msg.textContent = '';
   try {
-    const data = await api('/api/admin/employees');
-    const employees = data.employees || [];
+    const data = await fetchAdminEmployees();
+    const employees = data;
     body.innerHTML = employees.length
       ? employees
           .map(
@@ -796,6 +819,7 @@ document.getElementById('addEmployeeForm').addEventListener('submit', async (e) 
     });
     HRMS.toast('Employee saved', 'success');
     e.target.reset();
+    invalidateAdminEmployeesCache();
     await loadEmployees();
     await loadAdminStats();
   } catch (error) {
@@ -1302,8 +1326,7 @@ function periodLabel(period) {
 async function ensureLeaveEntitlementEmployeeOptions() {
   const select = document.getElementById('leaveEntitlementEmployee');
   if (!select || leaveEntitlementEmployees.length) return;
-  const data = await api('/api/admin/employees');
-  leaveEntitlementEmployees = data.employees || [];
+  leaveEntitlementEmployees = await fetchAdminEmployees();
   const current = select.value;
   select.innerHTML =
     '<option value="">Everyone (organization)</option>' +
@@ -1782,7 +1805,6 @@ async function loadAdminProfileFromServer() {
       avatar_url: profile.profilePhotoUrl || prev.avatar_url,
     };
     localStorage.setItem('employee', JSON.stringify(merged));
-    await HRMS.loadPortalUserIdentity(api);
     const chip = document.querySelector('.profile-chip');
     if (chip) chip.setAttribute('title', profile.email || '');
     const navLabel = document.getElementById('navProfileEmail');
@@ -1790,8 +1812,6 @@ async function loadAdminProfileFromServer() {
     if (profile.profilePhotoUrl) {
       HRMS.updateAvatarEverywhere(profile.profilePhotoUrl, profile.name);
     } else {
-      const side = document.getElementById('sidebarAvatar');
-      if (side) side.textContent = (profile.name || 'A').charAt(0).toUpperCase();
       document.getElementById('navAvatar')?.classList.add('hidden');
     }
   } catch (_e) {}
@@ -1799,7 +1819,7 @@ async function loadAdminProfileFromServer() {
 
 async function refreshBirthdayBanner() {
   try {
-    const data = await api('/api/notifications');
+    const data = await api('/api/notifications?includeBirthdays=1');
     const list = data.birthdaysToday || [];
     const el = document.getElementById('birthdayBanner');
     const txt = document.getElementById('birthdayBannerText');
@@ -1828,9 +1848,6 @@ function employeeImportFormData(file) {
     formData.append('onDuplicate', 'update');
   } else {
     formData.append('onDuplicate', 'skip');
-  }
-  if (document.getElementById('employeeImportAutoCode')?.checked) {
-    formData.append('autoCode', 'true');
   }
   return formData;
 }
@@ -1951,14 +1968,15 @@ function downloadSampleExcel(filename, headers, rows) {
 
 document.getElementById('employeeSampleBtn')?.addEventListener('click', (e) => {
   e.stopPropagation();
-  const headers = ['Name', 'Email', 'Employee Code', 'Role', 'Department'];
+  const headers = ['Name', 'Email', 'Password', 'Designation', 'Date of joining', 'Portal role'];
   downloadSampleExcel('employee-import-sample.xls', headers, [
     {
       Name: 'Amit Sharma',
-      Email: 'amit.sharma@example.com',
-      'Employee Code': 'EMP001',
-      Role: 'employee',
-      Department: 'Operations',
+      Email: 'amit.sharma@avgcstudios.com',
+      Password: 'Welcome@123',
+      Designation: 'Software Engineer',
+      'Date of joining': '01/04/2026',
+      'Portal role': 'employee',
     },
   ]);
 });
@@ -2050,8 +2068,9 @@ document.getElementById('employeePreviewBtn')?.addEventListener('click', async (
             <td>${escapeHtml(row.status)}${row.issues ? ` — ${escapeHtml(row.issues)}` : ''}</td>
             <td>${escapeHtml(row.name)}</td>
             <td>${escapeHtml(row.email)}</td>
+            <td>${escapeHtml(row.designation || '—')}</td>
+            <td>${escapeHtml(row.dateOfJoining || '—')}</td>
             <td>${escapeHtml(row.role)}</td>
-            <td>${escapeHtml(row.employeecode)}</td>
           </tr>`)
         .join('');
     }
@@ -2106,6 +2125,7 @@ document.getElementById('employeeImportBtn')?.addEventListener('click', async ()
     fileInput.value = '';
     const fileName = document.getElementById('employeeImportFileName');
     if (fileName) fileName.textContent = 'No file selected.';
+    invalidateAdminEmployeesCache();
     await loadEmployees();
     await loadAdminStats();
   } catch (error) {
@@ -2292,6 +2312,14 @@ function escapeHolAttr(s) {
     .replace(/"/g, '&quot;');
 }
 
+function holidayWeekday(dateStr) {
+  const match = String(dateStr || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return '—';
+  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+  if (Number.isNaN(date.getTime())) return '—';
+  return date.toLocaleDateString(undefined, { weekday: 'long' });
+}
+
 function clearHolidayForm() {
   const idEl = document.getElementById('holEditId');
   if (idEl) idEl.value = '';
@@ -2323,6 +2351,7 @@ async function loadHolidayAdminList() {
         (h) =>
           `<tr>
         <td>${escapeHolAttr(h.date)}</td>
+        <td>${escapeHolAttr(holidayWeekday(h.date))}</td>
         <td>${escapeHolAttr(h.holidayName)}</td>
         <td>${escapeHolAttr(h.type)}</td>
         <td>
@@ -2406,7 +2435,7 @@ function initHolidayAdminPanel() {
         if (summary) summary.textContent = `${result.totalrows} row(s) found. Showing up to 100 rows.`;
         if (body) {
           body.innerHTML = (result.preview || [])
-            .map((row) => `<tr><td>${escapeHolAttr(row.holidayName)}</td><td>${escapeHolAttr(row.date || 'Invalid date')}</td><td>${escapeHolAttr(row.type)}</td></tr>`)
+            .map((row) => `<tr><td>${escapeHolAttr(row.holidayName)}</td><td>${escapeHolAttr(row.date || 'Invalid date')}</td><td>${escapeHolAttr(holidayWeekday(row.date))}</td><td>${escapeHolAttr(row.type)}</td></tr>`)
             .join('');
         }
         preview?.classList.remove('hidden');
@@ -2551,10 +2580,13 @@ function mountTeamHubWhenReady(section) {
     dashboard: () => window.HRMS?.mountPortalDashboard?.('#adminDashboardReactRoot'),
     teams: () => window.HRMS?.mountTeamHubOrgTree?.('#teamHubOrgTreeRoot'),
     'holiday-calendar': () => window.HRMS?.mountHolidayCalendar?.('#adminPublicHolidayRoot'),
+    'employee-directory': () => window.HRMS?.mountEmployeeDirectory?.('#adminEmployeeDirectoryRoot'),
     calendar: () => window.HRMS?.mountAttendanceCalendar?.('#adminCalendarRoot'),
     'leave-apply': () => window.HRMS?.mountLeaveApply?.('#adminLeaveApplyRoot'),
     'company-social': () => window.HRMS?.mountSocialPortal?.('#adminSocialPortalRoot'),
     profile: () => window.HRMS?.mountAdminProfile?.('#adminProfileReactRoot'),
+    settings: () => window.HRMS?.mountAdminSettings?.('#adminSettingsReactRoot'),
+    exit: () => window.HRMS?.mountAdminMyExit?.('#adminMyExitRoot'),
     'exit-clearances': () => window.HRMS?.mountAdminExitClearances?.('#adminExitClearancesRoot'),
     onboarding: () => window.HRMS?.mountAdminOnboarding?.('#adminOnboardingRoot'),
     performance: () => window.HRMS?.mountAdminPerformance?.('#adminPerformanceRoot'),
@@ -2566,10 +2598,13 @@ function mountTeamHubWhenReady(section) {
       (section === 'dashboard' && window.HRMS?.mountPortalDashboard) ||
       (section === 'teams' && window.HRMS?.mountTeamHubOrgTree) ||
       (section === 'holiday-calendar' && window.HRMS?.mountHolidayCalendar) ||
+      (section === 'employee-directory' && window.HRMS?.mountEmployeeDirectory) ||
       (section === 'calendar' && window.HRMS?.mountAttendanceCalendar) ||
       (section === 'leave-apply' && window.HRMS?.mountLeaveApply) ||
       (section === 'company-social' && window.HRMS?.mountSocialPortal) ||
       (section === 'profile' && window.HRMS?.mountAdminProfile) ||
+      (section === 'settings' && window.HRMS?.mountAdminSettings) ||
+      (section === 'exit' && window.HRMS?.mountAdminMyExit) ||
       (section === 'exit-clearances' && window.HRMS?.mountAdminExitClearances) ||
       (section === 'onboarding' && window.HRMS?.mountAdminOnboarding) ||
       (section === 'performance' && window.HRMS?.mountAdminPerformance);
@@ -2629,16 +2664,26 @@ HRMS.initSidebar({
       window.HRMS.initManageAdmins(api);
     }
     mountTeamHubWhenReady(section);
+    if (section === 'employees') {
+      loadEmployees().catch((e) => HRMS.toast(e.message, 'error'));
+      if (window.HRMS.initExitAdmin) window.HRMS.initExitAdmin(api);
+    }
     if (section === 'system') {
       initSaturdayAdminPanel();
       initHolidayAdminPanel();
       if (window.HRMS.initPolicyChatAdmin) window.HRMS.initPolicyChatAdmin(api);
     }
-    if (section === 'employees' && window.HRMS.initExitAdmin) {
-      window.HRMS.initExitAdmin(api);
-    }
     if (section === 'roles') {
       loadRoleManagement().catch((e) => HRMS.toast(e.message, 'error'));
+    }
+    if (section === 'attendance') {
+      loadAdminDailyAttendance().catch((e) => HRMS.toast(e.message, 'error'));
+    }
+    if (section === 'import-employees') {
+      loadImportHistory().catch((e) => HRMS.toast(e.message, 'error'));
+    }
+    if (section === 'leaves') {
+      loadAdminLeaves().catch((e) => HRMS.toast(e.message, 'error'));
     }
     if (section === 'leave-entitlements') {
       loadLeaveEntitlements().catch((e) => HRMS.toast(e.message, 'error'));
@@ -2734,22 +2779,11 @@ async function initAdminRbac() {
 
 function scheduleDataLoads() {
   const M = PERMS?.MODULE || {};
-  const tasks = [];
   if (!PERMS || hasPerm(M.DASHBOARD_OVERVIEW)) {
     mountTeamHubWhenReady('dashboard');
     refreshBirthdayBanner().catch(() => {});
   }
-  if (!PERMS || hasPerm(M.EMPLOYEE_MANAGEMENT)) tasks.push(loadEmployees());
-  if (!PERMS || hasPerm(M.ROLE_MANAGEMENT)) tasks.push(loadRoleManagement());
-  /* Reports load on demand when opening Reports or clicking Generate — not on every page load */
-  if (!PERMS || hasPerm(M.ATTENDANCE)) tasks.push(loadAdminDailyAttendance());
-  if (!PERMS || hasPerm(M.IMPORT_DATA)) tasks.push(loadImportHistory());
-  if (!PERMS || hasPerm(M.LEAVE_MANAGEMENT)) {
-    tasks.push(loadAdminLeaves(), loadLeaveEntitlements());
-  }
   loadAdminProfileFromServer().catch(() => {});
-  if (window.HRMS.initExitAdmin) window.HRMS.initExitAdmin(api);
-  Promise.all(tasks).catch(console.error);
 }
 
 initAdminRbac()

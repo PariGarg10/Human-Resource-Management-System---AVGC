@@ -61,12 +61,6 @@ export function usePortalShell(
     const photo = user.profilePhotoUrl;
     if (photo && HRMS?.applyProfilePhotoToDom) {
       HRMS.applyProfilePhotoToDom(photo, user.name || '');
-    } else {
-      const side = document.getElementById('sidebarAvatar');
-      if (side && !photo) {
-        side.innerHTML = '';
-        side.textContent = (user.name || user.email || 'E').charAt(0).toUpperCase();
-      }
     }
   }, [user]);
 
@@ -90,6 +84,10 @@ export function usePortalShell(
   useEffect(() => {
     document.querySelectorAll('.sidebar-nav [data-nav]').forEach((btn) => {
       const id = btn.getAttribute('data-nav');
+      btn.classList.toggle('is-active', id === activeNav);
+    });
+    document.querySelectorAll('[data-profile-nav]').forEach((btn) => {
+      const id = btn.getAttribute('data-profile-nav');
       btn.classList.toggle('is-active', id === activeNav);
     });
     const activeBtn = document.querySelector(`.sidebar-nav [data-nav="${activeNav}"]`);

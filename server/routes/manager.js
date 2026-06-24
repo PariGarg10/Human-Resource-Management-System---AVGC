@@ -3,6 +3,7 @@ const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange, requireRoles } = require('../middleware/auth');
 const { getEffectiveAttendanceStatus } = require('../utils/attendanceView');
 const { isHolidayDate } = require('../utils/holidaysRange');
+const { approvedLeaveEmployeeIdsForDate } = require('../utils/attendanceLeaveLookup');
 const { PRESENT_MIN_HOURS, HALFDAY_MIN_HOURS } = require('../utils/attendance');
 
 const router = express.Router();
@@ -49,27 +50,20 @@ router.get('/attendance/daily', async (req, res) => {
     );
 
     const holiday = await isHolidayDate(date);
-    const mapped = [];
-    for (const row of recordsResult.rows) {
-      const leaveResult = await pool.query(
-        `
-        SELECT 1 FROM leaves
-        WHERE employeeid = $1 AND status = 'approved' AND $2::date BETWEEN fromdate AND todate
-        LIMIT 1
-      `,
-        [row.employeeid, date]
-      );
-      mapped.push({
-        ...row,
-        status: holiday
-          ? 'holiday'
-          : getEffectiveAttendanceStatus({
-              totalhours: row.totalhours,
-              status: row.status,
-              hasApprovedLeave: leaveResult.rows.length > 0,
-            }),
-      });
-    }
+    const onLeaveIds = await approvedLeaveEmployeeIdsForDate(
+      recordsResult.rows.map((r) => r.employeeid),
+      date
+    );
+    const mapped = recordsResult.rows.map((row) => ({
+      ...row,
+      status: holiday
+        ? 'holiday'
+        : getEffectiveAttendanceStatus({
+            totalhours: row.totalhours,
+            status: row.status,
+            hasApprovedLeave: onLeaveIds.has(row.employeeid),
+          }),
+    }));
 
     return res.json({ date, records: mapped });
   } catch (err) {
@@ -148,24 +142,20 @@ router.get('/dashboard-summary', async (req, res) => {
     let absent = 0;
     let holidays = 0;
     const holiday = await isHolidayDate(date);
+    const onLeaveIds = await approvedLeaveEmployeeIdsForDate(
+      team.map((r) => r.employeeid),
+      date
+    );
 
     for (const row of team) {
       if (holiday) {
         holidays += 1;
         continue;
       }
-      const leaveExistsResult = await pool.query(
-        `
-        SELECT 1 FROM leaves
-        WHERE employeeid = $1 AND status = 'approved' AND $2::date BETWEEN fromdate AND todate
-        LIMIT 1
-      `,
-        [row.employeeid, date]
-      );
       const status = getEffectiveAttendanceStatus({
         totalhours: row.totalhours,
         status: row.status,
-        hasApprovedLeave: leaveExistsResult.rows.length > 0,
+        hasApprovedLeave: onLeaveIds.has(row.employeeid),
       });
       if (status === 'present') present += 1;
       else if (status === 'halfday') halfday += 1;

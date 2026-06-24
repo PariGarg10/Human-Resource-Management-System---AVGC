@@ -66,7 +66,7 @@ router.get('/', async (_req, res) => {
 
 router.post('/', async (req, res) => {
   try {
-    const { name, email, password, designation, department, permissions } = req.body;
+    const { name, email, password, designation, department, permissions, employeecode, dateOfJoining } = req.body;
     if (!name || !email || !password) {
       return res.status(400).json({ message: 'Name, email, and password are required' });
     }
@@ -76,15 +76,46 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ message: 'An admin with this email already exists' });
     }
 
+    let code = String(employeecode || '')
+      .trim()
+      .toUpperCase();
+    if (!code) {
+      code = await generateEmployeeCode();
+    } else if (!/^[A-Z0-9_-]+$/.test(code)) {
+      return res.status(400).json({
+        message: 'Employee code may only contain letters, numbers, hyphen, and underscore',
+      });
+    }
+
+    const designationValue = designation != null ? String(designation).trim() || null : null;
+    const dateOfJoiningRaw = dateOfJoining ?? req.body?.date_of_joining;
+    const dateOfJoiningValue =
+      dateOfJoiningRaw != null && String(dateOfJoiningRaw).trim()
+        ? String(dateOfJoiningRaw).trim().slice(0, 10)
+        : null;
+    if (dateOfJoiningValue && !/^\d{4}-\d{2}-\d{2}$/.test(dateOfJoiningValue)) {
+      return res.status(400).json({ message: 'dateOfJoining must be YYYY-MM-DD' });
+    }
+
+    const codeTaken = await pool.query(
+      'SELECT id FROM employees WHERE upper(trim(employeecode)) = upper($1) LIMIT 1',
+      [code]
+    );
+    if (codeTaken.rows[0]) {
+      return res.status(409).json({ message: 'Employee code already in use' });
+    }
+
     const passwordhash = bcrypt.hashSync(String(password), 10);
-    const employeecode = await generateEmployeeCode();
     const empInsert = await pool.query(
       `
-        INSERT INTO employees (employeecode, name, email, passwordhash, department, role, isregistered, mustchangepassword)
-        VALUES ($1, $2, $3, $4, $5, 'admin', TRUE, FALSE)
+        INSERT INTO employees (
+          employeecode, name, email, passwordhash, department, designation, date_of_joining,
+          role, isregistered, mustchangepassword
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, COALESCE($7::date, CURRENT_DATE), 'admin', TRUE, FALSE)
         RETURNING id
       `,
-      [employeecode, name, email, passwordhash, department || null]
+      [code, name, email, passwordhash, department || null, designationValue, dateOfJoiningValue]
     );
     const employeeId = empInsert.rows[0].id;
 

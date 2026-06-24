@@ -24,7 +24,7 @@ const EMPLOYEE_CATEGORY_LABELS: Record<string, string> = {
   pan: 'PAN card',
   education: 'Educational certificates',
   work_experience: 'Work experience',
-  cancelled_cheque: 'Cancelled cheque',
+  cancelled_cheque: 'Cancelled cheque/ Passbook',
 };
 
 async function openDocument(id: number) {
@@ -138,7 +138,7 @@ export function EmployeeDocumentsSection() {
           onChange={onUpload}
           disabled={uploading}
         />
-        <small>PDF, JPG, PNG, DOC, or DOCX</small>
+        <small>PDF, JPG, PNG, DOC, or DOCX. Aadhar, PAN, and Cancelled cheque/ Passbook are required for onboarding.</small>
       </label>
 
       <div className="profile-docs-panel">

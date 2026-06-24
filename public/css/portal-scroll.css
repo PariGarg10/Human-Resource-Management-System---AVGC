@@ -60,12 +60,13 @@ body:has(#root .app-main) {
 .content-area:has(> .view-section.import-attendance-viewport.is-active),
 .content-area:has(> .view-section.reports-viewport.is-active),
 .content-area:has(> .view-section.social-portal-viewport.is-active),
-.content-area:has(> .view-section.live-activity-viewport.is-active) {
+.content-area:has(> .view-section.live-activity-viewport.is-active),
+.content-area:has(> .view-section.employee-directory-viewport.is-active) {
   overflow: hidden;
 }
 
 /* Scrollable admin / portal sections */
-.view-section.is-active:not(.org-teams-viewport):not(.attendance-calendar-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport):not(.employee-documents-viewport):not(.manager-assignment-viewport):not(.asset-management-viewport):not(.import-attendance-viewport):not(.reports-viewport):not(.social-portal-viewport):not(.live-activity-viewport):not(.profile-viewport) {
+.view-section.is-active:not(.org-teams-viewport):not(.attendance-calendar-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport):not(.employee-documents-viewport):not(.manager-assignment-viewport):not(.asset-management-viewport):not(.import-attendance-viewport):not(.reports-viewport):not(.social-portal-viewport):not(.live-activity-viewport):not(.profile-viewport):not(.employee-directory-viewport) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -84,12 +85,22 @@ body:has(#root .app-main) {
 .view-section.reports-viewport.is-active,
 .view-section.social-portal-viewport.is-active,
 .view-section.live-activity-viewport.is-active,
-.view-section.profile-viewport.is-active {
+.view-section.profile-viewport.is-active,
+.view-section.employee-directory-viewport.is-active {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+}
+
+#adminEmployeeDirectoryRoot {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f3f4f6;
 }
 
 #adminDashboardReactRoot {
@@ -132,7 +143,8 @@ body:has(#root .app-main) {
 .holiday-calendar-table .data-table thead th,
 .holiday-calendar-table .data-table tbody td {
   padding: 8px 12px;
-  white-space: normal;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .panel--fit {
@@ -168,7 +180,10 @@ body:has(#root .app-main) {
   flex: 1 1 auto;
   min-height: 0;
   gap: 12px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
 .live-activity-layout {
@@ -221,10 +236,38 @@ body:has(#root .app-main) {
 
 .panel--ma-quick,
 .panel--ma-bulk,
+.panel--ma-import,
 .panel--asset-form,
 .panel--asset-allocate,
 .panel--import-form {
   flex-shrink: 0;
+}
+
+.panel--ma-import {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ma-import-preview {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ma-import-preview-scroll {
+  max-height: min(40vh, 360px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.panel--ma-mapping,
+.panel--import-history {
+  flex-shrink: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel--live-links,
@@ -290,15 +333,7 @@ body:has(#root .app-main) {
   min-height: 0;
 }
 
-.panel--ma-mapping,
-.panel--import-history {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
+.panel--live-links,
 .panel--asset-inventory,
 .panel--asset-allocations {
   min-height: 0;
@@ -313,15 +348,23 @@ body:has(#root .app-main) {
 .panel--asset-inventory .asset-table-scroll,
 .panel--asset-allocations .asset-table-scroll,
 .panel--import-history .table-wrap--scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
+  flex: 0 1 auto;
+  min-height: 120px;
+  max-height: min(48vh, 480px);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 .app-main:has(.asset-management-viewport.is-active) .content-area {
   padding-top: 16px;
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 16px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app-main:has(.manager-assignment-viewport.is-active) .content-area {
   padding-bottom: calc(56px + env(safe-area-inset-bottom, 16px));
   overflow: hidden;
   display: flex;

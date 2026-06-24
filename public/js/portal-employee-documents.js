@@ -8,6 +8,7 @@
     { value: 'payslip', label: 'Pay slip' },
     { value: 'form_16', label: 'Form 16' },
     { value: 'appraisal_letter', label: 'Appraisal letter' },
+    { value: 'others', label: 'Others' },
   ];
 
   function esc(s) {

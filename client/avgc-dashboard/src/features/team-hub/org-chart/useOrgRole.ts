@@ -9,14 +9,25 @@ export type OrgRoleInfo = {
   isManager: boolean;
   userId: number | null;
   canToggleFullView: boolean;
+  onboardingIncomplete: boolean;
   ready: boolean;
 };
 
-function parseEmployeeFromStorage(): { id?: number; role?: string; name?: string } | null {
+function parseEmployeeFromStorage(): {
+  id?: number;
+  role?: string;
+  name?: string;
+  onboardingCompleted?: boolean;
+} | null {
   try {
     const raw = localStorage.getItem('employee');
     if (!raw) return null;
-    return JSON.parse(raw) as { id?: number; role?: string; name?: string };
+    return JSON.parse(raw) as {
+      id?: number;
+      role?: string;
+      name?: string;
+      onboardingCompleted?: boolean;
+    };
   } catch {
     return null;
   }
@@ -29,9 +40,28 @@ function isPortalAdmin(role: string, name?: string): boolean {
   return false;
 }
 
-function resolveRoleInfo(source: { id?: number; role?: string; name?: string } | null): OrgRoleInfo {
+function resolveOnboardingIncomplete(source: { role?: string; onboardingCompleted?: boolean } | null): boolean {
+  if (!source) return false;
+  const role = String(source.role || '').toLowerCase().trim();
+  if (role !== 'employee') return false;
+  return source.onboardingCompleted !== true;
+}
+
+function resolveRoleInfo(source: {
+  id?: number;
+  role?: string;
+  name?: string;
+  onboardingCompleted?: boolean;
+} | null): OrgRoleInfo {
   if (!source) {
-    return { isAdmin: false, isManager: false, userId: null, canToggleFullView: false, ready: true };
+    return {
+      isAdmin: false,
+      isManager: false,
+      userId: null,
+      canToggleFullView: false,
+      onboardingIncomplete: false,
+      ready: true,
+    };
   }
 
   const role = String(source.role || '').toLowerCase().trim();
@@ -45,6 +75,7 @@ function resolveRoleInfo(source: { id?: number; role?: string; name?: string } |
     isManager,
     userId,
     canToggleFullView: isManager && !isAdmin,
+    onboardingIncomplete: resolveOnboardingIncomplete(source),
     ready: true,
   };
 }
@@ -65,9 +96,21 @@ export function useOrgRole(): OrgRoleInfo {
 
     const load = async () => {
       try {
-        const me = await api<{ id: number; name: string; role: string }>('/api/auth/me');
+        const me = await api<{
+          id: number;
+          name: string;
+          role: string;
+          onboardingCompleted?: boolean;
+        }>('/api/auth/me');
         if (!cancelled) {
-          setInfo(resolveRoleInfo({ id: me.id, name: me.name, role: me.role }));
+          setInfo(
+            resolveRoleInfo({
+              id: me.id,
+              name: me.name,
+              role: me.role,
+              onboardingCompleted: me.onboardingCompleted,
+            })
+          );
         }
       } catch {
         syncFromStorage();
@@ -76,9 +119,11 @@ export function useOrgRole(): OrgRoleInfo {
 
     void load();
     window.addEventListener('storage', syncFromStorage);
+    window.addEventListener('hrms:employee-updated', syncFromStorage);
     return () => {
       cancelled = true;
       window.removeEventListener('storage', syncFromStorage);
+      window.removeEventListener('hrms:employee-updated', syncFromStorage);
     };
   }, []);
 

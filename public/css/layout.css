@@ -101,6 +101,16 @@ body.has-floating-sidebar.sidebar-collapsed .app-main {
   flex-direction: column;
 }
 
+.view-section.employee-directory-viewport.is-active {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  flex-direction: column;
+  background: #f3f4f6;
+}
+
 .app-main:has(.org-teams-viewport.is-active),
 .app-main:has(.view-section.org-teams-viewport.is-active) {
   display: flex;
@@ -110,15 +120,32 @@ body.has-floating-sidebar.sidebar-collapsed .app-main {
   overflow: hidden;
 }
 
+.app-main:has(.employee-directory-viewport.is-active),
+.app-main:has(.view-section.employee-directory-viewport.is-active) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+
 .app-main:has(.org-teams-viewport.is-active) .content-area,
 .app-main:has(.view-section.org-teams-viewport.is-active) .content-area,
 .app-main:has(.attendance-calendar-viewport.is-active) .content-area,
-.app-main:has(.view-section.attendance-calendar-viewport.is-active) .content-area {
+.app-main:has(.view-section.attendance-calendar-viewport.is-active) .content-area,
+.app-main:has(.employee-directory-viewport.is-active) .content-area,
+.app-main:has(.view-section.employee-directory-viewport.is-active) .content-area {
   overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
   max-width: none;
+}
+
+.app-main:has(.employee-directory-viewport.is-active) .content-area,
+.app-main:has(.view-section.employee-directory-viewport.is-active) .content-area {
+  background: #f3f4f6;
 }
 
 .view-section.attendance-calendar-viewport .attendance-calendar-panel {

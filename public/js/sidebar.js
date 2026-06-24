@@ -258,6 +258,30 @@ HRMS.initSidebar = function initSidebar(options = {}) {
       if (navCb) navCb(section);
   }
 
+  HRMS.navigatePortalSection = function navigatePortalSection(section, label) {
+    if (!section) return;
+    const navBtn = document.querySelector(`.sidebar-nav [data-nav="${section}"]`);
+    if (navBtn) {
+      activateNavSection(navBtn);
+      return;
+    }
+    if (typeof options.canNavigate === 'function' && !options.canNavigate(section)) {
+      if (typeof options.onBlocked === 'function') options.onBlocked(section);
+      closeMobile();
+      return;
+    }
+    document.querySelectorAll('.sidebar-nav [data-nav]').forEach((b) => b.classList.remove('is-active'));
+    document.querySelectorAll('[data-profile-nav]').forEach((b) => {
+      b.classList.toggle('is-active', b.getAttribute('data-profile-nav') === section);
+    });
+    setActiveViewSection(section);
+    const bc = document.getElementById('breadcrumbCurrent');
+    if (bc) bc.textContent = label || section;
+    closeMobile();
+    const navCb = HRMS._sidebarOnNavigate || options.onNavigate;
+    if (navCb) navCb(section);
+  };
+
   document.querySelectorAll('.sidebar-nav [data-nav]').forEach((btn) => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();

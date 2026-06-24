@@ -59,25 +59,16 @@
 }
 
 .sidebar-profile {
+  display: none;
   padding: 10px 8px;
-  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0;
+  justify-content: flex-start;
+  gap: 12px;
   border-bottom: 1px solid var(--sidebar-border);
 }
 
 .sidebar-avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: var(--sidebar-active);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 15px;
-  color: #fff;
+  display: none;
 }
 
 .sidebar-user-meta {
@@ -522,6 +513,7 @@ body.mobile-sidebar-open .sidebar-overlay {
 
   .sidebar-brand,
   .sidebar-profile {
+    display: flex;
     justify-content: flex-start;
     gap: 12px;
     padding: 16px 18px;

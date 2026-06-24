@@ -30,6 +30,7 @@ const {
 } = require('../utils/exitHelpers');
 
 const router = express.Router();
+const SELF_EXIT_ROLES = ['employee', 'manager', 'admin', 'founder', 'it_head'];
 router.use(authMiddleware);
 router.use(enforceForcePasswordChange);
 router.use(async (_req, _res, next) => {
@@ -94,7 +95,7 @@ async function tryMarkLettersReady(exitRequestId) {
 }
 
 /** GET /api/exit/my */
-router.get('/my', requireRoles('employee', 'manager'), async (req, res) => {
+router.get('/my', requireRoles(...SELF_EXIT_ROLES), async (req, res) => {
   try {
     const bundle = await loadExitBundle(req.user.id);
     if (!bundle) return res.json({ request: null });
@@ -106,7 +107,7 @@ router.get('/my', requireRoles('employee', 'manager'), async (req, res) => {
 });
 
 /** POST /api/exit/request — employee submits exit request */
-router.post('/request', requireRoles('employee', 'manager'), async (req, res) => {
+router.post('/request', requireRoles(...SELF_EXIT_ROLES), async (req, res) => {
   try {
     const exitType = String(req.body?.exitType || 'resignation').toLowerCase();
     const reason = String(req.body?.reason || '').trim();
@@ -148,7 +149,7 @@ router.post('/request', requireRoles('employee', 'manager'), async (req, res) =>
 
     const empName = req.user.name || 'Employee';
     await notifyHrAdmins(
-      `${empName} submitted an exit request (${exitType}). Review in Admin → Exit workflow.`,
+      `${empName} submitted an exit request (${exitType}). Review in Admin → Exit Formalities.`,
       req.user.id
     );
 
@@ -229,16 +230,19 @@ router.post('/initiate', requirePortalAdmin, async (req, res) => {
 });
 
 /** GET /api/exit/admin/requests — pending HR review */
-router.get('/admin/requests', requirePortalAdmin, async (_req, res) => {
+router.get('/admin/requests', requirePortalAdmin, async (req, res) => {
   try {
+    const viewerId = Number(req.user.id);
     const { rows } = await pool.query(
       `
         SELECT er.*, e.name, e.employeecode, e.department, e.designation
         FROM exit_requests er
         JOIN employees e ON e.id = er.employee_id
         WHERE er.status = 'pending_hr_review'
+          AND er.employee_id <> $1
         ORDER BY er.created_at ASC
-      `
+      `,
+      [viewerId]
     );
     return res.json({
       items: rows.map((r) => ({
@@ -271,6 +275,9 @@ router.put('/admin/review/:id', requirePortalAdmin, async (req, res) => {
     if (!row) return res.status(404).json({ message: 'Exit request not found' });
     if (row.status !== 'pending_hr_review') {
       return res.status(400).json({ message: 'Request is not pending HR review' });
+    }
+    if (row.employee_id === req.user.id) {
+      return res.status(403).json({ message: 'You cannot review your own exit request' });
     }
 
     if (action === 'reject') {
@@ -363,7 +370,7 @@ router.put('/admin/interview/:exitRequestId', requirePortalAdmin, async (req, re
 });
 
 /** POST /api/exit/interview — employee self-assessment */
-router.post('/interview', requireRoles('employee', 'manager'), async (req, res) => {
+router.post('/interview', requireRoles(...SELF_EXIT_ROLES), async (req, res) => {
   try {
     const exitRequestId = Number(req.body?.exitRequestId);
     const assessment = req.body?.selfAssessment || {};
@@ -396,7 +403,7 @@ router.post('/interview', requireRoles('employee', 'manager'), async (req, res) 
 });
 
 /** POST /api/exit/kt-tasks */
-router.post('/kt-tasks', requireRoles('employee', 'manager'), async (req, res) => {
+router.post('/kt-tasks', requireRoles(...SELF_EXIT_ROLES), async (req, res) => {
   try {
     const exitRequestId = Number(req.body?.exitRequestId);
     const title = String(req.body?.title || '').trim();
@@ -556,7 +563,7 @@ router.post('/kt-signoff/:exitRequestId', requireRoles('manager', 'admin', 'foun
 });
 
 /** POST /api/exit/manager-form — legacy handover summary */
-router.post('/manager-form', requireRoles('employee', 'manager'), async (req, res) => {
+router.post('/manager-form', requireRoles(...SELF_EXIT_ROLES), async (req, res) => {
   try {
     const exitRequestId = Number(req.body?.exitRequestId);
     const knowledgeTransferSummary = String(req.body?.knowledgeTransferSummary || '').trim();
@@ -681,8 +688,10 @@ router.get('/manager/pending', requireRoles('manager', 'admin', 'founder'), asyn
           JOIN employees e ON e.id = er.employee_id
           WHERE ec.clearance_type = 'manager'
             AND er.status IN ('serving_notice', 'clearances_pending', 'letters_ready', 'in_progress')
+            AND e.id <> $1
           ORDER BY ec.updated_at DESC
-        `
+        `,
+        [req.user.id]
       );
       rows = q.rows;
     } else {
@@ -697,6 +706,7 @@ router.get('/manager/pending', requireRoles('manager', 'admin', 'founder'), asyn
           JOIN manageremployees me ON me.employeeid = e.id AND me.managerid = $1
           WHERE ec.clearance_type = 'manager'
             AND er.status IN ('serving_notice', 'clearances_pending', 'letters_ready', 'in_progress')
+            AND e.id <> $1
           ORDER BY ec.updated_at DESC
         `,
         [req.user.id]

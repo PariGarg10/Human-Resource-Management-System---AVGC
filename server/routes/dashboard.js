@@ -4,7 +4,8 @@ const { pool } = require('../db');
 const { authMiddleware, enforceForcePasswordChange } = require('../middleware/auth');
 const { getLeaveBalance } = require('../utils/leaveBalance');
 const { getHolidayDatesSet, isHolidayDate } = require('../utils/holidaysRange');
-const { getEffectiveAttendanceStatus } = require('../utils/attendance');
+const { getEffectiveAttendanceStatus } = require('../utils/attendanceView');
+const { approvedLeaveEmployeeIdsForDate } = require('../utils/attendanceLeaveLookup');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -126,23 +127,20 @@ async function fetchManagerDashboardSummary(managerId, date) {
   let absent = 0;
   let holidays = 0;
 
+  const onLeaveIds = await approvedLeaveEmployeeIdsForDate(
+    team.map((r) => r.employeeid),
+    date
+  );
+
   for (const row of team) {
     if (holiday) {
       holidays += 1;
       continue;
     }
-    const leaveExistsResult = await pool.query(
-      `
-        SELECT 1 FROM leaves
-        WHERE employeeid = $1 AND status = 'approved' AND $2::date BETWEEN fromdate AND todate
-        LIMIT 1
-      `,
-      [row.employeeid, date]
-    );
     const status = getEffectiveAttendanceStatus({
       totalhours: row.totalhours,
       status: row.status,
-      hasApprovedLeave: leaveExistsResult.rows.length > 0,
+      hasApprovedLeave: onLeaveIds.has(row.employeeid),
     });
     if (status === 'present') present += 1;
     else if (status === 'halfday') halfday += 1;

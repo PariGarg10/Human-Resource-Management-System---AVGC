@@ -1,0 +1,2 @@
+$env:NEON = postgresql://neondb_owner:npg_AIpk4Nldf2wL@ep-tiny-night-ao4587ou-pooler.c-2.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+$env:LOCAL  = "postgresql://postgres:pg@10Jan@localhost:5432/hrms_db"

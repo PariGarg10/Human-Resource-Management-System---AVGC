@@ -13,17 +13,47 @@ import { OrgConnectors } from './OrgConnectors';
 import { OrgNode } from './OrgNode';
 import { OrgSidePanel } from './OrgSidePanel';
 import {
+  computeCollapsedThroughManagementLevel,
   getDirectReports,
   getPersonById,
   getToggleBranchId,
   personHasToggle,
 } from './orgUtils';
 import { useOrgData } from './useOrgData';
-import { useOrgRole, type OrgViewMode } from './useOrgRole';
+import { useOrgRole } from './useOrgRole';
 import './org-chart.css';
 
 type PanelState = { personId: string; mode: 'details' | 'reports' } | null;
 type Phase = 'intro' | 'chart';
+
+const MIN_ZOOM = 0.08;
+const MAX_ZOOM = 4;
+const ZOOM_SENSITIVITY = 0.0018;
+const ADMIN_DEFAULT_MANAGEMENT_LEVELS = 3;
+
+type ViewTransform = { x: number; y: number; scale: number };
+
+function clampZoom(scale: number) {
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, scale));
+}
+
+function zoomAroundContentCenter(
+  current: ViewTransform,
+  nextScale: number,
+  bounds: ReturnType<typeof computeContentBounds>,
+  layoutWidth: number,
+  layoutHeight: number
+): ViewTransform {
+  const worldCenterX = bounds ? (bounds.minX + bounds.maxX) / 2 : layoutWidth / 2;
+  const worldCenterY = bounds ? (bounds.minY + bounds.maxY) / 2 : layoutHeight / 2;
+  const anchorX = current.x + worldCenterX * current.scale;
+  const anchorY = current.y + worldCenterY * current.scale;
+  return {
+    scale: nextScale,
+    x: anchorX - worldCenterX * nextScale,
+    y: anchorY - worldCenterY * nextScale,
+  };
+}
 
 function resolveNodeFocusRole(
   personId: string,
@@ -42,25 +72,50 @@ function resolveNodeFocusRole(
 }
 
 export function OrgChart() {
-  const { isAdmin, canToggleFullView, ready: roleReady } = useOrgRole();
-  const [viewMode, setViewMode] = useState<OrgViewMode>('focused');
-  const showFullTree = isAdmin || (canToggleFullView && viewMode === 'full');
-  const showFocusLabels = !showFullTree;
-  const { data, directory, highlightId, focusMeta, loading, loadError, reset } = useOrgData(viewMode);
+  const { isAdmin, ready: roleReady } = useOrgRole();
+  const { data, directory, highlightId, focusMeta, loading, loadError, reset } = useOrgData('full');
   const [phase, setPhase] = useState<Phase>('chart');
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set());
   const [panel, setPanel] = useState<PanelState>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [animateTransform, setAnimateTransform] = useState(true);
   const [panning, setPanning] = useState(false);
   const panStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
+  const transformRef = useRef(transform);
+  const userViewAdjustedRef = useRef(false);
+  const layoutRef = useRef({ width: 0, height: 0, bounds: null as ReturnType<typeof computeContentBounds> });
+  const chartAreaRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const worldRef = useRef<HTMLDivElement>(null);
+  const collapseCustomizedRef = useRef(false);
+
+  const applyAdminDefaultCollapse = useCallback((tree: NonNullable<typeof data>) => {
+    setCollapsed(computeCollapsedThroughManagementLevel(tree, ADMIN_DEFAULT_MANAGEMENT_LEVELS));
+  }, []);
+
+  useEffect(() => {
+    transformRef.current = transform;
+  }, [transform]);
+
+  useEffect(() => {
+    if (!data || !isAdmin || collapseCustomizedRef.current) return;
+    applyAdminDefaultCollapse(data);
+  }, [data, isAdmin, applyAdminDefaultCollapse]);
 
   const layout = useMemo(
     () => (data ? computeLayout(data, collapsed) : { width: 0, height: 0, nodes: [], edges: [] }),
     [data, collapsed]
   );
+
+  const contentBounds = useMemo(
+    () => (layout.nodes.length ? computeContentBounds(layout.nodes) : null),
+    [layout.nodes]
+  );
+
+  useEffect(() => {
+    layoutRef.current = { width: layout.width, height: layout.height, bounds: contentBounds };
+  }, [layout.width, layout.height, contentBounds]);
 
   const fitToScreen = useCallback(() => {
     const vp = viewportRef.current;
@@ -83,12 +138,38 @@ export function OrgChart() {
     const y = (vp.clientHeight - contentH * scale) / 2 - minY * scale;
 
     setTransform({ x, y, scale });
+    setAnimateTransform(true);
+    userViewAdjustedRef.current = false;
   }, [layout.nodes, layout.width, layout.height]);
 
   useEffect(() => {
     if (phase !== 'chart') return;
+    const chartArea = chartAreaRef.current;
+    if (!chartArea) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setAnimateTransform(false);
+      userViewAdjustedRef.current = true;
+
+      const current = transformRef.current;
+      const { width, height, bounds } = layoutRef.current;
+      const scaleFactor = Math.exp(-e.deltaY * ZOOM_SENSITIVITY);
+      const nextScale = clampZoom(current.scale * scaleFactor);
+      if (nextScale === current.scale) return;
+
+      setTransform(zoomAroundContentCenter(current, nextScale, bounds, width, height));
+    };
+
+    chartArea.addEventListener('wheel', onWheel, { passive: false, capture: true });
+    return () => chartArea.removeEventListener('wheel', onWheel, { capture: true });
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== 'chart') return;
     fitToScreen();
-  }, [fitToScreen, data, collapsed, panel, phase, layout.width, layout.height, viewMode]);
+  }, [fitToScreen, data, collapsed, panel, phase, layout.width, layout.height]);
 
   useEffect(() => {
     if (phase !== 'chart') return;
@@ -96,7 +177,7 @@ export function OrgChart() {
     if (!vp || typeof ResizeObserver === 'undefined') return;
 
     const observer = new ResizeObserver(() => {
-      fitToScreen();
+      if (!userViewAdjustedRef.current) fitToScreen();
     });
     observer.observe(vp);
     return () => observer.disconnect();
@@ -113,6 +194,7 @@ export function OrgChart() {
         else next.add(branchId);
         return next;
       });
+      collapseCustomizedRef.current = true;
     },
     [data]
   );
@@ -137,13 +219,20 @@ export function OrgChart() {
 
   const enterChart = () => {
     setPhase('chart');
-    setCollapsed(new Set());
+    collapseCustomizedRef.current = false;
+    if (data && isAdmin) {
+      applyAdminDefaultCollapse(data);
+    } else {
+      setCollapsed(new Set());
+    }
     setPanelOpen(false);
     setPanel(null);
   };
 
   const onPointerDown = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('.org-node')) return;
+    setAnimateTransform(false);
+    userViewAdjustedRef.current = true;
     setPanning(true);
     panStart.current = { x: e.clientX, y: e.clientY, tx: transform.x, ty: transform.y };
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -162,8 +251,15 @@ export function OrgChart() {
 
   const onPointerUp = () => setPanning(false);
 
+  const handleFitChart = () => {
+    userViewAdjustedRef.current = false;
+    fitToScreen();
+  };
+
   const handleRefresh = () => {
     if (!isAdmin) return;
+    userViewAdjustedRef.current = false;
+    collapseCustomizedRef.current = false;
     void reset();
   };
 
@@ -204,29 +300,21 @@ export function OrgChart() {
           />
         ) : null}
 
-        <div className="org-chart org-chart--tree">
+        <div ref={chartAreaRef} className="org-chart org-chart--tree">
           <div className="org-chart__dots" />
           <div className="org-chart__stars" />
 
           {loadError ? <p className="org-chart-load-error">{loadError}</p> : null}
 
-          <div className="org-chart__toolbar">
-            {canToggleFullView ? (
-              <button
-                type="button"
-                className="org-chart__view-toggle"
-                onClick={() => setViewMode((mode) => (mode === 'focused' ? 'full' : 'focused'))}
-                disabled={loading}
-                aria-pressed={viewMode === 'full'}
-              >
-                {viewMode === 'focused' ? 'Full Org Chart' : 'My View'}
-              </button>
-            ) : null}
+          <div className="org-chart__toolbar org-chart__toolbar--top">
             {isAdmin ? (
               <button type="button" className="org-chart__reset" onClick={handleRefresh} disabled={loading}>
                 {loading ? 'Loading…' : 'Refresh chart'}
               </button>
             ) : null}
+            <button type="button" className="org-chart__reset" onClick={handleFitChart}>
+              Fit to screen
+            </button>
           </div>
 
           <div
@@ -239,7 +327,7 @@ export function OrgChart() {
           >
             <div
               ref={worldRef}
-              className="org-chart__world org-chart__world--animate"
+              className={`org-chart__world${animateTransform ? ' org-chart__world--animate' : ''}`}
               style={{
                 width: layout.width,
                 height: layout.height,
@@ -254,9 +342,7 @@ export function OrgChart() {
                 const resolvedTitle = getPersonDisplayTitle(person, directory);
                 const resolvedDepartment = getPersonDisplayDepartment(person, directory);
                 const resolvedEmployeeId = getPersonEmployeeId(person, directory);
-                const focusRole = showFocusLabels
-                  ? resolveNodeFocusRole(person.id, resolvedEmployeeId, focusMeta)
-                  : null;
+                const focusRole = resolveNodeFocusRole(person.id, resolvedEmployeeId, focusMeta);
                 const displayPerson = {
                   ...person,
                   name: resolvedName,
@@ -277,7 +363,7 @@ export function OrgChart() {
                     circleSize={ln.circleSize}
                     isExpandedCard={ln.isExpandedCard}
                     isRootCard={ln.isRootCard}
-                    isHighlighted={!showFullTree && (highlightId === ln.id || focusRole === 'self')}
+                    isHighlighted={highlightId === ln.id || focusRole === 'self'}
                     focusRole={focusRole}
                     department={resolvedDepartment}
                     reportCount={reportCount}

@@ -24,7 +24,6 @@
       <div class="sidebar-title">AVGC <small>Admin</small></div>
     </div>
     <div class="sidebar-profile">
-      <div class="sidebar-avatar" id="sidebarAvatar">A</div>
       <div class="sidebar-user-meta">
         <div id="sidebarUserIdentity" class="portal-user-identity portal-user-identity--sidebar"></div>
         <div class="sidebar-user-name" id="sidebarUserName" hidden>Admin</div>
@@ -40,6 +39,7 @@
           <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon" data-lucide="layout-dashboard"></span><span>Dashboard</span></button>
           <button type="button" data-nav="calendar"><span class="nav-icon" data-lucide="calendar"></span><span>My attendance calendar</span></button>
           <button type="button" data-nav="teams" title="Interactive organization chart"><span class="nav-icon" data-lucide="network"></span><span>Organization chart</span></button>
+          <button type="button" data-nav="employee-directory"><span class="nav-icon" data-lucide="contact"></span><span>Employee directory</span></button>
           <button type="button" data-nav="holiday-calendar"><span class="nav-icon" data-lucide="calendar-days"></span><span>Holiday Calendar</span></button>
         </div>
       </div>
@@ -50,8 +50,9 @@
         </button>
         <div class="sidebar-accordion-body">
           <button type="button" data-nav="employees"><span class="nav-icon" data-lucide="user"></span><span>Employees</span></button>
+          <button type="button" data-nav="employee-directory"><span class="nav-icon" data-lucide="contact"></span><span>Employee directory</span></button>
           <button type="button" data-nav="employee-documents"><span class="nav-icon" data-lucide="folder-open"></span><span>Employee documents</span></button>
-          <button type="button" data-nav="exit-clearances"><span class="nav-icon" data-lucide="log-out"></span><span>Exit workflow</span></button>
+          <button type="button" data-nav="exit-clearances"><span class="nav-icon" data-lucide="log-out"></span><span>Exit Formalities</span></button>
           <button type="button" data-nav="onboarding"><span class="nav-icon" data-lucide="clipboard-list"></span><span>Onboarding</span></button>
         </div>
       </div>
@@ -130,15 +131,6 @@
           <button type="button" data-nav="manage-admins" style="display:none;"><span class="nav-icon" data-lucide="shield-check"></span><span>Manage Admins</span></button>
         </div>
       </div>
-      <div class="sidebar-nav-section" data-section="account">
-        <button type="button" class="sidebar-accordion-head">
-          <span class="nav-icon" data-lucide="circle-user"></span>
-          <span class="nav-label">Account</span>
-        </button>
-        <div class="sidebar-accordion-body">
-          <button type="button" data-nav="profile"><span class="nav-icon" data-lucide="user-circle"></span><span>Profile</span></button>
-        </div>
-      </div>
     </nav>
     <div class="sidebar-footer">
       <button type="button" class="sidebar-toggle" id="sidebarCollapseBtn">Collapse</button>
@@ -174,6 +166,19 @@
             <span id="navProfileEmail">—</span>
           </button>
           <div class="profile-dropdown">
+            <button type="button" data-profile-nav="profile" class="profile-dropdown-item">
+              <span class="nav-icon" data-lucide="user-circle"></span>
+              <span>Profile</span>
+            </button>
+            <button type="button" data-profile-nav="settings" class="profile-dropdown-item">
+              <span class="nav-icon" data-lucide="settings"></span>
+              <span>Settings</span>
+            </button>
+            <button type="button" data-profile-nav="exit" class="profile-dropdown-item">
+              <span class="nav-icon" data-lucide="log-out"></span>
+              <span>Exit / Resignation</span>
+            </button>
+            <div class="profile-dropdown-divider" aria-hidden="true"></div>
             <button type="button" id="dropdownLogout" class="profile-dropdown-logout">
               <span class="nav-icon" data-lucide="log-out"></span>
               <span>Sign out</span>
@@ -423,8 +428,20 @@
         <div class="panel manager-assignment-panel panel--ma-quick">
           <h2 class="panel-title">Quick assign</h2>
           <form id="maSingleAssignForm" class="form-row manager-assignment-form">
-            <div class="form-group"><label for="maSingleManagerSelect">Manager</label><select id="maSingleManagerSelect"></select></div>
-            <div class="form-group"><label for="maSingleEmployeeSelect">Employee</label><select id="maSingleEmployeeSelect"></select></div>
+            <div class="form-group ma-combobox-wrap">
+              <label for="maSingleManagerCode">Manager</label>
+              <div class="ma-combobox" id="maSingleManagerCombo">
+                <input id="maSingleManagerCode" type="text" placeholder="Search emp code or name…" autocomplete="off" required />
+                <ul class="ma-combobox-list hidden" role="listbox"></ul>
+              </div>
+            </div>
+            <div class="form-group ma-combobox-wrap">
+              <label for="maSingleEmployeeCode">Employee</label>
+              <div class="ma-combobox" id="maSingleEmployeeCombo">
+                <input id="maSingleEmployeeCode" type="text" placeholder="Search emp code or name…" autocomplete="off" required />
+                <ul class="ma-combobox-list hidden" role="listbox"></ul>
+              </div>
+            </div>
             <button type="submit" class="btn btn-primary">Assign</button>
           </form>
           <p id="maSingleAssignMessage" class="message"></p>
@@ -432,11 +449,48 @@
         <div class="panel manager-assignment-panel panel--ma-bulk">
           <h2 class="panel-title">Bulk assign</h2>
           <form id="maAssignForm" class="form-row manager-assignment-form">
-            <div class="form-group"><label for="maManagerSelect">Manager</label><select id="maManagerSelect"></select></div>
-            <div class="form-group"><label for="maEmployeeIdsInput">Employee IDs (comma separated)</label><input id="maEmployeeIdsInput" placeholder="12, 14, 22" /></div>
+            <div class="form-group ma-combobox-wrap">
+              <label for="maManagerCode">Manager</label>
+              <div class="ma-combobox" id="maBulkManagerCombo">
+                <input id="maManagerCode" type="text" placeholder="Search emp code or name…" autocomplete="off" required />
+                <ul class="ma-combobox-list hidden" role="listbox"></ul>
+              </div>
+            </div>
+            <div class="form-group ma-combobox-wrap ma-multi-combobox-wrap">
+              <label for="maBulkEmployeeSearch">Employees</label>
+              <div class="ma-multi-combobox" id="maBulkEmployeeCombo">
+                <div class="ma-multi-combobox-chips" id="maBulkEmployeeChips"></div>
+                <input id="maBulkEmployeeSearch" type="text" placeholder="Search emp code or name and add…" autocomplete="off" />
+                <ul class="ma-combobox-list hidden" role="listbox"></ul>
+              </div>
+            </div>
             <button type="submit" class="btn btn-primary">Bulk assign</button>
           </form>
           <p id="maAssignMessage" class="message"></p>
+        </div>
+        <div class="panel manager-assignment-panel panel--ma-import">
+          <h2 class="panel-title">Import mapping (Excel)</h2>
+          <p class="stat-sub" style="margin-bottom:12px;">Columns: <strong>Emp code</strong> (numeric ID), <strong>Name</strong> (optional), <strong>Reporting manager</strong> (manager name).</p>
+          <div class="ma-import-actions">
+            <label for="maImportFile" class="btn btn-outline btn-sm ma-import-btn">Choose Excel file</label>
+            <button type="button" class="btn btn-outline btn-sm ma-import-btn" id="maImportSampleBtn">Download sample</button>
+          </div>
+          <span id="maImportFileName" class="stat-sub" style="display:block;margin-top:10px;">No file selected.</span>
+          <input type="file" id="maImportFile" accept=".xlsx,.xls,.csv" style="display:none;" />
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;">
+            <button type="button" class="btn btn-primary btn-sm" id="maImportPreviewBtn">Preview import</button>
+            <button type="button" class="btn btn-primary btn-sm" id="maImportConfirmBtn" disabled>Confirm import</button>
+          </div>
+          <p id="maImportMessage" class="message"></p>
+          <div id="maImportPreview" class="hidden ma-import-preview">
+            <p class="stat-sub" id="maImportPreviewSummary"></p>
+            <div class="table-wrap table-wrap--scroll ma-import-preview-scroll">
+              <table class="data-table">
+                <thead><tr><th>Status</th><th>Emp code</th><th>Name</th><th>Reporting manager</th><th>Notes</th></tr></thead>
+                <tbody id="maImportPreviewBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
         <div class="panel manager-assignment-panel panel--ma-mapping">
           <h2 class="panel-title">Current mapping</h2>
@@ -444,7 +498,7 @@
           <div id="maAssignmentsEmpty" class="hidden stat-sub">No employees found.</div>
           <div class="table-wrap table-wrap--scroll hidden" id="maAssignmentsTableWrap">
             <table class="data-table">
-              <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Department</th><th>Manager</th><th></th></tr></thead>
+              <thead><tr><th>Emp code</th><th>Name</th><th>Email</th><th>Department</th><th>Reporting manager</th><th class="ma-actions-col">Actions</th></tr></thead>
               <tbody id="maAssignmentBody"></tbody>
             </table>
           </div>
@@ -494,13 +548,18 @@
         <div id="adminPublicHolidayRoot" style="flex:1 1 auto;min-height:0;display:flex;flex-direction:column;"></div>
       </section>
 
+      <section id="view-employee-directory" class="view-section employee-directory-viewport">
+        <div id="adminEmployeeDirectoryRoot" style="flex:1 1 auto;min-height:0;display:flex;flex-direction:column;"></div>
+      </section>
+
       <section id="view-import-employees" class="view-section">
         <div class="panel">
           <h2 class="panel-title">Import employees (Excel)</h2>
           <div class="dropzone" id="employeeDropzone">
             <p><strong>Drop your Excel file here</strong> or use the button below.</p>
             <p class="stat-sub import-excel-hint import-excel-hint--center">
-              Required columns: <strong>Name</strong>, <strong>Email</strong>, <strong>Employee Code</strong>. Optional: <strong>Role</strong>, <strong>Department</strong>.
+              Required columns: <strong>Name</strong>, <strong>Email</strong>, <strong>Password</strong>, <strong>Designation</strong>, <strong>Date of joining</strong>, <strong>Portal role</strong>
+              (employee, manager, admin, or it_head). Date format: DD/MM/YYYY or YYYY-MM-DD. Employee codes are auto-generated.
               Re-importing skips emails already in HRMS (not an error).
             </p>
             <label for="employeeImportFile" class="btn btn-primary import-excel-cta" style="display:inline-flex;align-items:center;justify-content:center;margin-top:16px;cursor:pointer;">
@@ -514,10 +573,6 @@
             <input type="checkbox" id="employeeImportUpdateExisting" />
             Update existing employees when email already exists
           </label>
-          <label class="stat-sub" style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-            <input type="checkbox" id="employeeImportAutoCode" />
-            Auto-generate Employee Code when column is empty
-          </label>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:16px;">
             <button type="button" class="btn btn-primary import-excel-cta" id="employeePreviewBtn">Preview import</button>
             <span class="stat-sub" style="flex:1;min-width:200px;">After preview, confirm at the <strong>bottom of the table</strong>.</span>
@@ -527,7 +582,7 @@
             <p class="stat-sub" id="employeeImportPreviewSummary"></p>
             <div class="table-wrap table-wrap--scroll" style="margin-top:8px;">
               <table class="data-table">
-                <thead><tr><th>Status</th><th>Name</th><th>Email</th><th>Role</th><th>Employee Code</th></tr></thead>
+                <thead><tr><th>Status</th><th>Name</th><th>Email</th><th>Designation</th><th>Date of joining</th><th>Portal role</th></tr></thead>
                 <tbody id="employeeImportPreviewBody"></tbody>
               </table>
             </div>
@@ -881,7 +936,7 @@
               <p class="stat-sub" id="holImportPreviewSummary"></p>
               <div class="table-wrap table-wrap--scroll" style="margin-top:8px;">
                 <table class="data-table">
-                  <thead><tr><th>Holiday Name</th><th>Date</th><th>Type</th></tr></thead>
+                  <thead><tr><th>Holiday Name</th><th>Date</th><th>Day</th><th>Type</th></tr></thead>
                   <tbody id="holImportPreviewBody"></tbody>
                 </table>
               </div>
@@ -893,7 +948,7 @@
           </div>
           <div class="table-wrap table-wrap--scroll">
             <table class="data-table">
-              <thead><tr><th>Date</th><th>Name</th><th>Type</th><th></th></tr></thead>
+              <thead><tr><th>Date</th><th>Day</th><th>Name</th><th>Type</th><th></th></tr></thead>
               <tbody id="holTableBody"></tbody>
             </table>
           </div>
@@ -940,10 +995,12 @@
 
           <h3 style="font-size:1rem;margin:0 0 12px;">Create admin</h3>
           <form id="createAdminForm" class="form-row manage-admin-form">
+            <div class="form-group"><label>Employee code</label><input id="createAdminEmpCode" placeholder="Auto-generated if blank" /></div>
             <div class="form-group"><label>Name</label><input id="createAdminName" required /></div>
             <div class="form-group"><label>Email</label><input id="createAdminEmail" type="email" required /></div>
             <div class="form-group"><label>Password</label><input id="createAdminPassword" type="password" required /></div>
-            <div class="form-group"><label>Designation</label><input id="createAdminDesignation" /></div>
+            <div class="form-group"><label>Designation</label><input id="createAdminDesignation" placeholder="e.g. HR Admin, Operations Lead" /></div>
+            <div class="form-group"><label>Date of joining</label><input id="createAdminJoinDate" type="date" /></div>
             <div class="form-group"><label>Department</label><input id="createAdminDepartment" /></div>
             <div class="form-group manage-admin-permissions">
               <label>Permissions</label>
@@ -1047,6 +1104,14 @@
 
       <section id="view-profile" class="view-section profile-viewport">
         <div id="adminProfileReactRoot"></div>
+      </section>
+
+      <section id="view-settings" class="view-section">
+        <div id="adminSettingsReactRoot"></div>
+      </section>
+
+      <section id="view-exit" class="view-section">
+        <div id="adminMyExitRoot"></div>
       </section>
     </main>
   </div>

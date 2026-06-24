@@ -1,5 +1,17 @@
 const fs = require('fs');
 
+async function extractPdfText(filePath) {
+  const { PDFParse } = require('pdf-parse');
+  const buffer = fs.readFileSync(filePath);
+  const parser = new PDFParse({ data: buffer });
+  try {
+    const result = await parser.getText();
+    return result?.text || '';
+  } finally {
+    await parser.destroy();
+  }
+}
+
 async function extractTextFromFile(filePath, originalName) {
   const ext = String(originalName || filePath)
     .split('.')
@@ -11,10 +23,7 @@ async function extractTextFromFile(filePath, originalName) {
   }
 
   if (ext === 'pdf') {
-    const pdfParse = require('pdf-parse');
-    const buffer = fs.readFileSync(filePath);
-    const data = await pdfParse(buffer);
-    return data.text || '';
+    return extractPdfText(filePath);
   }
 
   if (ext === 'docx') {

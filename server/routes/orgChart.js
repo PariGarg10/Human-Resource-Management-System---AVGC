@@ -3,25 +3,9 @@ const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { isAdminRole } = require('../constants/roles');
 const { buildFocusedOrgChart } = require('../utils/focusedOrgChart');
+const { fetchOrgChartSourceData } = require('../utils/orgChartData');
 
 const router = express.Router();
-
-async function fetchOrgEmployeeRows() {
-  const [employeesResult, assignmentsResult] = await Promise.all([
-    pool.query(
-      `
-      SELECT id, employeecode, name, email, department, designation, role, reporting_to_id,
-             profilephotourl, phone, location,
-             (profile_photo IS NOT NULL) AS has_profile_photo
-      FROM employees
-      WHERE COALESCE(isregistered, TRUE) = TRUE
-      ORDER BY name ASC
-    `
-    ),
-    pool.query('SELECT managerid, employeeid FROM manageremployees'),
-  ]);
-  return { employees: employeesResult.rows, assignments: assignmentsResult.rows };
-}
 
 router.get('/focused/:employeeId', authMiddleware, enforcePasswordChange, async (req, res) => {
   try {
@@ -30,7 +14,7 @@ router.get('/focused/:employeeId', authMiddleware, enforcePasswordChange, async 
       return res.status(400).json({ message: 'Invalid employee id' });
     }
 
-    const { employees, assignments } = await fetchOrgEmployeeRows();
+    const { employees, assignments } = await fetchOrgChartSourceData(pool);
     const viewerRow = employees.find((row) => row.id === req.user.id);
     const viewerRole = viewerRow?.role || req.user.role;
 

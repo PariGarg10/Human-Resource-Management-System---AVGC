@@ -7,12 +7,10 @@ import { flattenDirectory, type DirectoryPerson } from './syncOrgProfiles';
 import type { OrgTreeRoot } from './types';
 import { getLoggedInEmployeeId, useOrgRole, type OrgViewMode } from './useOrgRole';
 
-type OrgTreeResponse = { tree: OrgTreeRoot };
-
-type FocusedOrgResponse = {
-  manager: { id: number } | null;
-  self: { id: number };
+type OrgTreeResponse = {
   tree: OrgTreeRoot;
+  totalEmployees?: number;
+  visibleInTree?: number;
 };
 
 export type OrgFocusMeta = {
@@ -33,8 +31,8 @@ function deriveFocusMeta(tree: OrgTreeRoot, userId: number): OrgFocusMeta {
   return { selfId, managerId: String(rootEmployeeId) };
 }
 
-export function useOrgData(viewMode: OrgViewMode = 'focused') {
-  const { isAdmin, isManager, userId, ready } = useOrgRole();
+export function useOrgData(_viewMode: OrgViewMode = 'full') {
+  const { userId, ready } = useOrgRole();
   const [data, setData] = useState<OrgTreeRoot | null>(null);
   const [directory, setDirectory] = useState<DirectoryPerson[]>([]);
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -42,55 +40,32 @@ export function useOrgData(viewMode: OrgViewMode = 'focused') {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const effectiveMode: OrgViewMode = isAdmin ? 'full' : viewMode;
+  const refreshOrg = useCallback(async (bustPhotoCache = false) => {
+    if (bustPhotoCache) clearProfilePhotoCache();
 
-  const refreshOrg = useCallback(
-    async (bustPhotoCache = false) => {
-      if (bustPhotoCache) clearProfilePhotoCache();
+    const employeeId = userId ?? getLoggedInEmployeeId();
+    const treeRes = await api<OrgTreeResponse>('/api/users/org-tree');
+    const tree = treeRes.tree;
 
-      const employeeId = userId ?? getLoggedInEmployeeId();
-      const useFullTree = isAdmin || (isManager && effectiveMode === 'full');
+    let nextFocus: OrgFocusMeta = { selfId: null, managerId: null };
+    if (employeeId != null) {
+      nextFocus = deriveFocusMeta(tree, employeeId);
+      setHighlightId(String(employeeId));
+    }
 
-      let tree: OrgTreeRoot;
-      let nextFocus: OrgFocusMeta = { selfId: null, managerId: null };
+    let nextDirectory: DirectoryPerson[] = [];
+    try {
+      const directoryRes = await api<OrgDirectoryResponse>('/api/users/org-directory');
+      nextDirectory = flattenDirectory(directoryRes);
+    } catch {
+      /* Chart still works without directory enrichment */
+    }
 
-      if (useFullTree) {
-        const treeRes = await api<OrgTreeResponse>(
-          isAdmin ? '/api/users/org-tree' : '/api/users/org-tree?full=1'
-        );
-        tree = treeRes.tree;
-        if (employeeId != null) {
-          nextFocus = deriveFocusMeta(tree, employeeId);
-          setHighlightId(String(employeeId));
-        }
-      } else {
-        if (employeeId == null) {
-          throw new Error('Could not determine logged-in employee');
-        }
-        const focused = await api<FocusedOrgResponse>(`/api/org-chart/focused/${employeeId}`);
-        tree = focused.tree;
-        nextFocus = {
-          selfId: String(focused.self.id),
-          managerId: focused.manager ? String(focused.manager.id) : null,
-        };
-        setHighlightId(nextFocus.selfId);
-      }
-
-      let nextDirectory: DirectoryPerson[] = [];
-      try {
-        const directoryRes = await api<OrgDirectoryResponse>('/api/users/org-directory');
-        nextDirectory = flattenDirectory(directoryRes);
-      } catch {
-        /* Chart still works without directory enrichment */
-      }
-
-      setData(tree);
-      setDirectory(nextDirectory);
-      setFocusMeta(nextFocus);
-      setLoadError(null);
-    },
-    [effectiveMode, isAdmin, isManager, userId]
-  );
+    setData(tree);
+    setDirectory(nextDirectory);
+    setFocusMeta(nextFocus);
+    setLoadError(null);
+  }, [userId]);
 
   useEffect(() => {
     if (!ready) return;

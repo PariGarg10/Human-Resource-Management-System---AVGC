@@ -36,8 +36,8 @@
   --cal-present-bg: rgba(34, 197, 94, 0.2);
   --cal-absent: #ed1d24;
   --cal-absent-bg: rgba(237, 29, 36, 0.14);
-  --cal-halfday: #d1d5db;
-  --cal-halfday-bg: rgba(209, 213, 219, 0.65);
+  --cal-halfday: #f97316;
+  --cal-halfday-bg: rgba(249, 115, 22, 0.22);
   --cal-leave: #4b5563;
   --cal-leave-bg: rgba(75, 85, 99, 0.38);
 
@@ -619,6 +619,16 @@ body.has-floating-sidebar.sidebar-collapsed .app-main {
   flex-direction: column;
 }
 
+.view-section.employee-directory-viewport.is-active {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  flex-direction: column;
+  background: #f3f4f6;
+}
+
 .app-main:has(.org-teams-viewport.is-active),
 .app-main:has(.view-section.org-teams-viewport.is-active) {
   display: flex;
@@ -628,15 +638,32 @@ body.has-floating-sidebar.sidebar-collapsed .app-main {
   overflow: hidden;
 }
 
+.app-main:has(.employee-directory-viewport.is-active),
+.app-main:has(.view-section.employee-directory-viewport.is-active) {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  background: #f3f4f6;
+}
+
 .app-main:has(.org-teams-viewport.is-active) .content-area,
 .app-main:has(.view-section.org-teams-viewport.is-active) .content-area,
 .app-main:has(.attendance-calendar-viewport.is-active) .content-area,
-.app-main:has(.view-section.attendance-calendar-viewport.is-active) .content-area {
+.app-main:has(.view-section.attendance-calendar-viewport.is-active) .content-area,
+.app-main:has(.employee-directory-viewport.is-active) .content-area,
+.app-main:has(.view-section.employee-directory-viewport.is-active) .content-area {
   overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
   max-width: none;
+}
+
+.app-main:has(.employee-directory-viewport.is-active) .content-area,
+.app-main:has(.view-section.employee-directory-viewport.is-active) .content-area {
+  background: #f3f4f6;
 }
 
 .view-section.attendance-calendar-viewport .attendance-calendar-panel {
@@ -944,25 +971,16 @@ body.has-floating-sidebar.sidebar-collapsed .app-main {
 }
 
 .sidebar-profile {
+  display: none;
   padding: 10px 8px;
-  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0;
+  justify-content: flex-start;
+  gap: 12px;
   border-bottom: 1px solid var(--sidebar-border);
 }
 
 .sidebar-avatar {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  background: var(--sidebar-active);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  font-size: 15px;
-  color: #fff;
+  display: none;
 }
 
 .sidebar-user-meta {
@@ -1407,6 +1425,7 @@ body.mobile-sidebar-open .sidebar-overlay {
 
   .sidebar-brand,
   .sidebar-profile {
+    display: flex;
     justify-content: flex-start;
     gap: 12px;
     padding: 16px 18px;
@@ -1966,6 +1985,33 @@ body.has-floating-sidebar .navbar-logo {
 
 .profile-dropdown button:hover {
   background: var(--bg);
+}
+
+.profile-dropdown-item {
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  color: var(--text) !important;
+  font-weight: 500;
+}
+
+.profile-dropdown-item.is-active {
+  background: rgba(230, 57, 70, 0.12);
+  color: var(--text-primary, #111111);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--red, #ed1d24);
+}
+
+.profile-dropdown-item .nav-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.profile-dropdown-divider {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--border);
 }
 
 .profile-dropdown-logout {
@@ -3456,6 +3502,126 @@ a.btn-primary:visited,
   background: var(--bg-card);
 }
 
+.ma-combobox-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+}
+
+.ma-combobox,
+.ma-multi-combobox {
+  position: relative;
+}
+
+.manager-assignment-form .ma-combobox input,
+.manager-assignment-form .ma-multi-combobox input {
+  width: 100%;
+  background: #fff;
+}
+
+.ma-combobox-list {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+  max-height: min(280px, 40vh);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: var(--shadow-md);
+}
+
+.ma-multi-combobox-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  min-height: 0;
+}
+
+.ma-multi-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.ma-multi-chip button {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+}
+
+.ma-combobox-option,
+.ma-combobox-empty {
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  background: #fff;
+}
+
+.ma-combobox-option:hover,
+.ma-combobox-option.is-active {
+  background: var(--red-soft);
+}
+
+.ma-combobox-empty {
+  cursor: default;
+  color: var(--text-muted);
+}
+
+.ma-actions-col,
+.ma-actions-cell {
+  min-width: 110px;
+  white-space: nowrap;
+}
+
+.manager-assignment-page .data-table .ma-actions-cell {
+  text-align: right;
+}
+
+.ma-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.ma-import-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: auto !important;
+  min-height: 38px;
+  padding: 8px 16px !important;
+  font-size: 13px;
+  background: #fff !important;
+  color: var(--red) !important;
+  border: 1px solid var(--red) !important;
+  cursor: pointer;
+  margin: 0 !important;
+}
+
+.ma-import-btn:hover {
+  background: var(--red-soft) !important;
+}
+
 .managers-grid {
   display: grid;
   gap: 18px;
@@ -3501,33 +3667,41 @@ a.btn-primary:visited,
 
 .toast-container {
   position: fixed;
-  top: 24px;
-  right: 24px;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
   z-index: 3000;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   pointer-events: none;
+  width: min(92vw, 560px);
 }
 
 .toast {
   pointer-events: auto;
-  min-width: 280px;
-  max-width: 400px;
-  padding: 14px 18px;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  font-size: 14px;
+  width: 100%;
+  min-width: 300px;
+  max-width: 560px;
+  padding: 18px 24px;
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
   animation: toastIn 0.35s ease;
 }
 
 @keyframes toastIn {
   from {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translateY(-12px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -3536,19 +3710,21 @@ a.btn-primary:visited,
 }
 
 .toast-success {
-  background: var(--surface);
-  border-left: 4px solid var(--success);
-  color: var(--text);
+  background: #ed1d24;
+  color: #ffffff;
+  border: 2px solid #ffffff;
 }
 
 .toast-error {
-  background: var(--surface);
-  border-left: 4px solid var(--danger);
+  background: #111111;
+  color: #ffffff;
+  border: 2px solid #ed1d24;
 }
 
 .toast-info {
-  background: var(--surface);
-  border-left: 4px solid var(--primary);
+  background: #ed1d24;
+  color: #ffffff;
+  border: 2px solid #ffffff;
 }
 
 .skeleton {
@@ -3706,12 +3882,13 @@ body:has(#root .app-main) {
 .content-area:has(> .view-section.import-attendance-viewport.is-active),
 .content-area:has(> .view-section.reports-viewport.is-active),
 .content-area:has(> .view-section.social-portal-viewport.is-active),
-.content-area:has(> .view-section.live-activity-viewport.is-active) {
+.content-area:has(> .view-section.live-activity-viewport.is-active),
+.content-area:has(> .view-section.employee-directory-viewport.is-active) {
   overflow: hidden;
 }
 
 /* Scrollable admin / portal sections */
-.view-section.is-active:not(.org-teams-viewport):not(.attendance-calendar-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport):not(.employee-documents-viewport):not(.manager-assignment-viewport):not(.asset-management-viewport):not(.import-attendance-viewport):not(.reports-viewport):not(.social-portal-viewport):not(.live-activity-viewport):not(.profile-viewport) {
+.view-section.is-active:not(.org-teams-viewport):not(.attendance-calendar-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport):not(.employee-documents-viewport):not(.manager-assignment-viewport):not(.asset-management-viewport):not(.import-attendance-viewport):not(.reports-viewport):not(.social-portal-viewport):not(.live-activity-viewport):not(.profile-viewport):not(.employee-directory-viewport) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -3730,12 +3907,22 @@ body:has(#root .app-main) {
 .view-section.reports-viewport.is-active,
 .view-section.social-portal-viewport.is-active,
 .view-section.live-activity-viewport.is-active,
-.view-section.profile-viewport.is-active {
+.view-section.profile-viewport.is-active,
+.view-section.employee-directory-viewport.is-active {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
+}
+
+#adminEmployeeDirectoryRoot {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #f3f4f6;
 }
 
 #adminDashboardReactRoot {
@@ -3778,7 +3965,8 @@ body:has(#root .app-main) {
 .holiday-calendar-table .data-table thead th,
 .holiday-calendar-table .data-table tbody td {
   padding: 8px 12px;
-  white-space: normal;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .panel--fit {
@@ -3814,7 +4002,10 @@ body:has(#root .app-main) {
   flex: 1 1 auto;
   min-height: 0;
   gap: 12px;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
 }
 
 .live-activity-layout {
@@ -3867,10 +4058,38 @@ body:has(#root .app-main) {
 
 .panel--ma-quick,
 .panel--ma-bulk,
+.panel--ma-import,
 .panel--asset-form,
 .panel--asset-allocate,
 .panel--import-form {
   flex-shrink: 0;
+}
+
+.panel--ma-import {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ma-import-preview {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.ma-import-preview-scroll {
+  max-height: min(40vh, 360px);
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.panel--ma-mapping,
+.panel--import-history {
+  flex-shrink: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .panel--live-links,
@@ -3936,15 +4155,7 @@ body:has(#root .app-main) {
   min-height: 0;
 }
 
-.panel--ma-mapping,
-.panel--import-history {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
+.panel--live-links,
 .panel--asset-inventory,
 .panel--asset-allocations {
   min-height: 0;
@@ -3959,15 +4170,23 @@ body:has(#root .app-main) {
 .panel--asset-inventory .asset-table-scroll,
 .panel--asset-allocations .asset-table-scroll,
 .panel--import-history .table-wrap--scroll {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
+  flex: 0 1 auto;
+  min-height: 120px;
+  max-height: min(48vh, 480px);
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
 
 .app-main:has(.asset-management-viewport.is-active) .content-area {
   padding-top: 16px;
+  padding-bottom: calc(56px + env(safe-area-inset-bottom, 16px));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.app-main:has(.manager-assignment-viewport.is-active) .content-area {
   padding-bottom: calc(56px + env(safe-area-inset-bottom, 16px));
   overflow: hidden;
   display: flex;
@@ -4068,7 +4287,9 @@ body {
 .content-area:has(> .org-teams-viewport),
 .content-area:has(> .holiday-calendar-viewport),
 .content-area:has(> .profile-viewport),
-.content-area:has(> .admin-people-viewport) {
+.content-area:has(> .admin-people-viewport),
+.content-area:has(> .employee-directory-viewport),
+.content-area:has(> .view-section.employee-directory-viewport.is-active) {
   max-width: 100%;
 }
 

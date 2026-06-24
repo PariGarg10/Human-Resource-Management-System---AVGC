@@ -40,11 +40,10 @@ async function notificationRows(userId) {
   return rows;
 }
 
-async function notificationResponse(userId) {
-  const userResult = await pool.query('SELECT id FROM employees WHERE id = $1', [userId]);
-  if (!userResult.rows[0]) return null;
-
-  const birthdaysToday = (await birthdaysTodayRows()).map((r) => ({ id: r.id, name: r.name }));
+async function notificationResponse(userId, { includeBirthdays = false } = {}) {
+  const birthdaysToday = includeBirthdays
+    ? (await birthdaysTodayRows()).map((r) => ({ id: r.id, name: r.name }))
+    : [];
 
   const notifications = (await notificationRows(userId)).map((r) => ({
     id: r.id,
@@ -63,7 +62,9 @@ async function notificationResponse(userId) {
 
 router.get('/', async (req, res) => {
   try {
-    const payload = await notificationResponse(req.user.id);
+    const includeBirthdays =
+      req.query.includeBirthdays === '1' || req.query.includeBirthdays === 'true';
+    const payload = await notificationResponse(req.user.id, { includeBirthdays });
     return res.json(payload);
   } catch (err) {
     console.error('GET /notifications:', err.message);
@@ -79,7 +80,10 @@ router.get('/:userId', async (req, res) => {
       return res.status(403).json({ message: 'Forbidden: cannot read notifications for this user' });
     }
 
-    const payload = await notificationResponse(userId);
+    const payload = await notificationResponse(userId, {
+      includeBirthdays:
+        req.query.includeBirthdays === '1' || req.query.includeBirthdays === 'true',
+    });
     if (!payload) return res.status(404).json({ message: 'User not found' });
     return res.json(payload);
   } catch (err) {

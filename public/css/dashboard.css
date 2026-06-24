@@ -433,6 +433,126 @@
   background: var(--bg-card);
 }
 
+.ma-combobox-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+}
+
+.ma-combobox,
+.ma-multi-combobox {
+  position: relative;
+}
+
+.manager-assignment-form .ma-combobox input,
+.manager-assignment-form .ma-multi-combobox input {
+  width: 100%;
+  background: #fff;
+}
+
+.ma-combobox-list {
+  position: absolute;
+  z-index: 40;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+  max-height: min(280px, 40vh);
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #fff;
+  box-shadow: var(--shadow-md);
+}
+
+.ma-multi-combobox-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+  min-height: 0;
+}
+
+.ma-multi-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.ma-multi-chip button {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+}
+
+.ma-combobox-option,
+.ma-combobox-empty {
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  background: #fff;
+}
+
+.ma-combobox-option:hover,
+.ma-combobox-option.is-active {
+  background: var(--red-soft);
+}
+
+.ma-combobox-empty {
+  cursor: default;
+  color: var(--text-muted);
+}
+
+.ma-actions-col,
+.ma-actions-cell {
+  min-width: 110px;
+  white-space: nowrap;
+}
+
+.manager-assignment-page .data-table .ma-actions-cell {
+  text-align: right;
+}
+
+.ma-import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.ma-import-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: auto !important;
+  min-height: 38px;
+  padding: 8px 16px !important;
+  font-size: 13px;
+  background: #fff !important;
+  color: var(--red) !important;
+  border: 1px solid var(--red) !important;
+  cursor: pointer;
+  margin: 0 !important;
+}
+
+.ma-import-btn:hover {
+  background: var(--red-soft) !important;
+}
+
 .managers-grid {
   display: grid;
   gap: 18px;
@@ -478,33 +598,41 @@
 
 .toast-container {
   position: fixed;
-  top: 24px;
-  right: 24px;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  transform: translate(-50%, -50%);
   z-index: 3000;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  align-items: center;
+  gap: 12px;
   pointer-events: none;
+  width: min(92vw, 560px);
 }
 
 .toast {
   pointer-events: auto;
-  min-width: 280px;
-  max-width: 400px;
-  padding: 14px 18px;
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  font-size: 14px;
+  width: 100%;
+  min-width: 300px;
+  max-width: 560px;
+  padding: 18px 24px;
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.45;
+  text-align: center;
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
   animation: toastIn 0.35s ease;
 }
 
 @keyframes toastIn {
   from {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translateY(-12px) scale(0.96);
   }
   to {
     opacity: 1;
@@ -513,19 +641,21 @@
 }
 
 .toast-success {
-  background: var(--surface);
-  border-left: 4px solid var(--success);
-  color: var(--text);
+  background: #ed1d24;
+  color: #ffffff;
+  border: 2px solid #ffffff;
 }
 
 .toast-error {
-  background: var(--surface);
-  border-left: 4px solid var(--danger);
+  background: #111111;
+  color: #ffffff;
+  border: 2px solid #ed1d24;
 }
 
 .toast-info {
-  background: var(--surface);
-  border-left: 4px solid var(--primary);
+  background: #ed1d24;
+  color: #ffffff;
+  border: 2px solid #ffffff;
 }
 
 .skeleton {

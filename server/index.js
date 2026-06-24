@@ -151,38 +151,56 @@ app.use(
 
 app.get('/health', async (_req, res) => {
   const strict = String(_req.query.strict || '').toLowerCase() === '1';
+  const { verifyConnection, databaseHostLabel } = require('./db');
   const payload = {
     ok: true,
     service: 'avgc-hrms',
     vercel: Boolean(process.env.VERCEL),
     railway: Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID),
+    databaseHost: databaseHostLabel(),
+    useLocalDb: process.env.USE_LOCAL_DB === 'true',
   };
 
-  if (!process.env.DATABASE_URL) {
+  if (!process.env.DATABASE_URL && !(process.env.USE_LOCAL_DB === 'true' && process.env.LOCAL_DATABASE_URL)) {
     payload.database = 'missing DATABASE_URL';
+    payload.ok = false;
     return strict ? res.status(503).json(payload) : res.json(payload);
   }
 
-  try {
-    const { pool } = require('./db');
-    await pool.query('SELECT 1');
+  const result = await verifyConnection();
+  if (result.ok) {
     payload.database = 'connected';
+    payload.dbMs = result.ms;
     return res.json(payload);
-  } catch (err) {
-    payload.database = 'error';
-    payload.dbError = err.message;
-    return strict ? res.status(503).json(payload) : res.json(payload);
   }
+  payload.ok = false;
+  payload.database = 'error';
+  payload.dbError = result.message;
+  return strict ? res.status(503).json(payload) : res.json(payload);
+});
+
+app.use('/api', (req, res, next) => {
+  const { isDbCachedUnavailable, databaseHostLabel } = require('./db');
+  if (!isDbCachedUnavailable()) return next();
+  return res.status(503).json({
+    message: `Database unreachable (${databaseHostLabel()}). Run npm run db:check for fix steps.`,
+  });
 });
 
 let apiSchemaEnsured = false;
+let apiSchemaEnsureFailedAt = 0;
 app.use('/api', async (req, res, next) => {
   if (apiSchemaEnsured) return next();
+  if (apiSchemaEnsureFailedAt && Date.now() - apiSchemaEnsureFailedAt < 60000) {
+    return next();
+  }
   try {
     const { ensureEmployeeSchemaColumns } = require('./utils/ensureSchema');
     await ensureEmployeeSchemaColumns();
     apiSchemaEnsured = true;
+    apiSchemaEnsureFailedAt = 0;
   } catch (err) {
+    apiSchemaEnsureFailedAt = Date.now();
     console.warn('[AVGC] Schema ensure on API request:', err.message);
   }
   next();
@@ -207,9 +225,15 @@ app.use('/api', (req, res, next) => {
   if (p === '/auth/me' || p === '/auth/logout') {
     return authMiddleware(req, res, next);
   }
-  return authMiddleware(req, res, () =>
-    enforceForcePasswordChange(req, res, () => enforceOnboardingComplete(req, res, next))
-  );
+  const apiPath = String(req.path || '').split('?')[0];
+  const skipPasswordGate =
+    apiPath === '/users/employee-directory' || apiPath.startsWith('/users/profile-photo/employee/');
+  return authMiddleware(req, res, () => {
+    if (skipPasswordGate) {
+      return enforceOnboardingComplete(req, res, next);
+    }
+    return enforceForcePasswordChange(req, res, () => enforceOnboardingComplete(req, res, next));
+  });
 });
 
 app.use('/api/auth', authRoutes);
@@ -266,21 +290,23 @@ async function startBackgroundJobs() {
 }
 
 if (require.main === module) {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`AVGC server running on port ${PORT} (${isProd ? 'production' : 'development'} mode)`);
-    console.log('[AVGC] HTML dashboards: /employee/dashboard, /manager/dashboard, /admin/dashboard');
-    startBackgroundJobs();
-    const { warmPool } = require('./db');
-    warmPool().catch(() => {});
-  });
-
   (async () => {
+    const { warmPool } = require('./db');
+    await warmPool();
+
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`AVGC server running on port ${PORT} (${isProd ? 'production' : 'development'} mode)`);
+      console.log('[AVGC] HTML dashboards: /employee/dashboard, /manager/dashboard, /admin/dashboard');
+      startBackgroundJobs();
+    });
+
     try {
       const { ensureEmployeeSchemaColumns } = require('./utils/ensureSchema');
       await ensureEmployeeSchemaColumns();
       apiSchemaEnsured = true;
       console.log('[AVGC] Schema ensure complete');
     } catch (err) {
+      apiSchemaEnsureFailedAt = Date.now();
       console.warn('[AVGC] Schema ensure failed (login may fail until db:init):', err.message);
     }
   })();

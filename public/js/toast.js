@@ -13,7 +13,7 @@ HRMS.toast = function toast(message, type = 'info') {
   container.appendChild(el);
   setTimeout(() => {
     el.style.opacity = '0';
-    el.style.transform = 'translateX(12px)';
+    el.style.transform = 'translateY(-8px) scale(0.98)';
     setTimeout(() => el.remove(), 300);
   }, 4200);
 };

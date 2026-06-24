@@ -15,6 +15,7 @@ const {
   isEmployeeCategory,
   isAdminCategory,
 } = require('../utils/employeeDocuments');
+const { syncProfileTask } = require('../utils/onboardingHelpers');
 
 const router = express.Router();
 const uploadDir = getUploadsRoot('employee-documents');
@@ -115,6 +116,7 @@ router.post('/mine', upload.single('file'), async (req, res) => {
         req.user.id,
       ]
     );
+    await syncProfileTask(req.user.id).catch(() => {});
     return res.status(201).json({ id: ins.rows[0].id, message: 'Document uploaded' });
   } catch (err) {
     console.error('POST /employee-documents/mine:', err.message);
