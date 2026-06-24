@@ -2,7 +2,8 @@
  * One-shot: fetch device logs and write to DATABASE_URL (local dev).
  *   npm run essl:sync
  */
-require('dotenv').config();
+const { loadEsslEnv } = require('./loadEsslEnv');
+loadEsslEnv();
 const { runEsslAttendanceSync } = require('../jobs/esslAttendanceSync');
 
 async function main() {

@@ -164,6 +164,15 @@ BIOMETRIC_API_KEY=same_secret_as_vercel
 ESSL_BRIDGE_MODE=remote
 ```
 
+Bridge scripts now auto-load `.env.bridge` when present.  
+So on office PC you can keep your main `.env` untouched and create a dedicated `.env.bridge`.
+
+Optional override:
+
+```bash
+ENV_FILE=.env.bridge npm run essl:bridge
+```
+
 **Vercel environment variables**
 
 - `DATABASE_URL`

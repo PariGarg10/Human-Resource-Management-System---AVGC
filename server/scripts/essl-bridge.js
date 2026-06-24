@@ -6,7 +6,8 @@
  *   copy .env.example → .env.bridge (or use .env) and set values below
  *   npm run essl:bridge
  */
-require('dotenv').config();
+const { loadEsslEnv } = require('./loadEsslEnv');
+loadEsslEnv();
 
 const { upsertAttendanceFromDeviceRecords } = require('../utils/deviceAttendance');
 const { fetchDeviceAttendanceLogs, deviceErrorMessage } = require('../utils/zkDeviceClient');
