@@ -61,6 +61,21 @@ export const SettingsPanel = lazy(() =>
 export const PerformancePanel = lazy(() =>
   import('@/views/PerformancePanel').then((m) => ({ default: m.PerformancePanel }))
 );
+export const MyProjectsPanel = lazy(() =>
+  import('@/views/MyProjectsPanel').then((m) => ({ default: m.MyProjectsPanel }))
+);
+export const WorkLogApprovalPanel = lazy(() =>
+  import('@/views/WorkLogApprovalPanel').then((m) => ({ default: m.WorkLogApprovalPanel }))
+);
+export const EfficiencyProjectSetupPanel = lazy(() =>
+  import('@/views/EfficiencyProjectSetupPanel').then((m) => ({ default: m.EfficiencyProjectSetupPanel }))
+);
+export const AdminEfficiencyPanel = lazy(() =>
+  import('@/views/AdminEfficiencyPanel').then((m) => ({ default: m.AdminEfficiencyPanel }))
+);
+export const EfficiencyDailyInputsPanel = lazy(() =>
+  import('@/views/EfficiencyDailyInputsPanel').then((m) => ({ default: m.EfficiencyDailyInputsPanel }))
+);
 export const SocialPortal = lazy(() => import('@/SocialPortal.jsx'));
 
 function PanelFallback() {

@@ -81,10 +81,7 @@ function resolveRoleInfo(source: {
 }
 
 export function useOrgRole(): OrgRoleInfo {
-  const [info, setInfo] = useState<OrgRoleInfo>(() => ({
-    ...resolveRoleInfo(parseEmployeeFromStorage()),
-    ready: false,
-  }));
+  const [info, setInfo] = useState<OrgRoleInfo>(() => resolveRoleInfo(parseEmployeeFromStorage()));
 
   useEffect(() => {
     let cancelled = false;

@@ -2984,6 +2984,71 @@ a.btn-primary:visited,
 }
 
 
+/* --- password-toggle.css --- */
+/* Password field with show/hide toggle */
+.password-field-wrap {
+  position: relative;
+  display: block;
+  width: 100%;
+}
+
+.password-field-wrap > input {
+  width: 100%;
+  padding-right: 2.75rem;
+}
+
+.auth-card .password-field-wrap {
+  margin-bottom: 14px;
+}
+
+.auth-card .password-field-wrap > input {
+  margin-bottom: 0;
+}
+
+.form-group .password-field-wrap > input {
+  width: 100%;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted, #697279);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.password-toggle-btn:hover {
+  color: var(--text, #1a1a1a);
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.password-toggle-btn:focus-visible {
+  outline: 2px solid var(--brand, #c0392b);
+  outline-offset: 2px;
+}
+
+.password-toggle-btn svg {
+  width: 1.125rem;
+  height: 1.125rem;
+  pointer-events: none;
+}
+
+.settings-card-field .password-field-wrap {
+  margin-top: 0.35rem;
+}
+
+
 /* --- modals.css --- */
 .modal-backdrop {
   position: fixed;
@@ -4885,6 +4950,7 @@ body {
 
 /* --- app-bundle tail --- */
 /* Load order — single entry for dashboards */
+
 
 
 

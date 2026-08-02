@@ -22,6 +22,9 @@ export default defineConfig(({ mode }) => ({
   build: {
     outDir: path.resolve(__dirname, '../../public/assets/avgc-dashboard'),
     emptyOutDir: true,
+    target: 'es2020',
+    cssMinify: true,
+    sourcemap: false,
     rollupOptions: {
       input: {
         app: path.resolve(__dirname, 'index.html'),

@@ -1,6 +1,7 @@
 const { format } = require('date-fns');
 const { pool } = require('../db');
 const { calculateTotalHours, getAttendanceStatus } = require('./attendance');
+const { resolveAttendanceEmployee } = require('./attendanceImport');
 
 function parseClock(value, fallback) {
   const raw = String(value || fallback || '').trim();
@@ -107,54 +108,29 @@ function normalizeDeviceRecord(record) {
   };
 }
 
-/** Match device user id or display name to HRMS employee (code first, then name). */
+/** Match device user id or display name to HRMS employee/admin (code first, then name). */
 async function findEmployeeByDeviceIdentity(deviceUserId, deviceName) {
+  const matched = await resolveAttendanceEmployee(pool, {
+    employeecode: deviceUserId,
+    employeeName: deviceName,
+  });
+  if (matched) return matched;
+
   const code = String(deviceUserId || '').trim();
-  const name = String(deviceName || '').trim();
+  if (!code) return null;
 
-  if (code) {
-    const exact = await pool.query(
-      `
-      SELECT id, employeecode, name
-      FROM employees
-      WHERE upper(trim(employeecode)) = upper($1)
-         OR trim(employeecode) = trim($2)
-      LIMIT 1
-    `,
-      [code, code.replace(/^0+/, '') || code]
-    );
-    if (exact.rows[0]) return exact.rows[0];
-  }
-
-  if (name) {
-    const byName = await pool.query(
-      `
-      SELECT id, employeecode, name
-      FROM employees
-      WHERE lower(trim(name)) = lower($1)
-      LIMIT 1
-    `,
-      [name]
-    );
-    if (byName.rows[0]) return byName.rows[0];
-  }
-
-  if (code) {
-    const stripped = code.replace(/^0+/, '') || code;
-    const numeric = await pool.query(
-      `
+  const stripped = code.replace(/^0+/, '') || code;
+  const numeric = await pool.query(
+    `
       SELECT id, employeecode, name
       FROM employees
       WHERE ltrim(trim(employeecode), '0') = $1
          OR ltrim(trim(employeecode), '0') = $2
       LIMIT 1
     `,
-      [stripped, code.replace(/^0+/, '')]
-    );
-    if (numeric.rows[0]) return numeric.rows[0];
-  }
-
-  return null;
+    [stripped, code.replace(/^0+/, '')]
+  );
+  return numeric.rows[0] || null;
 }
 
 async function saveRawDeviceLog(record, employee) {

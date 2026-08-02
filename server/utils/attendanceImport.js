@@ -158,6 +158,116 @@ function normalizePersonName(name) {
     .replace(/\s+/g, ' ');
 }
 
+/** Allow first-name / prefix matching for imports like "Ravi" → "Ravi Pingali". */
+function nameLooseMatchSql(columnExpr) {
+  return `(
+    lower(trim(${columnExpr})) = lower($1)
+    OR lower(split_part(trim(${columnExpr}), ' ', 1)) = lower($1)
+    OR lower(trim(${columnExpr})) LIKE lower($1) || ' %'
+  )`;
+}
+
+function pickUniquePerson(rows) {
+  if (!rows?.length) return null;
+  if (rows.length === 1) return rows[0];
+  return null;
+}
+
+function isCompanyEmail(email) {
+  return String(email || '')
+    .trim()
+    .toLowerCase()
+    .endsWith('@avgcstudios.com');
+}
+
+function isAdminRole(role) {
+  const r = String(role || '').toLowerCase().trim();
+  return r === 'admin' || r === 'founder' || r === 'it_head';
+}
+
+/** When several people share a first name, pick the best single match. */
+function pickBestPerson(rows, queryName) {
+  if (!rows?.length) return null;
+  if (rows.length === 1) return rows[0];
+
+  const normalized = normalizePersonName(queryName).toLowerCase();
+  const exact = rows.filter((r) => normalizePersonName(r.name).toLowerCase() === normalized);
+  if (exact.length === 1) return exact[0];
+
+  const company = rows.filter((r) => isCompanyEmail(r.email || r.admin_email));
+  if (company.length === 1) return company[0];
+
+  const adminCompany = rows.filter(
+    (r) => isAdminRole(r.role) && isCompanyEmail(r.email || r.admin_email)
+  );
+  if (adminCompany.length === 1) return adminCompany[0];
+
+  const adminRole = rows.filter((r) => isAdminRole(r.role));
+  if (adminRole.length === 1) return adminRole[0];
+
+  const linkedAdmin = rows.filter((r) => r.admin_id);
+  if (linkedAdmin.length === 1) return linkedAdmin[0];
+
+  return null;
+}
+
+async function findNameMatchCandidates(db, name) {
+  if (!name) return [];
+  const { rows: employees } = await db.query(
+    `
+      SELECT e.id, e.name, e.employeecode, e.role, e.email, NULL::int AS admin_id, NULL::text AS admin_email
+      FROM employees e
+      WHERE ${nameLooseMatchSql('e.name')}
+    `,
+    [name]
+  );
+  const { rows: admins } = await db.query(
+    `
+      SELECT e.id, COALESCE(e.name, a.name) AS name, e.employeecode, e.role, COALESCE(e.email, a.email) AS email,
+             a.id AS admin_id, a.email AS admin_email
+      FROM admins a
+      LEFT JOIN employees e ON e.id = a.employee_id
+      WHERE a.is_active = TRUE
+        AND (
+          ${nameLooseMatchSql('a.name')}
+          OR ${nameLooseMatchSql('e.name')}
+        )
+    `,
+    [name]
+  );
+
+  const merged = new Map();
+  for (const row of [...employees, ...admins]) {
+    if (!row?.id) continue;
+    merged.set(row.id, row);
+  }
+  return [...merged.values()];
+}
+
+async function explainAttendanceMatchFailure(db, { employeecode, employeeName, email }) {
+  const code = String(employeecode || '').trim();
+  const name = normalizePersonName(employeeName);
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+
+  if (code) return `No employee/admin found with code "${code}"`;
+  if (normalizedEmail) return `No employee/admin found with email "${normalizedEmail}"`;
+
+  if (name) {
+    const candidates = await findNameMatchCandidates(db, name);
+    if (candidates.length > 1) {
+      const list = candidates
+        .map((r) => `${r.name} (${r.employeecode || 'no code'})`)
+        .join(', ');
+      return `Multiple people match "${name}": ${list}. Add Employee Code column to the file.`;
+    }
+    if (candidates.length === 1) {
+      return `Could not uniquely match "${name}" — try full name or employee code ${candidates[0].employeecode || ''}`.trim();
+    }
+  }
+
+  return 'No matching employee or admin in HRMS';
+}
+
 function normalizeStatus(value) {
   const raw = String(value || '')
     .trim()
@@ -223,13 +333,27 @@ function parseAttendanceRow(row, options = {}) {
     pickRowField(row, [
       'e code',
       'e. code',
+      'e code.',
       'employee code',
       'emp code',
       'employeecode',
       'employee id',
       'emp id',
+      'user id',
+      'userid',
+      'enroll no',
+      'enroll number',
+      'enrollment number',
+      'biometric id',
+      'device user id',
     ]) || ''
   ).trim();
+
+  const email = String(
+    pickRowField(row, ['email', 'work email', 'employee email', 'mail']) || ''
+  )
+    .trim()
+    .toLowerCase();
 
   const punchInRaw = pickRowField(row, [
     'intime',
@@ -270,12 +394,209 @@ function parseAttendanceRow(row, options = {}) {
   return {
     employeeName,
     employeecode,
+    email,
     date,
     punchIn,
     punchOut,
     totalHours,
     statusInput,
   };
+}
+
+function codeMatchSql(columnExpr) {
+  return `(
+    trim(${columnExpr}) = $1
+    OR upper(trim(${columnExpr})) = upper($1)
+    OR ltrim(trim(${columnExpr}), '0') = ltrim($1, '0')
+  )`;
+}
+
+async function findEmployeeByCode(db, code) {
+  if (!code) return null;
+  const { rows } = await db.query(
+    `
+      SELECT id, name, employeecode
+      FROM employees
+      WHERE ${codeMatchSql('employeecode')}
+      LIMIT 1
+    `,
+    [code]
+  );
+  return rows[0] || null;
+}
+
+async function findEmployeeByName(db, name) {
+  if (!name) return null;
+  const rows = await findNameMatchCandidates(db, name);
+  return pickBestPerson(rows, name);
+}
+
+async function findEmployeeByEmail(db, email) {
+  if (!email) return null;
+  const { rows } = await db.query(
+    `
+      SELECT id, name, employeecode
+      FROM employees
+      WHERE lower(trim(email)) = lower($1)
+      LIMIT 1
+    `,
+    [email]
+  );
+  return rows[0] || null;
+}
+
+/** Link admin to an employee row when only email matches (attendance writes to employees.id). */
+async function linkAdminToEmployee(db, adminId, employeeId) {
+  if (!adminId || !employeeId) return;
+  await db.query(
+    `
+      UPDATE admins
+      SET employee_id = $2
+      WHERE id = $1 AND (employee_id IS NULL OR employee_id <> $2)
+    `,
+    [adminId, employeeId]
+  );
+}
+
+/**
+ * Match active admin-access accounts (admins table + admin/founder/it_head employee roles).
+ */
+async function findAdminAccessPerson(db, { employeecode, employeeName, email }) {
+  const code = String(employeecode || '').trim();
+  const name = normalizePersonName(employeeName);
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+
+  if (code) {
+    const { rows } = await db.query(
+      `
+        SELECT e.id, e.name, e.employeecode, a.id AS admin_id
+        FROM admins a
+        INNER JOIN employees e ON e.id = a.employee_id
+        WHERE a.is_active = TRUE
+          AND ${codeMatchSql('e.employeecode')}
+        LIMIT 1
+      `,
+      [code]
+    );
+    if (rows[0]) return rows[0];
+
+    const { rows: roleRows } = await db.query(
+      `
+        SELECT e.id, e.name, e.employeecode, NULL::int AS admin_id
+        FROM employees e
+        WHERE lower(trim(e.role)) IN ('admin', 'founder', 'it_head')
+          AND ${codeMatchSql('e.employeecode')}
+        LIMIT 1
+      `,
+      [code]
+    );
+    if (roleRows[0]) return roleRows[0];
+  }
+
+  if (normalizedEmail) {
+    const { rows } = await db.query(
+      `
+        SELECT e.id, e.name, e.employeecode, a.id AS admin_id
+        FROM admins a
+        INNER JOIN employees e ON lower(trim(e.email)) = lower(trim(a.email))
+        WHERE a.is_active = TRUE
+          AND lower(trim(a.email)) = $1
+        LIMIT 1
+      `,
+      [normalizedEmail]
+    );
+    if (rows[0]) {
+      await linkAdminToEmployee(db, rows[0].admin_id, rows[0].id);
+      return rows[0];
+    }
+
+    const byEmail = await findEmployeeByEmail(db, normalizedEmail);
+    if (byEmail) {
+      const adminCheck = await db.query(
+        `
+          SELECT id FROM admins
+          WHERE is_active = TRUE
+            AND (employee_id = $1 OR lower(trim(email)) = $2)
+          LIMIT 1
+        `,
+        [byEmail.id, normalizedEmail]
+      );
+      const roleCheck = await db.query(
+        `SELECT id FROM employees WHERE id = $1 AND lower(trim(role)) IN ('admin', 'founder', 'it_head')`,
+        [byEmail.id]
+      );
+      if (adminCheck.rows[0] || roleCheck.rows[0]) return byEmail;
+    }
+  }
+
+  if (name) {
+    const rows = await findNameMatchCandidates(db, name);
+    const adminRows = rows.filter((r) => r.admin_id);
+    const adminMatch = pickBestPerson(adminRows.length ? adminRows : rows, name);
+    if (adminMatch?.id) return adminMatch;
+
+    if (adminMatch?.admin_email) {
+      const byAdminEmail = await findEmployeeByEmail(db, adminMatch.admin_email);
+      if (byAdminEmail) {
+        await linkAdminToEmployee(db, adminMatch.admin_id, byAdminEmail.id);
+        return byAdminEmail;
+      }
+    }
+
+    const roleMatch = pickBestPerson(
+      rows.filter((r) => isAdminRole(r.role)),
+      name
+    );
+    if (roleMatch) return roleMatch;
+  }
+
+  return null;
+}
+
+/**
+ * Resolve a file/device row to an employees.id for attendancelogs.
+ * Matches regular employees, then admin-access accounts (admins + admin roles).
+ */
+async function resolveAttendanceEmployee(db, { employeecode, employeeName, email }) {
+  let code = String(employeecode || '').trim();
+  let name = normalizePersonName(employeeName);
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+
+  // Biometric exports sometimes put the device user id in the name column (e.g. "1081").
+  if (name && !code && /^\d+[a-z]?$/i.test(name)) {
+    code = name;
+    name = '';
+  }
+
+  if (code) {
+    const employee = await findEmployeeByCode(db, code);
+    if (employee) return employee;
+  }
+
+  if (normalizedEmail) {
+    const employee = await findEmployeeByEmail(db, normalizedEmail);
+    if (employee) return employee;
+  }
+
+  if (name) {
+    const employee = await findEmployeeByName(db, name);
+    if (employee) return employee;
+  }
+
+  const adminPerson = await findAdminAccessPerson(db, {
+    employeecode: code,
+    employeeName: name,
+    email: normalizedEmail,
+  });
+  if (adminPerson?.id) {
+    return {
+      id: adminPerson.id,
+      name: adminPerson.name,
+      employeecode: adminPerson.employeecode,
+    };
+  }
+
+  return null;
 }
 
 module.exports = {
@@ -285,4 +606,6 @@ module.exports = {
   readAttendanceRowsFromFile,
   parseAttendanceRow,
   parseDurationHours,
+  resolveAttendanceEmployee,
+  explainAttendanceMatchFailure,
 };

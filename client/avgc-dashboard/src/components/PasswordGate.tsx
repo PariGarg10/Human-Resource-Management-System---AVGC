@@ -1,3 +1,4 @@
+import { PasswordInput } from '@/components/PasswordInput';
 import { type FormEvent, useState } from 'react';
 import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
@@ -41,8 +42,7 @@ export function PasswordGate({ message, onboarding }: { message?: string; onboar
       <form onSubmit={onSubmit} className="mt-6 grid max-w-lg gap-4 sm:grid-cols-2">
         <label className="text-sm font-medium text-slate-800 sm:col-span-2">
           Current password
-          <input
-            type="password"
+          <PasswordInput
             required
             value={current}
             onChange={(e) => setCurrent(e.target.value)}
@@ -51,8 +51,7 @@ export function PasswordGate({ message, onboarding }: { message?: string; onboar
         </label>
         <label className="text-sm font-medium text-slate-800 sm:col-span-2">
           New password
-          <input
-            type="password"
+          <PasswordInput
             required
             value={next}
             onChange={(e) => setNext(e.target.value)}

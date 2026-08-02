@@ -139,7 +139,12 @@ async function sendTemporaryPasswordEmail({ to, firstName, tempPassword }) {
   `;
 
   if (!isSmtpConfigured()) {
-    console.log('[email] SMTP not configured — temporary password email skipped (dev mode).');
+    const msg = '[email] SMTP not configured — temporary password email not sent.';
+    if (process.env.NODE_ENV === 'production') {
+      console.error(msg, 'Set SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_FROM in environment.');
+      throw new Error('SMTP not configured');
+    }
+    console.log(msg);
     return { sent: false, devLogged: true };
   }
 

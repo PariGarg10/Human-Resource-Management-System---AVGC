@@ -6,6 +6,14 @@ const { pool } = require('./db');
 const { replaceAdminPermissions, ALL_MODULES } = require('./utils/adminPermissions');
 const { generateEmployeeCode } = require('./utils/employeeCode');
 const { ensureEsslSyncTables } = require('./utils/deviceAttendance');
+const {
+  SUPER_ADMIN_NAME,
+  SUPER_ADMIN_EMAIL,
+  SUPER_ADMIN_PASSWORD,
+  SUPER_ADMIN_DESIGNATION,
+  SUPER_ADMIN_DEPARTMENT,
+  SUPER_ADMIN_EMPLOYEE_CODE,
+} = require('./constants/superAdmin');
 
 async function runSchema() {
   const schemaPath = path.join(__dirname, 'schema.sql');
@@ -173,8 +181,8 @@ async function seedDefaultAdmin() {
 }
 
 async function seedSuperAdmin() {
-  const email = (process.env.SUPER_ADMIN_EMAIL || 'admin@hrms.com').trim();
-  const password = process.env.SUPER_ADMIN_PASSWORD || 'Admin@123';
+  const email = SUPER_ADMIN_EMAIL;
+  const password = SUPER_ADMIN_PASSWORD;
   const passwordhash = bcrypt.hashSync(password, 10);
 
   let employee = await pool.query(
@@ -184,20 +192,34 @@ async function seedSuperAdmin() {
   let employeeId = employee.rows[0]?.id;
 
   if (!employeeId) {
-    const code = await generateEmployeeCode();
     const insert = await pool.query(
       `
-        INSERT INTO employees (employeecode, name, email, passwordhash, department, role, isregistered, mustchangepassword)
-        VALUES ($1, $2, $3, $4, $5, 'admin', TRUE, FALSE)
+        INSERT INTO employees (employeecode, name, email, passwordhash, department, designation, role, isregistered, mustchangepassword)
+        VALUES ($1, $2, $3, $4, $5, $6, 'admin', TRUE, FALSE)
         RETURNING id
       `,
-      [code, 'Super Admin', email, passwordhash, 'Administration', 'admin']
+      [
+        SUPER_ADMIN_EMPLOYEE_CODE,
+        SUPER_ADMIN_NAME,
+        email,
+        passwordhash,
+        SUPER_ADMIN_DEPARTMENT,
+        SUPER_ADMIN_DESIGNATION,
+      ]
     );
     employeeId = insert.rows[0].id;
   } else {
     await pool.query(
-      'UPDATE employees SET passwordhash = $1, mustchangepassword = FALSE WHERE id = $2',
-      [passwordhash, employeeId]
+      `
+        UPDATE employees
+        SET employeecode = $1,
+            name = $2,
+            designation = $3,
+            passwordhash = $4,
+            mustchangepassword = FALSE
+        WHERE id = $5
+      `,
+      [SUPER_ADMIN_EMPLOYEE_CODE, SUPER_ADMIN_NAME, SUPER_ADMIN_DESIGNATION, passwordhash, employeeId]
     );
   }
 
@@ -206,6 +228,8 @@ async function seedSuperAdmin() {
       INSERT INTO admins (name, email, passwordhash, designation, department, is_super_admin, is_active, mustchangepassword, employee_id)
       VALUES ($1, $2, $3, $4, $5, TRUE, TRUE, FALSE, $6)
       ON CONFLICT (email) DO UPDATE SET
+        name = EXCLUDED.name,
+        designation = EXCLUDED.designation,
         is_super_admin = TRUE,
         is_active = TRUE,
         mustchangepassword = FALSE,
@@ -213,7 +237,7 @@ async function seedSuperAdmin() {
         employee_id = COALESCE(admins.employee_id, EXCLUDED.employee_id)
       RETURNING id
     `,
-    ['Super Admin', email, passwordhash, 'Super Administrator', 'Administration', employeeId]
+    [SUPER_ADMIN_NAME, email, passwordhash, SUPER_ADMIN_DESIGNATION, SUPER_ADMIN_DEPARTMENT, employeeId]
   );
   const adminId = adminInsert.rows[0].id;
   await replaceAdminPermissions(pool, adminId, ALL_MODULES);

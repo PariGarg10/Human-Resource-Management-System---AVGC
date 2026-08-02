@@ -29,6 +29,14 @@ coverage/
 
 # Logs
 *.log
+engine-log.txt
+
+# Runtime uploads (keep .gitkeep only)
+uploads/**
+!uploads/**/.gitkeep
+public/uploads/**
+!public/uploads/**/.gitkeep
+
 # Elastic Beanstalk Files
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml

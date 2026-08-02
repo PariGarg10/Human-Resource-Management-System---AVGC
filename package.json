@@ -15,13 +15,14 @@
     "db:local": "node scripts/setup-local-db.js",
     "db:reset-super-admin": "node server/scripts/reset-super-admin.js",
     "db:reset-org": "node server/scripts/reset-org-data.js",
+    "db:seed-efficiency": "node server/scripts/seed-efficiency-baselines.js",
     "essl:bridge": "node server/scripts/essl-bridge.js",
     "essl:bridge:ping": "node server/scripts/essl-bridge-ping.js",
     "essl:diagnose": "node server/scripts/essl-diagnose.js",
     "essl:test": "node server/scripts/essl-test.js",
     "essl:sync": "node server/scripts/essl-sync-once.js",
     "postinstall": "node server/scripts/postinstall.js",
-    "build:dashboard": "npm run install:dashboard && cd client/avgc-dashboard && npm run build && cd ../.. && node scripts/bundle-portal-css.mjs",
+    "build:dashboard": "npm run install:dashboard && cd client/avgc-dashboard && npm run build && cd ../.. && node scripts/bundle-portal-css.mjs && node scripts/stamp-dashboard-assets.mjs",
     "install:dashboard": "cd client/avgc-dashboard && npm install --include=dev"
   },
   "keywords": [

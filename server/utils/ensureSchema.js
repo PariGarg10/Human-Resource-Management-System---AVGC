@@ -52,6 +52,34 @@ async function seedPoshQuizIfEmpty() {
 async function ensureEmployeeSchemaColumns() {
   await ensurePolicyChatDocumentsTable();
 
+  await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS temp_password_hash TEXT');
+  await pool.query(
+    'ALTER TABLE employees ADD COLUMN IF NOT EXISTS force_password_change BOOLEAN NOT NULL DEFAULT FALSE'
+  );
+  await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS temp_password_expiry TIMESTAMPTZ');
+  await pool.query(
+    'ALTER TABLE employees ADD COLUMN IF NOT EXISTS failed_login_attempts INTEGER NOT NULL DEFAULT 0'
+  );
+  await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS account_locked_until TIMESTAMPTZ');
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_reset_tokens (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      user_type TEXT NOT NULL CHECK (user_type IN ('admin', 'manager', 'employee')),
+      email TEXT NOT NULL,
+      token_hash TEXT NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await pool.query(
+    'CREATE INDEX IF NOT EXISTS idx_password_reset_token_hash ON password_reset_tokens (token_hash)'
+  );
+  await pool.query(
+    'CREATE INDEX IF NOT EXISTS idx_password_reset_email_created ON password_reset_tokens (lower(email), created_at)'
+  );
+
   await pool.query(
     'ALTER TABLE employees ADD COLUMN IF NOT EXISTS is_first_login BOOLEAN NOT NULL DEFAULT TRUE'
   );
@@ -221,9 +249,98 @@ async function ensureEmployeeSchemaColumns() {
   await pool.query(
     'CREATE INDEX IF NOT EXISTS idx_leaves_employee_status ON leaves (employeeid, status)'
   );
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS manageremployees (
+      id SERIAL PRIMARY KEY,
+      managerid INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      employeeid INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      createdat TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (managerid, employeeid)
+    )
+  `);
   await pool.query(
     'CREATE INDEX IF NOT EXISTS idx_manageremployees_manager ON manageremployees (managerid, employeeid)'
   );
+
+  await ensureEfficiencySchema();
 }
 
-module.exports = { ensureEmployeeSchemaColumns };
+/** Efficiency tracking tables — idempotent; safe if SQL migrations were not run on RDS yet. */
+async function ensureEfficiencySchema() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS efficiency_projects (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS task_baselines (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL REFERENCES efficiency_projects(id) ON DELETE CASCADE,
+      project_name TEXT NOT NULL,
+      task_name TEXT NOT NULL,
+      version_label TEXT NOT NULL DEFAULT '',
+      unit_label TEXT NOT NULL DEFAULT 'unit',
+      standard_output_qty NUMERIC,
+      standard_hours NUMERIC,
+      calc_type TEXT NOT NULL CHECK (calc_type IN ('rate_based', 'weight_based')),
+      manhours_per_unit NUMERIC NOT NULL CHECK (manhours_per_unit > 0),
+      created_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (project_id, task_name, version_label)
+    )
+  `);
+  await pool.query(
+    'CREATE INDEX IF NOT EXISTS idx_task_baselines_project ON task_baselines (project_id)'
+  );
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS work_logs (
+      id SERIAL PRIMARY KEY,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      project_id INTEGER NOT NULL REFERENCES efficiency_projects(id) ON DELETE RESTRICT,
+      task_baseline_id INTEGER NOT NULL REFERENCES task_baselines(id) ON DELETE RESTRICT,
+      log_date DATE NOT NULL,
+      employee_name TEXT NOT NULL,
+      actual_output_qty NUMERIC NOT NULL CHECK (actual_output_qty > 0),
+      implied_mhs NUMERIC,
+      status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'rejected')),
+      manager_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+      manager_remarks TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      approved_at TIMESTAMPTZ,
+      UNIQUE (employee_id, project_id, task_baseline_id, log_date)
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_work_logs_status_manager ON work_logs (status, manager_id)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_work_logs_employee_date ON work_logs (employee_id, log_date)
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_work_logs_approved ON work_logs (employee_id, log_date, status)
+      WHERE status = 'approved'
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS efficiency_wd_overrides (
+      id SERIAL PRIMARY KEY,
+      employee_id INTEGER NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+      period_from DATE NOT NULL,
+      period_to DATE NOT NULL,
+      wd NUMERIC NOT NULL CHECK (wd >= 0),
+      updated_by INTEGER REFERENCES employees(id) ON DELETE SET NULL,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (employee_id, period_from, period_to)
+    )
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_efficiency_wd_overrides_employee
+      ON efficiency_wd_overrides (employee_id, period_from, period_to)
+  `);
+}
+
+module.exports = { ensureEmployeeSchemaColumns, ensureEfficiencySchema };

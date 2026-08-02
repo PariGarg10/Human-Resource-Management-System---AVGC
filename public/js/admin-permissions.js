@@ -34,6 +34,7 @@
     'import-employees': MODULE.IMPORT_DATA,
     'import-attendance': MODULE.IMPORT_DATA,
     reports: MODULE.REPORTS_EXPORT,
+    efficiency: MODULE.REPORTS_EXPORT,
     roles: MODULE.ROLE_MANAGEMENT,
     system: MODULE.SETTINGS,
     biometric: MODULE.SETTINGS,

@@ -1,0 +1,124 @@
+{
+  "confirmed": true,
+  "projects": [
+    {
+      "name": "L&D - Hardware",
+      "tasks": [
+        { "taskName": "Production", "versionLabel": "V1 (image + MoG)", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 360, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V2 prod (V1 Feedback)", "calcType": "rate_based", "standardHours": 6, "standardOutputQty": 360, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V3 prod (V2 Feedback)", "calcType": "rate_based", "standardHours": 4, "standardOutputQty": 360, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V4 prod (V3 Feedback)", "calcType": "rate_based", "standardHours": 2, "standardOutputQty": 360, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V5 prod (V4 Feedback)", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 360, "unitLabel": "unit" }
+      ]
+    },
+    {
+      "name": "L&D - Civil",
+      "tasks": [
+        { "taskName": "Production", "versionLabel": "V1 (image + MoG)", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 300, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V2 prod (V1 Feedback)", "calcType": "rate_based", "standardHours": 6, "standardOutputQty": 300, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V3 prod (V2 Feedback)", "calcType": "rate_based", "standardHours": 4, "standardOutputQty": 300, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V4 prod (V3 Feedback)", "calcType": "rate_based", "standardHours": 2, "standardOutputQty": 300, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V5 prod (V4 Feedback)", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 300, "unitLabel": "unit" }
+      ]
+    },
+    {
+      "name": "Concept Videos - Art",
+      "tasks": [
+        { "taskName": "Art", "versionLabel": "Hard", "calcType": "weight_based", "manhoursPerUnit": 0.5, "unitLabel": "asset" },
+        { "taskName": "Art", "versionLabel": "Medium", "calcType": "weight_based", "manhoursPerUnit": 0.25, "unitLabel": "asset" },
+        { "taskName": "Art", "versionLabel": "Easy", "calcType": "weight_based", "manhoursPerUnit": 0.1, "unitLabel": "asset" }
+      ]
+    },
+    {
+      "name": "Concept Videos - Animation",
+      "tasks": [
+        { "taskName": "Animation", "versionLabel": "V1 Production", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 120, "unitLabel": "sec" },
+        { "taskName": "Animation", "versionLabel": "V1 Feedback", "calcType": "rate_based", "standardHours": 4, "standardOutputQty": 120, "unitLabel": "sec" },
+        { "taskName": "Animation", "versionLabel": "V2 Feedback", "calcType": "rate_based", "standardHours": 2, "standardOutputQty": 120, "unitLabel": "sec" },
+        { "taskName": "Animation", "versionLabel": "V3 Feedback", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 120, "unitLabel": "sec" },
+        { "taskName": "Animation", "versionLabel": "V4 Feedback", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 120, "unitLabel": "sec" }
+      ]
+    },
+    {
+      "name": "Pearson",
+      "tasks": [
+        { "taskName": "SV Clips", "versionLabel": "", "calcType": "weight_based", "manhoursPerUnit": 0.75, "unitLabel": "clip" },
+        { "taskName": "SV Edit", "versionLabel": "", "calcType": "weight_based", "manhoursPerUnit": 1.25, "unitLabel": "unit" },
+        { "taskName": "SV Feedback Clips", "versionLabel": "", "calcType": "weight_based", "manhoursPerUnit": 0.25, "unitLabel": "clip" },
+        { "taskName": "SV Feedback Edit", "versionLabel": "", "calcType": "weight_based", "manhoursPerUnit": 0.25, "unitLabel": "unit" },
+        { "taskName": "IV Clips", "versionLabel": "", "calcType": "weight_based", "manhoursPerUnit": 1.25, "unitLabel": "clip" },
+        { "taskName": "IV Edit", "versionLabel": "", "calcType": "weight_based", "manhoursPerUnit": 2, "unitLabel": "unit" },
+        { "taskName": "IV Feedback Clips", "versionLabel": "", "calcType": "weight_based", "manhoursPerUnit": 0.5, "unitLabel": "clip" },
+        { "taskName": "IV Feedback Edit", "versionLabel": "", "calcType": "weight_based", "manhoursPerUnit": 0.5, "unitLabel": "unit" }
+      ]
+    },
+    {
+      "name": "MGH",
+      "tasks": [
+        { "taskName": "Editor", "versionLabel": "V1 Production", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 240, "unitLabel": "sec" },
+        { "taskName": "Editor", "versionLabel": "V2 Production", "calcType": "rate_based", "standardHours": 4, "standardOutputQty": 240, "unitLabel": "sec" },
+        { "taskName": "Editor", "versionLabel": "V3 Production", "calcType": "rate_based", "standardHours": 2, "standardOutputQty": 240, "unitLabel": "sec" },
+        { "taskName": "Editor", "versionLabel": "V4 Production", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 240, "unitLabel": "sec" },
+        { "taskName": "Image Artist", "versionLabel": "Image Add and Layering", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 6, "unitLabel": "file" },
+        { "taskName": "Gen AI", "versionLabel": "V1 Production - R&D", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 60, "unitLabel": "sec" },
+        { "taskName": "Gen AI", "versionLabel": "V1 Production - Worked", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 90, "unitLabel": "sec" },
+        { "taskName": "Gen AI", "versionLabel": "V2 Production - Worked", "calcType": "rate_based", "standardHours": 4, "standardOutputQty": 90, "unitLabel": "sec" },
+        { "taskName": "Gen AI", "versionLabel": "V3 Production - Worked", "calcType": "rate_based", "standardHours": 2, "standardOutputQty": 90, "unitLabel": "sec" }
+      ]
+    },
+    {
+      "name": "Shackelton/Other Projects",
+      "tasks": [
+        { "taskName": "Layering", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 150, "unitLabel": "sec" },
+        { "taskName": "Production", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 150, "unitLabel": "sec" },
+        { "taskName": "Production", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 4, "standardOutputQty": 150, "unitLabel": "sec" },
+        { "taskName": "Production", "versionLabel": "V3", "calcType": "rate_based", "standardHours": 2, "standardOutputQty": 150, "unitLabel": "sec" }
+      ]
+    },
+    {
+      "name": "Genesis",
+      "tasks": [
+        { "taskName": "Lineart", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 60, "unitLabel": "shot" },
+        { "taskName": "Color", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 30, "unitLabel": "shot" },
+        { "taskName": "Video Generation", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 25, "unitLabel": "shot" },
+        { "taskName": "Lineart", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 4, "standardOutputQty": 60, "unitLabel": "shot" },
+        { "taskName": "Color", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 4, "standardOutputQty": 30, "unitLabel": "shot" },
+        { "taskName": "Video Generation", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 4, "standardOutputQty": 25, "unitLabel": "shot" },
+        { "taskName": "Lineart", "versionLabel": "V3", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 60, "unitLabel": "shot" },
+        { "taskName": "Color", "versionLabel": "V3", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 30, "unitLabel": "shot" },
+        { "taskName": "Video Generation", "versionLabel": "V3", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 25, "unitLabel": "shot" },
+        { "taskName": "Lineart", "versionLabel": "V4", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 60, "unitLabel": "shot" },
+        { "taskName": "Color", "versionLabel": "V4", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 30, "unitLabel": "shot" },
+        { "taskName": "Video Generation", "versionLabel": "V4", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 25, "unitLabel": "shot" }
+      ]
+    },
+    {
+      "name": "Zepto",
+      "tasks": [
+        { "taskName": "Image Creation", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 15, "unitLabel": "unit" },
+        { "taskName": "BGs", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 8, "unitLabel": "unit" },
+        { "taskName": "Video (Shots)", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 12, "unitLabel": "shot" },
+        { "taskName": "Video Edit", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 90, "unitLabel": "shot" },
+        { "taskName": "Feedback (Img+BG)", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 15, "unitLabel": "unit" },
+        { "taskName": "Feedback Video (Shots)", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 3.5, "standardOutputQty": 12, "unitLabel": "shot" },
+        { "taskName": "Feedback (Img+BG)", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 15, "unitLabel": "unit" },
+        { "taskName": "Feedback Video (Shots)", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 2, "standardOutputQty": 12, "unitLabel": "shot" },
+        { "taskName": "Upscale", "versionLabel": "min", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 30, "unitLabel": "min" }
+      ]
+    },
+    {
+      "name": "Ryan",
+      "tasks": [
+        { "taskName": "Image Creation", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 20, "unitLabel": "unit" },
+        { "taskName": "BGs", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 12, "unitLabel": "unit" },
+        { "taskName": "Video (Shots)", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 8, "standardOutputQty": 25, "unitLabel": "shot" },
+        { "taskName": "Video Edit", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 90, "unitLabel": "shot" },
+        { "taskName": "Feedback (Img+BG)", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 20, "unitLabel": "unit" },
+        { "taskName": "Feedback Video (Shots)", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 3.5, "standardOutputQty": 25, "unitLabel": "shot" },
+        { "taskName": "Feedback (Img+BG)", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 1, "standardOutputQty": 20, "unitLabel": "unit" },
+        { "taskName": "Feedback Video (Shots)", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 2, "standardOutputQty": 25, "unitLabel": "shot" },
+        { "taskName": "Upscale", "versionLabel": "min", "calcType": "rate_based", "standardHours": 6, "standardOutputQty": 23, "unitLabel": "min" }
+      ]
+    }
+  ]
+}

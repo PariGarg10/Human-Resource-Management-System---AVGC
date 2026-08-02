@@ -1,0 +1,102 @@
+{
+  "confirmed": false,
+  "_comment": "Set confirmed=true only after verifying project names match your HRMS project list and all standard hours/qty values are correct.",
+  "projects": [
+    {
+      "name": "Narayana",
+      "tasks": [
+        { "taskName": "Production", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" }
+      ]
+    },
+    {
+      "name": "L&D",
+      "tasks": [
+        { "taskName": "Hardware", "versionLabel": "", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Civil", "versionLabel": "", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" }
+      ]
+    },
+    {
+      "name": "Concept Videos - Animation",
+      "tasks": [
+        { "taskName": "Animation", "versionLabel": "V1 Production", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "video" }
+      ]
+    },
+    {
+      "name": "Concept Videos - Art",
+      "tasks": [
+        { "taskName": "Art", "versionLabel": "Hard", "calcType": "weight_based", "manhoursPerUnit": 0.5, "unitLabel": "asset" },
+        { "taskName": "Art", "versionLabel": "Medium", "calcType": "weight_based", "manhoursPerUnit": 0.25, "unitLabel": "asset" },
+        { "taskName": "Art", "versionLabel": "Easy", "calcType": "weight_based", "manhoursPerUnit": 0.1, "unitLabel": "asset" }
+      ]
+    },
+    {
+      "name": "Pearson",
+      "tasks": [
+        { "taskName": "SV Clips", "versionLabel": "", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "clip" },
+        { "taskName": "IV Clips", "versionLabel": "", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "clip" },
+        { "taskName": "Edit", "versionLabel": "", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Feedback", "versionLabel": "", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" }
+      ]
+    },
+    {
+      "name": "MGH",
+      "tasks": [
+        { "taskName": "Production", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V3", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V4", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Image Add", "versionLabel": "", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Layering", "versionLabel": "", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" }
+      ]
+    },
+    {
+      "name": "Gen AI",
+      "tasks": [
+        { "taskName": "Production R&D", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Production R&D", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Production R&D", "versionLabel": "V3", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Worked", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Worked", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Worked", "versionLabel": "V3", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" }
+      ]
+    },
+    {
+      "name": "Zepto",
+      "tasks": [
+        { "taskName": "Production", "versionLabel": "", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" }
+      ]
+    },
+    {
+      "name": "Ryan",
+      "tasks": [
+        { "taskName": "Production", "versionLabel": "", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" }
+      ]
+    },
+    {
+      "name": "Genesis",
+      "tasks": [
+        { "taskName": "Lineart", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Lineart", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Lineart", "versionLabel": "V3", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Lineart", "versionLabel": "V4", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Color", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Color", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Color", "versionLabel": "V3", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Color", "versionLabel": "V4", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Video Generation", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Video Generation", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Video Generation", "versionLabel": "V3", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Video Generation", "versionLabel": "V4", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" }
+      ]
+    },
+    {
+      "name": "Shackleton / Other Projects",
+      "tasks": [
+        { "taskName": "Layering", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V1", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V2", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" },
+        { "taskName": "Production", "versionLabel": "V3", "calcType": "rate_based", "standardHours": 0, "standardOutputQty": 0, "unitLabel": "unit" }
+      ]
+    }
+  ]
+}

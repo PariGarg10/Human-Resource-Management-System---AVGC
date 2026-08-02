@@ -33,6 +33,7 @@ const saturdayConfigRoutes = require('./routes/saturdayConfig');
 const holidaysRoutes = require('./routes/holidays');
 const leaveBalanceRoutes = require('./routes/leaveBalance');
 const performanceRoutes = require('./routes/performance');
+const efficiencyRoutes = require('./routes/efficiency');
 const dashboardRoutes = require('./routes/dashboard');
 const { authMiddleware, enforceForcePasswordChange } = require('./middleware/auth');
 const { enforceOnboardingComplete } = require('./middleware/onboardingGate');
@@ -47,6 +48,8 @@ const isProd = isProductionRuntime();
 const staticMaxAge = isProd ? '30d' : 0;
 
 function sendPublicHtml(res, filename) {
+  res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.set('Pragma', 'no-cache');
   const absolutePath = path.resolve(publicDir, filename);
   res.sendFile(absolutePath, (err) => {
     if (err) {
@@ -58,7 +61,8 @@ function sendPublicHtml(res, filename) {
 
 app.use(cors());
 app.use(compression({ threshold: 1024 }));
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Hard-priority HTML routes (runs before static; avoids "Cannot GET" if another layer shadows routes)
 app.use((req, res, next) => {
@@ -116,6 +120,18 @@ app.use(
   express.static(path.join(publicDir, 'uploads'), { index: false, maxAge: '1h', fallthrough: true })
 );
 app.use('/uploads', express.static(getUploadsRoot(), { index: false, maxAge: '1h', fallthrough: true }));
+function staticCacheHeaders(res, filePath) {
+  if (filePath.endsWith('.html')) {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    return;
+  }
+  if (!isProd) return;
+  if (/[/\\]assets[/\\]avgc-dashboard[/\\]/.test(filePath)) {
+    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+  }
+}
+
 app.use(
   '/assets',
   express.static(path.join(publicDir, 'assets'), {
@@ -123,6 +139,7 @@ app.use(
     maxAge: staticMaxAge,
     immutable: isProd,
     etag: true,
+    setHeaders: staticCacheHeaders,
   })
 );
 app.use(
@@ -131,6 +148,7 @@ app.use(
     index: false,
     maxAge: staticMaxAge,
     etag: true,
+    setHeaders: staticCacheHeaders,
   })
 );
 app.use(
@@ -139,6 +157,7 @@ app.use(
     index: false,
     maxAge: staticMaxAge,
     etag: true,
+    setHeaders: staticCacheHeaders,
   })
 );
 app.use(
@@ -146,6 +165,7 @@ app.use(
     index: false,
     maxAge: staticMaxAge,
     etag: true,
+    setHeaders: staticCacheHeaders,
   })
 );
 
@@ -211,6 +231,7 @@ app.use('/api', (req, res, next) => {
   if (
     p === '/auth/login' ||
     p === '/auth/forgot-password' ||
+    p === '/auth/reset-password' ||
     p === '/auth/change-password'
   ) {
     return next();
@@ -257,6 +278,7 @@ app.use('/api/saturday-config', saturdayConfigRoutes);
 app.use('/api/holidays', holidaysRoutes);
 app.use('/api/leave-balance', leaveBalanceRoutes);
 app.use('/api/performance', performanceRoutes);
+app.use('/api', efficiencyRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/assets', assetsRoutes);
 app.use('/api/policies', policiesRoutes);
@@ -308,6 +330,18 @@ if (require.main === module) {
     } catch (err) {
       apiSchemaEnsureFailedAt = Date.now();
       console.warn('[AVGC] Schema ensure failed (login may fail until db:init):', err.message);
+    }
+
+    if (isProd) {
+      try {
+        const { applyPendingMigrations } = require('./utils/applyPendingMigrations');
+        const { applied } = await applyPendingMigrations();
+        if (applied.length) {
+          console.log(`[AVGC] Startup migrations applied: ${applied.join(', ')}`);
+        }
+      } catch (err) {
+        console.warn('[AVGC] Startup migrations skipped:', err.message);
+      }
     }
   })();
 }

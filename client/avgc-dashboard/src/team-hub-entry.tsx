@@ -41,33 +41,46 @@ function mount(el: HTMLElement, panel: TeamHubPanel) {
   el.dataset.teamHubMounted = '1';
 
   void (async () => {
-    let content;
-    if (panel === 'org-tree') {
-      const OrgTreePanel = await loadOrgTreePanel();
-      content = <OrgTreePanel />;
-    } else if (panel === 'calendar') {
-      const CalendarPanel = await loadCalendarPanel();
-      content = (
-        <div className="panel attendance-calendar-panel attendance-calendar-mount-inner">
-          <CalendarPanel />
-        </div>
-      );
-    } else if (panel === 'employee-directory') {
-      const EmployeeDirectoryPanel = await loadEmployeeDirectoryPanel();
-      content = (
-        <div className="employee-directory-viewport">
-          <EmployeeDirectoryPanel />
-        </div>
-      );
-    } else {
-      const HolidayCalendarPanel = await loadHolidayCalendarPanel();
-      content = (
-        <div className="holiday-calendar-viewport">
-          <HolidayCalendarPanel />
+    try {
+      let content;
+      if (panel === 'org-tree') {
+        const OrgTreePanel = await loadOrgTreePanel();
+        content = <OrgTreePanel />;
+      } else if (panel === 'calendar') {
+        const CalendarPanel = await loadCalendarPanel();
+        content = (
+          <div className="panel attendance-calendar-panel attendance-calendar-mount-inner">
+            <CalendarPanel />
+          </div>
+        );
+      } else if (panel === 'employee-directory') {
+        const EmployeeDirectoryPanel = await loadEmployeeDirectoryPanel();
+        content = (
+          <div className="employee-directory-viewport">
+            <EmployeeDirectoryPanel />
+          </div>
+        );
+      } else {
+        const HolidayCalendarPanel = await loadHolidayCalendarPanel();
+        content = (
+          <div className="holiday-calendar-viewport">
+            <HolidayCalendarPanel />
+          </div>
+        );
+      }
+      root.render(content);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not load this module';
+      root.render(
+        <div className="panel" style={{ margin: 24 }}>
+          <h2 className="panel-title">Module failed to load</h2>
+          <p className="stat-sub">
+            {message}. On AWS, run <code>npm run build:dashboard</code> and deploy the full{' '}
+            <code>public/assets/avgc-dashboard/</code> folder (including <code>chunks/</code>).
+          </p>
         </div>
       );
     }
-    root.render(content);
   })();
 }
 
@@ -188,6 +201,7 @@ type TeamHubHrms = typeof window.HRMS & {
   mountAdminExitClearances?: (target: HTMLElement | string) => void;
   mountAdminOnboarding?: (target: HTMLElement | string) => void;
   mountAdminPerformance?: (target: HTMLElement | string) => void;
+  mountAdminEfficiency?: (target: HTMLElement | string) => void;
   mountPortalDashboard?: (target: HTMLElement | string) => void;
 };
 
@@ -300,6 +314,18 @@ hrms.mountAdminPerformance = (target: HTMLElement | string) => {
     roots.set(el, root);
     el.dataset.adminPerformanceMounted = '1';
     root.render(<AdminPerformancePanel />);
+  });
+};
+
+hrms.mountAdminEfficiency = (target: HTMLElement | string) => {
+  const el = resolveEl(target);
+  if (!el || el.dataset.adminEfficiencyMounted === '1') return;
+  void import('@/views/AdminEfficiencyPanel').then(({ AdminEfficiencyPanel }) => {
+    if (el.dataset.adminEfficiencyMounted === '1') return;
+    const root = createRoot(el);
+    roots.set(el, root);
+    el.dataset.adminEfficiencyMounted = '1';
+    root.render(<AdminEfficiencyPanel />);
   });
 };
 

@@ -14,13 +14,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Admin · AVGC</title>
-  <link rel="stylesheet" href="/css/app-bundle.built.css" />
+  <link rel="stylesheet" href="/css/app-bundle.built.css?v=859701823757" />
 </head>
 <body>
   <div class="sidebar-overlay"></div>
   <aside class="sidebar">
     <div class="sidebar-brand">
-      <img src="/assets/avgc-logo.png" alt="AVGC" class="sidebar-logo-img" />
+      <img src="/assets/avgc-logo.png?v=859701823757" alt="AVGC" class="sidebar-logo-img" />
       <div class="sidebar-title">AVGC <small>Admin</small></div>
     </div>
     <div class="sidebar-profile">
@@ -94,6 +94,12 @@
         <button type="button" class="sidebar-accordion-head" data-nav="performance" title="Performance">
           <span class="nav-icon" data-lucide="target"></span>
           <span class="nav-label">Performance</span>
+        </button>
+      </div>
+      <div class="sidebar-nav-section sidebar-nav-section--direct" data-section="efficiency">
+        <button type="button" class="sidebar-accordion-head" data-nav="efficiency" title="Efficiency tracking">
+          <span class="nav-icon" data-lucide="gauge"></span>
+          <span class="nav-label">Efficiency</span>
         </button>
       </div>
       <div class="sidebar-nav-section" data-section="live-activities">
@@ -417,6 +423,10 @@
 
       <section id="view-performance" class="view-section">
         <div id="adminPerformanceRoot"></div>
+      </section>
+
+      <section id="view-efficiency" class="view-section">
+        <div id="adminEfficiencyRoot"></div>
       </section>
 
       <section id="view-teams" class="view-section org-teams-viewport">
@@ -1137,29 +1147,31 @@
     </div>
   </div>
 
-  <link rel="stylesheet" href="/assets/avgc-dashboard/employee-app.css" />
-  <link rel="stylesheet" href="/assets/avgc-dashboard/employee-app2.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-  <script src="/js/utils.js"></script>
-  <script src="/js/toast.js"></script>
-  <script src="/js/idle-timeout.js"></script>
-  <script src="/js/theme.js"></script>
-  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
-  <script src="/js/nav-icons.js"></script>
-  <script src="/js/confetti.js"></script>
-  <script src="/js/sidebar.js"></script>
-  <script src="/js/notification-nav.js"></script>
-  <script src="/js/navbar.js"></script>
-  <script src="/js/admin-permissions.js"></script>
-  <script src="/js/admin-people-modules.js"></script>
-  <script src="/js/admin-accounts.js"></script>
-  <script type="module" src="/assets/avgc-dashboard/team-hub.js"></script>
-  <script src="/js/portal-assets.js"></script>
-  <script src="/js/portal-policies.js"></script>
-  <script src="/js/portal-policy-chat-admin.js"></script>
-  <script src="/js/portal-exit-admin.js"></script>
-  <script src="/js/portal-employee-documents.js"></script>
-  <script src="/js/portal-home-recognition.js"></script>
-  <script src="/js/admin-dashboard.js"></script>
+  <link rel="stylesheet" href="/assets/avgc-dashboard/employee-app.css?v=859701823757" />
+  <link rel="stylesheet" href="/assets/avgc-dashboard/employee-app2.css?v=859701823757" />
+  <link rel="modulepreload" href="/assets/avgc-dashboard/team-hub.js?v=859701823757" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <script src="/js/utils.js?v=859701823757" defer></script>
+  <script src="/js/toast.js?v=859701823757" defer></script>
+  <script src="/js/idle-timeout.js?v=859701823757" defer></script>
+  <script src="/js/theme.js?v=859701823757" defer></script>
+  <script src="/js/password-toggle.js?v=859701823757" defer></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js" defer crossorigin="anonymous"></script>
+  <script src="/js/nav-icons.js?v=859701823757" defer></script>
+  <script src="/js/confetti.js?v=859701823757" defer></script>
+  <script src="/js/sidebar.js?v=859701823757" defer></script>
+  <script src="/js/notification-nav.js?v=859701823757" defer></script>
+  <script src="/js/navbar.js?v=859701823757" defer></script>
+  <script src="/js/admin-permissions.js?v=859701823757" defer></script>
+  <script src="/js/admin-people-modules.js?v=859701823757" defer></script>
+  <script src="/js/admin-accounts.js?v=859701823757" defer></script>
+  <script type="module" src="/assets/avgc-dashboard/team-hub.js?v=859701823757"></script>
+  <script src="/js/portal-assets.js?v=859701823757" defer></script>
+  <script src="/js/portal-policies.js?v=859701823757" defer></script>
+  <script src="/js/portal-policy-chat-admin.js?v=859701823757" defer></script>
+  <script src="/js/portal-exit-admin.js?v=859701823757" defer></script>
+  <script src="/js/portal-employee-documents.js?v=859701823757" defer></script>
+  <script src="/js/portal-home-recognition.js?v=859701823757" defer></script>
+  <script src="/js/admin-dashboard.js?v=859701823757" defer></script>
 </body>
 </html>

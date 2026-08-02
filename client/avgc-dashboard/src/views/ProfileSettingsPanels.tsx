@@ -1,3 +1,4 @@
+import { PasswordInput } from '@/components/PasswordInput';
 import { type FormEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { KeyRound, LockKeyhole, ShieldCheck } from 'lucide-react';
 import { useUser } from '@/context/UserContext';
@@ -368,8 +369,7 @@ export function SettingsPanel() {
           </span>
           <label className="settings-card-field">
             <span>Current password</span>
-            <input
-              type="password"
+            <PasswordInput
               value={current}
               onChange={(e) => setCurrent(e.target.value)}
               placeholder="Enter your current password"
@@ -383,8 +383,7 @@ export function SettingsPanel() {
           </span>
           <label className="settings-card-field">
             <span>New password</span>
-            <input
-              type="password"
+            <PasswordInput
               value={next}
               onChange={(e) => setNext(e.target.value)}
               placeholder="Choose a strong new password"
@@ -398,8 +397,7 @@ export function SettingsPanel() {
           </span>
           <label className="settings-card-field">
             <span>Confirm new password</span>
-            <input
-              type="password"
+            <PasswordInput
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               placeholder="Re-enter your new password"

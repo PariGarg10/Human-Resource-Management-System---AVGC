@@ -6,9 +6,17 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const { pool } = require('../db');
 const { replaceAdminPermissions, ALL_MODULES } = require('../utils/adminPermissions');
+const {
+  SUPER_ADMIN_NAME,
+  SUPER_ADMIN_EMAIL,
+  SUPER_ADMIN_PASSWORD,
+  SUPER_ADMIN_DESIGNATION,
+  SUPER_ADMIN_DEPARTMENT,
+  SUPER_ADMIN_EMPLOYEE_CODE,
+} = require('../constants/superAdmin');
 
-const email = (process.env.SUPER_ADMIN_EMAIL || 'admin@hrms.com').trim().toLowerCase();
-const password = process.env.SUPER_ADMIN_PASSWORD || 'Admin@123';
+const email = SUPER_ADMIN_EMAIL;
+const password = SUPER_ADMIN_PASSWORD;
 
 (async () => {
   const passwordhash = bcrypt.hashSync(password, 10);
@@ -26,15 +34,32 @@ const password = process.env.SUPER_ADMIN_PASSWORD || 'Admin@123';
 
   if (employeeId) {
     await pool.query(
-      'UPDATE employees SET passwordhash = $1, mustchangepassword = FALSE WHERE id = $2',
-      [passwordhash, employeeId]
+      `
+        UPDATE employees
+        SET employeecode = $1,
+            name = $2,
+            designation = $3,
+            passwordhash = $4,
+            mustchangepassword = FALSE
+        WHERE id = $5
+      `,
+      [SUPER_ADMIN_EMPLOYEE_CODE, SUPER_ADMIN_NAME, SUPER_ADMIN_DESIGNATION, passwordhash, employeeId]
     );
   }
 
   if (admin.rows[0]) {
     await pool.query(
-      `UPDATE admins SET passwordhash = $1, mustchangepassword = FALSE, is_active = TRUE, is_super_admin = TRUE WHERE id = $2`,
-      [passwordhash, admin.rows[0].id]
+      `
+        UPDATE admins
+        SET name = $1,
+            designation = $2,
+            passwordhash = $3,
+            mustchangepassword = FALSE,
+            is_active = TRUE,
+            is_super_admin = TRUE
+        WHERE id = $4
+      `,
+      [SUPER_ADMIN_NAME, SUPER_ADMIN_DESIGNATION, passwordhash, admin.rows[0].id]
     );
     await replaceAdminPermissions(pool, admin.rows[0].id, ALL_MODULES);
     console.log(`[reset-super-admin] Updated admin id=${admin.rows[0].id} (${email})`);
@@ -42,7 +67,7 @@ const password = process.env.SUPER_ADMIN_PASSWORD || 'Admin@123';
     console.log(`[reset-super-admin] No admins row for ${email}. Run npm run db:init first.`);
   }
 
-  console.log(`[reset-super-admin] Password set. Login with: ${email} / ${password}`);
+  console.log(`[reset-super-admin] Password set. Login with: ${email} / ${password} (${SUPER_ADMIN_NAME})`);
   await pool.end();
 })().catch((e) => {
   console.error(e.message);

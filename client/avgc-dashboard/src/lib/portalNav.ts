@@ -23,7 +23,12 @@ export type PortalNavId =
   | 'exit'
   | 'exit-clearances'
   | 'performance'
-  | 'performance-team';
+  | 'performance-team'
+  | 'my-projects'
+  | 'work-log-approval'
+  | 'efficiency-setup'
+  | 'efficiency-import'
+  | 'efficiency-daily';
 
 export type PortalRole = 'employee' | 'manager';
 
@@ -94,6 +99,26 @@ const MANAGER_ONLY_CONTROLS: NavItem[] = [
   { id: 'exit-clearances', label: 'Exit clearances', icon: 'log-out' },
 ];
 
+const EMPLOYEE_PROJECTS: NavSection = {
+  key: 'projects',
+  label: 'Projects & tasks',
+  icon: 'folder-kanban',
+  items: [{ id: 'my-projects', label: 'My projects', icon: 'folder-kanban' }],
+};
+
+const MANAGER_PROJECTS: NavSection = {
+  key: 'projects',
+  label: 'Projects & tasks',
+  icon: 'folder-kanban',
+  items: [
+    { id: 'efficiency-setup', label: 'Projects & task standards', icon: 'folder-kanban' },
+    { id: 'efficiency-import', label: 'Bulk import', icon: 'upload' },
+    { id: 'my-projects', label: 'My projects', icon: 'briefcase' },
+    { id: 'work-log-approval', label: 'Work log approvals', icon: 'clipboard-list' },
+    { id: 'efficiency-daily', label: 'Daily project inputs', icon: 'clipboard-list' },
+  ],
+};
+
 const EMPLOYEE_PERFORMANCE: NavSection = {
   key: 'performance',
   label: 'Performance',
@@ -151,6 +176,7 @@ export const MANAGER_NAV_SECTIONS: NavSection[] = [
   },
   SHARED_ASSETS,
   SHARED_POLICIES,
+  MANAGER_PROJECTS,
   MANAGER_PERFORMANCE,
   SHARED_LIVE_ACTIVITIES,
   SHARED_SOCIAL,
@@ -179,6 +205,7 @@ export const EMPLOYEE_NAV_SECTIONS: NavSection[] = [
   },
   SHARED_ASSETS,
   SHARED_POLICIES,
+  EMPLOYEE_PROJECTS,
   EMPLOYEE_PERFORMANCE,
   SHARED_LIVE_ACTIVITIES,
   SHARED_SOCIAL,
@@ -208,6 +235,11 @@ export const PORTAL_PAGE_TITLES: Record<PortalNavId, string> = {
   'exit-clearances': 'Exit clearances',
   performance: 'Performance',
   'performance-team': 'Team performance',
+  'my-projects': 'My projects',
+  'work-log-approval': 'Work log approvals',
+  'efficiency-setup': 'Projects & task standards',
+  'efficiency-import': 'Bulk import',
+  'efficiency-daily': 'Daily project inputs',
 };
 
 export function detectPortalRole(pathname?: string): PortalRole {

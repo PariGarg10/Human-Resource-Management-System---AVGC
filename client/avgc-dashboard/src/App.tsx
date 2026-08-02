@@ -30,6 +30,7 @@ import {
   LiveActivitiesPanel,
   ManagerExitClearancesPanel,
   ManagerTeamAttendancePanel,
+  MyProjectsPanel,
   OnboardingPanel,
   OrgTreePanel,
   EmployeeDirectoryPanel,
@@ -39,6 +40,9 @@ import {
   ProfilePanel,
   SettingsPanel,
   SocialPortal,
+  WorkLogApprovalPanel,
+  EfficiencyProjectSetupPanel,
+  EfficiencyDailyInputsPanel,
 } from '@/lib/lazyPanels';
 
 function renderPanel(
@@ -154,6 +158,30 @@ function renderPanel(
           <LeaveApprovalPanel />
         </LazyPanel>
       );
+    case 'work-log-approval':
+      return (
+        <LazyPanel>
+          <WorkLogApprovalPanel />
+        </LazyPanel>
+      );
+    case 'efficiency-setup':
+      return (
+        <LazyPanel>
+          <EfficiencyProjectSetupPanel view="standards" />
+        </LazyPanel>
+      );
+    case 'efficiency-import':
+      return (
+        <LazyPanel>
+          <EfficiencyProjectSetupPanel view="import" />
+        </LazyPanel>
+      );
+    case 'efficiency-daily':
+      return (
+        <LazyPanel>
+          <EfficiencyDailyInputsPanel />
+        </LazyPanel>
+      );
     case 'reports':
       return (
         <LazyPanel>
@@ -203,6 +231,12 @@ function renderPanel(
       return (
         <LazyPanel>
           <PerformancePanel portalRole={portalRole} />
+        </LazyPanel>
+      );
+    case 'my-projects':
+      return (
+        <LazyPanel>
+          <MyProjectsPanel />
         </LazyPanel>
       );
     case 'performance-team':

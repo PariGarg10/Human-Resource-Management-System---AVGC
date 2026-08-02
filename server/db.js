@@ -8,12 +8,20 @@ function resolveConnectionString() {
   return process.env.DATABASE_URL;
 }
 
-const connectionString = resolveConnectionString();
+/** pg v8 treats sslmode=require in the URL as verify-full; strip it so pool.ssl is used. */
+function normalizeConnectionString(url) {
+  if (!url) return url;
+  return String(url)
+    .replace(/([?&])sslmode=[^&]*(&|$)/gi, (_, prefix, suffix) => (suffix === '&' ? prefix : ''))
+    .replace(/([?&])ssl=[^&]*(&|$)/gi, (_, prefix, suffix) => (suffix === '&' ? prefix : ''))
+    .replace(/[?&]$/, '');
+}
+
+const rawConnectionString = resolveConnectionString();
+const connectionString = normalizeConnectionString(rawConnectionString);
 const useSsl =
   connectionString &&
-  /neon\.tech|sslmode=require|sslmode=verify|amazonaws\.com|supabase|railway\.app|rlwy\.net/i.test(
-    connectionString
-  );
+  /neon\.tech|amazonaws\.com|supabase|railway\.app|rlwy\.net/i.test(connectionString);
 
 const connectionTimeoutMillis = Number(process.env.DATABASE_CONNECT_TIMEOUT_MS || 30000);
 

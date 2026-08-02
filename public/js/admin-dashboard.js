@@ -2590,6 +2590,7 @@ function mountTeamHubWhenReady(section) {
     'exit-clearances': () => window.HRMS?.mountAdminExitClearances?.('#adminExitClearancesRoot'),
     onboarding: () => window.HRMS?.mountAdminOnboarding?.('#adminOnboardingRoot'),
     performance: () => window.HRMS?.mountAdminPerformance?.('#adminPerformanceRoot'),
+    efficiency: () => window.HRMS?.mountAdminEfficiency?.('#adminEfficiencyRoot'),
   };
   const mountFn = mounts[section];
   if (!mountFn) return;
@@ -2607,7 +2608,8 @@ function mountTeamHubWhenReady(section) {
       (section === 'exit' && window.HRMS?.mountAdminMyExit) ||
       (section === 'exit-clearances' && window.HRMS?.mountAdminExitClearances) ||
       (section === 'onboarding' && window.HRMS?.mountAdminOnboarding) ||
-      (section === 'performance' && window.HRMS?.mountAdminPerformance);
+      (section === 'performance' && window.HRMS?.mountAdminPerformance) ||
+      (section === 'efficiency' && window.HRMS?.mountAdminEfficiency);
     if (ready) {
       mountFn();
       return;

@@ -27,9 +27,10 @@ const {
 } = require('../utils/leaveEntitlements');
 const {
   parseAttendanceRow,
-  normalizePersonName,
   normalizeImportDate,
   readAttendanceRowsFromFile,
+  resolveAttendanceEmployee,
+  explainAttendanceMatchFailure,
 } = require('../utils/attendanceImport');
 const {
   parseMonthlyDailyAttendanceBuffer,
@@ -1498,9 +1499,9 @@ router.post('/import-attendance', requirePermission(PERMISSION_MODULES.IMPORT_DA
       const rowNum = headerRow + i + 1;
       try {
         const parsed = parseAttendanceRow(row, { fallbackDate });
-        const { employeeName, employeecode, date, punchIn, punchOut, totalHours, statusInput } = parsed;
+        const { employeeName, employeecode, email, date, punchIn, punchOut, totalHours, statusInput } = parsed;
 
-        if (!employeeName && !employeecode) {
+        if (!employeeName && !employeecode && !email) {
           continue;
         }
 
@@ -1511,24 +1512,24 @@ router.post('/import-attendance', requirePermission(PERMISSION_MODULES.IMPORT_DA
         }
 
         let employeeResult;
-        if (employeecode) {
-          employeeResult = await pool.query('SELECT id, name FROM employees WHERE employeecode = $1', [
-            employeecode,
-          ]);
+        const matchedPerson = await resolveAttendanceEmployee(pool, { employeecode, employeeName, email });
+        if (matchedPerson) {
+          employeeResult = { rows: [matchedPerson] };
         } else {
-          const normalizedName = normalizePersonName(employeeName);
-          employeeResult = await pool.query(
-            'SELECT id, name FROM employees WHERE lower(trim(name)) = lower($1)',
-            [normalizedName]
-          );
+          employeeResult = { rows: [] };
         }
         if (!employeeResult.rows[0]) {
           summary.skipped += 1;
           if (summary.skippedDetails.length < 30) {
+            const reason = await explainAttendanceMatchFailure(pool, {
+              employeecode,
+              employeeName,
+              email,
+            });
             summary.skippedDetails.push({
               row: rowNum,
-              name: employeeName || employeecode,
-              reason: 'No matching employee in HRMS',
+              name: employeeName || employeecode || email,
+              reason,
             });
           }
           continue;
