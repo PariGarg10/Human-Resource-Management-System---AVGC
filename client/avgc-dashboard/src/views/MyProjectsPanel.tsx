@@ -24,6 +24,7 @@ export function MyProjectsPanel() {
   const [versionLabel, setVersionLabel] = useState('');
   const [logDate, setLogDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [outputQty, setOutputQty] = useState('');
+  const [actualManhoursSpent, setActualManhoursSpent] = useState('');
   const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [loadingBaselines, setLoadingBaselines] = useState(false);
@@ -49,6 +50,7 @@ export function MyProjectsPanel() {
     setTaskName('');
     setVersionLabel('');
     setOutputQty('');
+    setActualManhoursSpent('');
     setRemarks('');
     setLoadingBaselines(true);
     try {
@@ -99,6 +101,11 @@ export function MyProjectsPanel() {
       toast('Quantity must be greater than 0', 'error');
       return;
     }
+    const manHours = Number(actualManhoursSpent);
+    if (!Number.isFinite(manHours) || manHours <= 0) {
+      toast('Actual man hours spent must be greater than 0', 'error');
+      return;
+    }
     setSubmitting(true);
     try {
       await api('/api/work-logs', {
@@ -109,12 +116,14 @@ export function MyProjectsPanel() {
           taskBaselineId: selectedBaseline.id,
           logDate,
           actualOutputQty: qty,
+          actualManhoursSpent: manHours,
           remarks: remarks.trim() || undefined,
         }),
       });
       toast('Work log submitted for manager approval', 'success');
       setActiveProject(null);
       setOutputQty('');
+      setActualManhoursSpent('');
       setRemarks('');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Submit failed', 'error');
@@ -296,6 +305,17 @@ export function MyProjectsPanel() {
                       value={outputQty}
                       onChange={(e) => setOutputQty(e.target.value)}
                       placeholder="Enter quantity"
+                    />
+                  </label>
+                  <label className="form-group">
+                    Actual man hours spent
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={actualManhoursSpent}
+                      onChange={(e) => setActualManhoursSpent(e.target.value)}
+                      placeholder="Hours you spent on this task"
                     />
                   </label>
                   <label className="form-group">

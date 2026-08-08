@@ -113,9 +113,9 @@ const MANAGER_PROJECTS: NavSection = {
   items: [
     { id: 'efficiency-setup', label: 'Projects & task standards', icon: 'folder-kanban' },
     { id: 'efficiency-import', label: 'Bulk import', icon: 'upload' },
-    { id: 'my-projects', label: 'My projects', icon: 'briefcase' },
-    { id: 'work-log-approval', label: 'Work log approvals', icon: 'clipboard-list' },
-    { id: 'efficiency-daily', label: 'Daily project inputs', icon: 'clipboard-list' },
+    { id: 'my-projects', label: 'My projects', icon: 'folder-kanban' },
+    { id: 'work-log-approval', label: 'Work log approvals', icon: 'folder-kanban' },
+    { id: 'efficiency-daily', label: 'Daily project inputs', icon: 'folder-kanban' },
   ],
 };
 

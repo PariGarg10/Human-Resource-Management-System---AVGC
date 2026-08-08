@@ -325,6 +325,7 @@ async function ensureEfficiencySchema() {
       WHERE status = 'approved'
   `);
   await pool.query(`ALTER TABLE work_logs ADD COLUMN IF NOT EXISTS remarks TEXT`);
+  await pool.query(`ALTER TABLE work_logs ADD COLUMN IF NOT EXISTS actual_manhours_spent NUMERIC CHECK (actual_manhours_spent IS NULL OR actual_manhours_spent >= 0)`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS efficiency_wd_overrides (

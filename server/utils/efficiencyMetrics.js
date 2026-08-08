@@ -109,7 +109,8 @@ async function aggregateApprovedLogs({ employeeId, projectId, from, to, employee
         wl.log_date::text AS log_date,
         wl.actual_output_qty,
         wl.implied_mhs,
-        wl.remarks
+        wl.remarks,
+        wl.actual_manhours_spent
       FROM work_logs wl
       JOIN task_baselines tb ON tb.id = wl.task_baseline_id
       JOIN efficiency_projects ep ON ep.id = wl.project_id
@@ -276,6 +277,8 @@ async function buildDailyInputsReport(filters) {
       unitLabel: row.unit_label,
       logDate: row.log_date,
       actualOutputQty: Number(row.actual_output_qty),
+      actualManhoursSpent:
+        row.actual_manhours_spent != null ? Number(row.actual_manhours_spent) : null,
       remarks: row.remarks || null,
       outputHours: row.cappedImpliedMhs,
       rawOutputHours: row.rawImpliedMhs,

@@ -429,6 +429,11 @@ router.post('/work-logs', requireRoles('employee', 'manager', 'admin', 'it_head'
     const logDate = String(body.logDate ?? body.log_date ?? '').trim();
     const actualOutputQty = Number(body.actualOutputQty ?? body.actual_output_qty);
     const remarks = String(body.remarks ?? body.employeeRemarks ?? body.employee_remarks ?? '').trim() || null;
+    const actualManhoursSpentRaw = body.actualManhoursSpent ?? body.actual_manhours_spent;
+    const actualManhoursSpent =
+      actualManhoursSpentRaw === undefined || actualManhoursSpentRaw === null || actualManhoursSpentRaw === ''
+        ? null
+        : Number(actualManhoursSpentRaw);
 
     if (!Number.isFinite(projectId)) return res.status(400).json({ message: 'projectId is required' });
     if (!Number.isFinite(taskBaselineId)) {
@@ -439,6 +444,12 @@ router.post('/work-logs', requireRoles('employee', 'manager', 'admin', 'it_head'
     }
     if (!Number.isFinite(actualOutputQty) || actualOutputQty <= 0) {
       return res.status(400).json({ message: 'actualOutputQty must be greater than 0' });
+    }
+    if (actualManhoursSpent != null && (!Number.isFinite(actualManhoursSpent) || actualManhoursSpent <= 0)) {
+      return res.status(400).json({ message: 'actualManhoursSpent must be greater than 0' });
+    }
+    if (actualManhoursSpent == null) {
+      return res.status(400).json({ message: 'actualManhoursSpent is required' });
     }
 
     let resolvedName = String(req.user?.name || '').trim();
@@ -466,12 +477,12 @@ router.post('/work-logs', requireRoles('employee', 'manager', 'admin', 'it_head'
       `
         INSERT INTO work_logs (
           employee_id, project_id, task_baseline_id, log_date, employee_name,
-          actual_output_qty, remarks, status, manager_id
+          actual_output_qty, actual_manhours_spent, remarks, status, manager_id
         )
-        VALUES ($1, $2, $3, $4::date, $5, $6, $7, 'pending', $8)
+        VALUES ($1, $2, $3, $4::date, $5, $6, $7, $8, 'pending', $9)
         RETURNING *
       `,
-      [employeeId, projectId, taskBaselineId, logDate, resolvedName, actualOutputQty, remarks, managerId]
+      [employeeId, projectId, taskBaselineId, logDate, resolvedName, actualOutputQty, actualManhoursSpent, remarks, managerId]
     );
     return res.status(201).json({ workLog: rows[0] });
   } catch (err) {
