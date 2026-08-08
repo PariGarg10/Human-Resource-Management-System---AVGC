@@ -17,11 +17,24 @@ function createTransport() {
     host: process.env.SMTP_HOST,
     port,
     secure: port === 465,
+    requireTLS: port === 587,
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
+    tls: {
+      minVersion: 'TLSv1.2',
+    },
   });
+}
+
+async function verifySmtpConnection() {
+  if (!isSmtpConfigured()) {
+    return { ok: false, message: 'SMTP_HOST, SMTP_USER, SMTP_PASS, and SMTP_FROM are required' };
+  }
+  const transport = createTransport();
+  await transport.verify();
+  return { ok: true };
 }
 
 function buildPasswordResetHtml({ name, resetUrl }) {
@@ -145,28 +158,37 @@ async function sendTemporaryPasswordEmail({ to, firstName, tempPassword }) {
       throw new Error('SMTP not configured');
     }
     console.log(msg);
+    console.log(`  Would send to: ${to}`);
+    console.log(`  Temporary password (dev only): ${tempPassword}`);
     return { sent: false, devLogged: true };
   }
 
   const transport = createTransport();
-  await transport.sendMail({
-    from: process.env.SMTP_FROM,
-    to,
-    subject,
-    headers: {
-      'X-Priority': '1',
-      'X-Mailer': 'HRMS Mailer',
-    },
-    text,
-    html,
-  });
-  return { sent: true };
+  try {
+    await transport.sendMail({
+      from: process.env.SMTP_FROM,
+      to,
+      subject,
+      headers: {
+        'X-Priority': '1',
+        'X-Mailer': 'HRMS Mailer',
+      },
+      text,
+      html,
+    });
+    console.log(`[email] Temporary password email sent to ${to}`);
+    return { sent: true };
+  } catch (err) {
+    console.error(`[email] sendMail failed for ${to}:`, err.message);
+    throw err;
+  }
 }
 
 module.exports = {
   isSmtpConfigured,
   getFrontendUrl,
   createTransport,
+  verifySmtpConnection,
   sendPasswordResetEmail,
   sendTemporaryPasswordEmail,
 };

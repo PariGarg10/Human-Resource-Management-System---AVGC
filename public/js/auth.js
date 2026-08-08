@@ -19,16 +19,33 @@ function dashboardPathForEmployee(employee) {
   return dashboardPathForRole(employee?.role);
 }
 
-// If already signed in, send user to the correct workspace
+// If already signed in with a valid token, send user to the correct workspace
 (function redirectIfAlreadySignedIn() {
   const token = localStorage.getItem('token');
   if (!token) return;
   const path = window.location.pathname.replace(/\/$/, '') || '/';
   if (path !== '/login') return;
-  try {
-    const emp = JSON.parse(localStorage.getItem('employee') || '{}');
-    window.location.replace(dashboardPathForEmployee(emp));
-  } catch (_e) {}
+  const tokenAtStart = token;
+  fetch('/api/auth/me', { headers: { Authorization: `Bearer ${tokenAtStart}` } })
+    .then((res) => {
+      // Ignore stale response if user signed in again while this request was in flight
+      if (localStorage.getItem('token') !== tokenAtStart) return null;
+      if (!res.ok) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('employee');
+        return null;
+      }
+      return res.json();
+    })
+    .then((me) => {
+      if (!me) return;
+      if (localStorage.getItem('token') !== tokenAtStart) return;
+      try {
+        const emp = JSON.parse(localStorage.getItem('employee') || '{}');
+        window.location.replace(dashboardPathForEmployee(emp));
+      } catch (_e) {}
+    })
+    .catch(() => {});
 })();
 
 if (form) {
@@ -49,7 +66,12 @@ if (form) {
       const data = await response.json();
 
       if (!response.ok) {
-        if (messageEl) messageEl.textContent = data.message || 'Login failed';
+        const msg =
+          response.status === 429
+            ? data.message || 'Too many login attempts from your network. Wait a minute and try again.'
+            : data.message || 'Login failed';
+        if (messageEl) messageEl.textContent = msg;
+        if (window.HRMS?.toast) window.HRMS.toast(msg, 'error');
         return;
       }
 

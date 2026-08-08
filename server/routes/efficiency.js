@@ -428,6 +428,7 @@ router.post('/work-logs', requireRoles('employee', 'manager', 'admin', 'it_head'
     const taskBaselineId = Number(body.taskBaselineId ?? body.task_baseline_id);
     const logDate = String(body.logDate ?? body.log_date ?? '').trim();
     const actualOutputQty = Number(body.actualOutputQty ?? body.actual_output_qty);
+    const remarks = String(body.remarks ?? body.employeeRemarks ?? body.employee_remarks ?? '').trim() || null;
 
     if (!Number.isFinite(projectId)) return res.status(400).json({ message: 'projectId is required' });
     if (!Number.isFinite(taskBaselineId)) {
@@ -465,12 +466,12 @@ router.post('/work-logs', requireRoles('employee', 'manager', 'admin', 'it_head'
       `
         INSERT INTO work_logs (
           employee_id, project_id, task_baseline_id, log_date, employee_name,
-          actual_output_qty, status, manager_id
+          actual_output_qty, remarks, status, manager_id
         )
-        VALUES ($1, $2, $3, $4::date, $5, $6, 'pending', $7)
+        VALUES ($1, $2, $3, $4::date, $5, $6, $7, 'pending', $8)
         RETURNING *
       `,
-      [employeeId, projectId, taskBaselineId, logDate, resolvedName, actualOutputQty, managerId]
+      [employeeId, projectId, taskBaselineId, logDate, resolvedName, actualOutputQty, remarks, managerId]
     );
     return res.status(201).json({ workLog: rows[0] });
   } catch (err) {

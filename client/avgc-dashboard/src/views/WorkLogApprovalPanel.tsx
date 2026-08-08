@@ -12,6 +12,7 @@ type PendingWorkLog = {
   unit_label: string;
   log_date: string;
   actual_output_qty: number;
+  remarks?: string | null;
   status: string;
 };
 
@@ -110,7 +111,8 @@ export function WorkLogApprovalPanel() {
                 <th>Task</th>
                 <th>Date</th>
                 <th>Output</th>
-                <th>Remarks</th>
+                <th>Employee remarks</th>
+                <th>Manager remarks</th>
                 <th>Actions</th>
               </tr>
             </thead>
@@ -130,6 +132,7 @@ export function WorkLogApprovalPanel() {
                       {log.actual_output_qty}
                       {log.unit_label ? ` ${log.unit_label}` : ''}
                     </td>
+                    <td>{log.remarks?.trim() || '—'}</td>
                     <td>
                       <input
                         type="text"

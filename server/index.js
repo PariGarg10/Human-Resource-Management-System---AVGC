@@ -47,6 +47,10 @@ const publicDir = getPublicDir();
 const isProd = isProductionRuntime();
 const staticMaxAge = isProd ? '30d' : 0;
 
+if (isProd) {
+  app.set('trust proxy', 1);
+}
+
 function sendPublicHtml(res, filename) {
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.set('Pragma', 'no-cache');
@@ -341,6 +345,18 @@ if (require.main === module) {
         }
       } catch (err) {
         console.warn('[AVGC] Startup migrations skipped:', err.message);
+      }
+
+      const { isSmtpConfigured, verifySmtpConnection } = require('./utils/email');
+      if (!isSmtpConfigured()) {
+        console.error('[AVGC] SMTP not configured — forgot-password emails will fail until SMTP_* env vars are set.');
+      } else {
+        try {
+          await verifySmtpConnection();
+          console.log('[AVGC] SMTP connection verified');
+        } catch (err) {
+          console.error('[AVGC] SMTP verify failed — forgot-password emails will fail:', err.message);
+        }
       }
     }
   })();

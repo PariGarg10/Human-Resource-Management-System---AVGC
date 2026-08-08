@@ -423,12 +423,14 @@ export default function App() {
     }
     const emp = readEmployee();
     if (!emp) {
+      console.warn('[HRMS] Signed out: employee profile missing from browser storage after login');
       localStorage.clear();
       window.location.replace('/login');
       return;
     }
     const role = String(emp.role || 'employee').toLowerCase().trim();
-    if (!['employee', 'manager', 'admin', 'it_head'].includes(role)) {
+    if (!['employee', 'manager', 'admin', 'it_head', 'founder'].includes(role)) {
+      console.warn('[HRMS] Signed out: unrecognized portal role:', role);
       localStorage.clear();
       window.location.replace('/login');
       return;
@@ -458,88 +460,102 @@ export default function App() {
       return;
     }
 
-    setUser(emp);
-    if (emp.mustchangepassword) {
-      setPasswordRequired(true);
-    }
-    if (emp.isFirstLogin === true && portalRole === 'employee' && !emp.mustchangepassword) {
-      setShowFirstLogin(true);
-    }
-    setBooting(false);
-
-    const initialNav =
-      hashNav ||
-      (path === '/profile' || path === '/account/profile'
-        ? 'profile'
-        : path === '/employee/onboarding'
-          ? 'onboarding'
-          : path === '/employee/exit'
-            ? 'exit'
-            : path === '/manager/exit'
-              ? 'exit'
-            : path === '/manager/exit-clearances'
-              ? 'exit-clearances'
-              : emp.mustchangepassword && portalRole === 'employee'
-                ? 'onboarding'
-                : portalRole === 'employee' && emp.onboardingCompleted !== true
-                  ? 'onboarding'
-                  : 'dashboard');
-    window.history.replaceState(
-      { hrmsNav: initialNav },
-      '',
-      `${window.location.pathname}${window.location.search}#${initialNav}`
-    );
-    try {
-      sessionStorage.setItem('hrms-last-nav-section', initialNav);
-    } catch {
-      /* ignore */
-    }
-
-    api<{ profile: UserProfile }>('/api/users/me')
-      .then((data) => {
-        const p = data.profile;
-        const merged: EmployeeUser = {
-          ...emp,
-          name: p.name,
-          email: p.email,
-          department: p.department ?? emp.department,
-          designation: p.designation ?? emp.designation,
-          reportingToId: p.reportingToId ?? emp.reportingToId ?? null,
-          employeecode: p.employeecode ?? emp.employeecode,
-          dateOfBirth: p.dateOfBirth,
-          dateOfJoining: p.dateOfJoining,
-          phone: p.phone,
-          location: p.location,
-          bio: p.bio,
-          profilePhotoUrl: p.profilePhotoUrl,
-          age: p.age,
-          isFirstLogin: p.isFirstLogin === true,
-          onboardingCompleted: p.onboardingCompleted === true,
-          mustchangepassword: emp.mustchangepassword,
-        };
-        localStorage.setItem('employee', JSON.stringify(merged));
-        setUser(merged);
-        if (portalRole === 'employee') {
-          const incomplete = p.onboardingCompleted !== true;
-          setOnboardingIncomplete(incomplete);
-          if (incomplete && !emp.mustchangepassword) {
-            setNav((current) => (isOnboardingNavAllowed(current) ? current : 'onboarding'));
+    void (async () => {
+      try {
+        const res = await fetch('/api/auth/me', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 401) {
+          console.warn('[HRMS] Signed out: session rejected by /api/auth/me');
+          localStorage.clear();
+          window.location.replace('/login');
+          return;
+        }
+        if (res.ok) {
+          const authMe = (await res.json()) as { force_password_change?: boolean };
+          if (authMe.force_password_change) {
+            setPasswordRequired(true);
+            setNav('onboarding');
           }
         }
-        if (p.isFirstLogin === true && portalRole === 'employee' && !emp.mustchangepassword) {
-          setShowFirstLogin(true);
-        }
-      })
-      .catch(() => {});
+      } catch {
+        /* offline — continue with cached session */
+      }
 
-    api<{ force_password_change?: boolean }>('/api/auth/me')
-      .then((authMe) => {
-        if (authMe.force_password_change) {
-          setPasswordRequired(true);
-          setNav('onboarding');
-        }
-      })
-      .catch(() => {});
+      setUser(emp);
+      if (emp.mustchangepassword) {
+        setPasswordRequired(true);
+      }
+      if (emp.isFirstLogin === true && portalRole === 'employee' && !emp.mustchangepassword) {
+        setShowFirstLogin(true);
+      }
+      setBooting(false);
+
+      const initialNav =
+        hashNav ||
+        (path === '/profile' || path === '/account/profile'
+          ? 'profile'
+          : path === '/employee/onboarding'
+            ? 'onboarding'
+            : path === '/employee/exit'
+              ? 'exit'
+              : path === '/manager/exit'
+                ? 'exit'
+              : path === '/manager/exit-clearances'
+                ? 'exit-clearances'
+                : emp.mustchangepassword && portalRole === 'employee'
+                  ? 'onboarding'
+                  : portalRole === 'employee' && emp.onboardingCompleted !== true
+                    ? 'onboarding'
+                    : 'dashboard');
+      window.history.replaceState(
+        { hrmsNav: initialNav },
+        '',
+        `${window.location.pathname}${window.location.search}#${initialNav}`
+      );
+      try {
+        sessionStorage.setItem('hrms-last-nav-section', initialNav);
+      } catch {
+        /* ignore */
+      }
+
+      api<{ profile: UserProfile }>('/api/users/me')
+        .then((data) => {
+          const p = data.profile;
+          const merged: EmployeeUser = {
+            ...emp,
+            name: p.name,
+            email: p.email,
+            department: p.department ?? emp.department,
+            designation: p.designation ?? emp.designation,
+            reportingToId: p.reportingToId ?? emp.reportingToId ?? null,
+            employeecode: p.employeecode ?? emp.employeecode,
+            dateOfBirth: p.dateOfBirth,
+            dateOfJoining: p.dateOfJoining,
+            phone: p.phone,
+            location: p.location,
+            bio: p.bio,
+            profilePhotoUrl: p.profilePhotoUrl,
+            age: p.age,
+            isFirstLogin: p.isFirstLogin === true,
+            onboardingCompleted: p.onboardingCompleted === true,
+            mustchangepassword: emp.mustchangepassword,
+          };
+          localStorage.setItem('employee', JSON.stringify(merged));
+          setUser(merged);
+          if (portalRole === 'employee') {
+            const incomplete = p.onboardingCompleted !== true;
+            setOnboardingIncomplete(incomplete);
+            if (incomplete && !emp.mustchangepassword) {
+              setNav((current) => (isOnboardingNavAllowed(current) ? current : 'onboarding'));
+            }
+          }
+          if (p.isFirstLogin === true && portalRole === 'employee' && !emp.mustchangepassword) {
+            setShowFirstLogin(true);
+          }
+        })
+        .catch(() => {});
+    })();
   }, [portalRole]);
 
   const onPasswordRequired = useCallback((msg?: string) => {

@@ -28,7 +28,7 @@ const connectionTimeoutMillis = Number(process.env.DATABASE_CONNECT_TIMEOUT_MS |
 const pool = new Pool({
   connectionString,
   ...(useSsl ? { ssl: { rejectUnauthorized: false } } : {}),
-  max: process.env.VERCEL ? 2 : 10,
+  max: Number(process.env.DATABASE_POOL_MAX) || (process.env.VERCEL ? 2 : 20),
   idleTimeoutMillis: process.env.VERCEL ? 10000 : 30000,
   connectionTimeoutMillis,
   keepAlive: true,

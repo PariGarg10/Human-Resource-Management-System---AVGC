@@ -14,7 +14,7 @@ const { passwordResetDeliveryEmail } = require('../utils/companyEmail');
 const router = express.Router();
 
 const LOGIN_WINDOW_MS = 60 * 1000;
-const LOGIN_RATE_LIMIT_MAX = 10;
+const LOGIN_RATE_LIMIT_MAX = Number(process.env.LOGIN_RATE_LIMIT_MAX) || 120;
 const FORGOT_WINDOW_MS = 60 * 60 * 1000;
 const FORGOT_RATE_LIMIT_MAX = 3;
 const FAILED_LOGIN_MAX = 5;
@@ -23,7 +23,7 @@ const TEMP_PASSWORD_LENGTH = 10;
 const TEMP_PASSWORD_HOURS = 24;
 const COOKIE_MAX_AGE = 8 * 60 * 60 * 1000;
 const GENERIC_FORGOT_MESSAGE =
-  'If the email is valid, password reset instructions have been sent to your @avgcstudios.com inbox.';
+  'If this email exists in our system, password reset instructions have been sent to the email address on your account.';
 
 const loginAttemptsByIp = new Map();
 const forgotRequestsByEmail = new Map();
@@ -54,6 +54,14 @@ function registerAttempt(map, key, windowMs) {
   current.push(Date.now());
   map.set(key, current);
   return current.length;
+}
+
+function getAttemptCount(map, key, windowMs) {
+  return cleanupWindow(map, key, windowMs).length;
+}
+
+function recordFailedLoginIp(ip) {
+  registerAttempt(loginAttemptsByIp, ip, LOGIN_WINDOW_MS);
 }
 
 function getCookieOptions() {
@@ -213,7 +221,7 @@ async function issueEmployeeLogin(res, employee, allowedRole) {
   return issueAuthResponse(res, payload, safeEmployee, forcePasswordChange);
 }
 
-async function handleEmployeeCredentialLogin(res, loginId, password, allowedRole) {
+async function handleEmployeeCredentialLogin(res, loginId, password, allowedRole, clientIp) {
   const result = await pool.query(
     `
       SELECT id, employeecode, name, email, passwordhash, role, department, designation, reporting_to_id,
@@ -248,6 +256,7 @@ async function handleEmployeeCredentialLogin(res, loginId, password, allowedRole
 
   if (!passwordMatches && !tempMatches) {
     const failed = await applyFailedLogin(employee.id);
+    if (clientIp) recordFailedLoginIp(clientIp);
     if (failed.locked) {
       return res.status(403).json({ message: `Account locked. Try again after ${LOCK_MINUTES} minutes` });
     }
@@ -284,7 +293,7 @@ async function handleEmployeeCredentialLogin(res, loginId, password, allowedRole
   return issueEmployeeLogin(res, employee, allowedRole);
 }
 
-async function issueAdminLogin(res, email, password) {
+async function issueAdminLogin(res, email, password, clientIp) {
   if (!email || !password) {
     return res.status(400).json({ message: 'Email and password are required' });
   }
@@ -301,11 +310,14 @@ async function issueAdminLogin(res, email, password) {
     [loginId]
   );
   const admin = adminResult.rows[0];
-  if (!admin) return handleEmployeeCredentialLogin(res, loginId, password, 'admin');
+  if (!admin) return handleEmployeeCredentialLogin(res, loginId, password, 'admin', clientIp);
   if (!admin.is_active) return res.status(403).json({ message: 'This admin account is deactivated' });
 
   const matched = await bcrypt.compare(String(password), admin.passwordhash);
-  if (!matched) return res.status(401).json({ message: 'Invalid credentials' });
+  if (!matched) {
+    if (clientIp) recordFailedLoginIp(clientIp);
+    return res.status(401).json({ message: 'Invalid credentials' });
+  }
 
   const employeeId = await ensureAdminEmployee(admin);
   await pool.query(`UPDATE employees SET role = 'admin' WHERE id = $1`, [employeeId]);
@@ -361,13 +373,12 @@ async function runRoleLogin(req, res, allowedRole) {
   }
 
   const ip = String(req.ip || req.socket?.remoteAddress || 'unknown');
-  const attempts = registerAttempt(loginAttemptsByIp, ip, LOGIN_WINDOW_MS);
-  if (attempts > LOGIN_RATE_LIMIT_MAX) {
-    return res.status(429).json({ message: 'Too many login attempts. Try again in a minute.' });
+  if (getAttemptCount(loginAttemptsByIp, ip, LOGIN_WINDOW_MS) >= LOGIN_RATE_LIMIT_MAX) {
+    return res.status(429).json({ message: 'Too many failed login attempts from this network. Try again in a minute.' });
   }
 
-  if (allowedRole === 'admin') return issueAdminLogin(res, email, password);
-  return handleEmployeeCredentialLogin(res, email, password, allowedRole || null);
+  if (allowedRole === 'admin') return issueAdminLogin(res, email, password, ip);
+  return handleEmployeeCredentialLogin(res, email, password, allowedRole || null, ip);
 }
 
 router.post('/login', async (req, res) => {
@@ -431,10 +442,26 @@ router.post('/forgot-password', async (req, res) => {
 
     if (account) {
       const tempPassword = generateTempPassword();
-      console.log('[ForgotPassword] Temp password generated');
+      const deliveryEmail = account.deliveryEmail || passwordResetDeliveryEmail(account.email);
+
+      try {
+        console.log('[ForgotPassword] Attempting to send email to:', deliveryEmail);
+        const result = await sendTemporaryPasswordEmail({
+          to: deliveryEmail,
+          firstName: firstName(account.name),
+          tempPassword,
+        });
+        console.log('[ForgotPassword] Email send result:', result);
+      } catch (error) {
+        console.error('[ForgotPassword] Email send FAILED:', error.message);
+        return res.status(503).json({
+          message:
+            'We could not send the reset email. Please try again in a few minutes or contact HR / IT.',
+        });
+      }
+
       const tempHash = await bcrypt.hash(tempPassword, 10);
       const expiry = new Date(Date.now() + TEMP_PASSWORD_HOURS * 60 * 60 * 1000);
-      const deliveryEmail = account.deliveryEmail || passwordResetDeliveryEmail(account.email);
 
       if (account.userType === 'admin') {
         await pool.query(
@@ -477,25 +504,12 @@ router.post('/forgot-password', async (req, res) => {
         );
       }
 
-      try {
-        console.log('[ForgotPassword] Attempting to send email to:', deliveryEmail);
-        const result = await sendTemporaryPasswordEmail({
-          to: deliveryEmail,
-          firstName: firstName(account.name),
-          tempPassword,
-        });
-        console.log('[ForgotPassword] Email send result:', result);
-      } catch (error) {
-        console.error('[ForgotPassword] Email send FAILED:', error);
-        throw error;
-      }
     }
 
     return res.status(200).json({ message: GENERIC_FORGOT_MESSAGE });
   } catch (err) {
-    console.error('[ForgotPassword] Email send FAILED:', err);
     console.error('POST /auth/forgot-password:', err.message);
-    return res.status(200).json({ message: GENERIC_FORGOT_MESSAGE });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 });
 

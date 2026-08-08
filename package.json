@@ -11,6 +11,7 @@
     "db:init": "node server/initDb.js",
     "db:migrate": "node server/scripts/run-migrations.js",
     "db:check": "node scripts/check-db-connection.js",
+    "test:smtp": "node server/scripts/test-smtp.js",
     "db:org-check": "node server/scripts/check-org-coverage.js",
     "db:local": "node scripts/setup-local-db.js",
     "db:reset-super-admin": "node server/scripts/reset-super-admin.js",

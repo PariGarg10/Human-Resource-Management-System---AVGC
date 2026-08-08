@@ -3,7 +3,7 @@ const messageEl = document.getElementById('forgotMessage');
 const submitBtn = document.getElementById('forgotSubmitBtn');
 
 const SUCCESS_MSG =
-  'If this email exists, reset instructions have been sent to your @avgcstudios.com inbox';
+  'If this email exists in our system, password reset instructions have been sent to the email address on your account.';
 
 form.addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -19,7 +19,7 @@ form.addEventListener('submit', async (e) => {
     });
     const data = await response.json().catch(() => ({}));
     messageEl.textContent = data.message || SUCCESS_MSG;
-    messageEl.classList.add('message-success');
+    messageEl.classList.add(response.ok ? 'message-success' : 'message-error');
     form.reset();
   } catch (_err) {
     messageEl.textContent = SUCCESS_MSG;

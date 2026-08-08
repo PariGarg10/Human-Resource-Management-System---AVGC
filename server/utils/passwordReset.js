@@ -14,7 +14,7 @@ const RATE_LIMIT_MAX = 3;
 const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
 
 const GENERIC_SUCCESS =
-  'If this email exists, a reset link has been sent to your @avgcstudios.com inbox';
+  'If this email exists in our system, password reset instructions have been sent to the email address on your account.';
 
 function hashToken(rawToken) {
   return crypto.createHash('sha256').update(String(rawToken)).digest('hex');

@@ -104,7 +104,14 @@ function authMiddleware(req, res, next) {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     hydrateAuthUser(payload)
       .then((user) => {
-        if (!user) return res.status(401).json({ message: 'Invalid token' });
+        if (!user) {
+          console.warn(
+            'Auth rejected token for employee id=%s adminId=%s (user missing or admin inactive)',
+            payload?.id,
+            payload?.adminId || ''
+          );
+          return res.status(401).json({ message: 'Invalid token' });
+        }
         req.user = user;
         return next();
       })

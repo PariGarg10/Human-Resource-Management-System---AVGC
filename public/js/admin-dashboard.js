@@ -10,10 +10,20 @@ function isFounderProfile(profile) {
   return role === 'founder' || name === 'ashish mishra';
 }
 
-if (user.role !== 'admin' && !isFounderProfile(user)) {
-  localStorage.clear();
-  window.location.href = '/login';
+function portalPathForRole(role) {
+  const r = String(role || 'employee').toLowerCase().trim();
+  if (r === 'admin' || r === 'founder') return '/admin/dashboard';
+  if (r === 'manager') return '/manager/dashboard';
+  return '/employee/dashboard';
 }
+
+function normalizePortalRole(role) {
+  return String(role || 'employee').toLowerCase().trim();
+}
+
+if (normalizePortalRole(user.role) !== 'admin' && !isFounderProfile(user)) {
+  window.location.replace(portalPathForRole(user.role));
+} else {
 
 HRMS.loadPortalUserIdentity(api).catch(() => HRMS.syncPortalUserIdentity(user, '—', '—'));
 document.getElementById('navProfileEmail').textContent = user.email || '';
@@ -2760,8 +2770,9 @@ async function initAdminRbac() {
     try {
       user = await PERMS.refreshSession(api);
     } catch (e) {
+      console.warn('Admin session refresh failed:', e);
       if (!PERMS.isSuperAdmin(user) && !(user.permissions || []).length) {
-        logout();
+        PERMS.applySidebarPermissions(user);
         return;
       }
     }
@@ -2801,3 +2812,5 @@ initAdminRbac()
 document.getElementById('holPublicLoadBtn')?.addEventListener('click', () => {
   loadPublicHolidayCalendar().catch(() => {});
 });
+
+} // end admin/founder portal guard

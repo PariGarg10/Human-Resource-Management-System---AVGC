@@ -21,9 +21,12 @@ function isCompanyEmail(email) {
   return normalizeEmail(email).endsWith(`@${AVGC_COMPANY_EMAIL_DOMAIN}`);
 }
 
-/** Password-reset emails always go to the AVGC work address, not personal Gmail. */
+/** Deliver reset mail to the registered login email on file (must be reachable). */
 function passwordResetDeliveryEmail(registeredEmail) {
-  return toCompanyEmail(registeredEmail) || normalizeEmail(registeredEmail);
+  const normalized = normalizeEmail(registeredEmail);
+  if (!normalized) return '';
+  if (normalized.includes('@')) return normalized;
+  return toCompanyEmail(registeredEmail);
 }
 
 /** Match login / registered email or the same id @avgcstudios.com */

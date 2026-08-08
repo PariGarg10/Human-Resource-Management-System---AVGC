@@ -11,6 +11,7 @@ type DailyInputRow = {
   unitLabel: string;
   logDate: string;
   actualOutputQty: number;
+  remarks?: string | null;
   outputHours: number;
   rawOutputHours: number;
   attendanceHours: number | null;
@@ -186,6 +187,7 @@ export function EfficiencyDailyInputsPanel({
                 <th>Version</th>
                 <th>Date</th>
                 <th>Quantity</th>
+                <th>Remarks</th>
                 <th>Output hours</th>
                 <th>Attendance hrs</th>
                 <th>Work days (WDs)</th>
@@ -203,6 +205,7 @@ export function EfficiencyDailyInputsPanel({
                     {row.actualOutputQty}
                     {row.unitLabel ? ` ${row.unitLabel}` : ''}
                   </td>
+                  <td>{row.remarks?.trim() || '—'}</td>
                   <td>
                     {row.outputHours.toFixed(2)}
                     {row.outputCapped ? (

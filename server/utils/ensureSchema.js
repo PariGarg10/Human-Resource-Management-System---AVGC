@@ -324,6 +324,7 @@ async function ensureEfficiencySchema() {
     CREATE INDEX IF NOT EXISTS idx_work_logs_approved ON work_logs (employee_id, log_date, status)
       WHERE status = 'approved'
   `);
+  await pool.query(`ALTER TABLE work_logs ADD COLUMN IF NOT EXISTS remarks TEXT`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS efficiency_wd_overrides (

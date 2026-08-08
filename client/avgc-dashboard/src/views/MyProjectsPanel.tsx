@@ -24,6 +24,7 @@ export function MyProjectsPanel() {
   const [versionLabel, setVersionLabel] = useState('');
   const [logDate, setLogDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [outputQty, setOutputQty] = useState('');
+  const [remarks, setRemarks] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [loadingBaselines, setLoadingBaselines] = useState(false);
 
@@ -48,6 +49,7 @@ export function MyProjectsPanel() {
     setTaskName('');
     setVersionLabel('');
     setOutputQty('');
+    setRemarks('');
     setLoadingBaselines(true);
     try {
       const data = await api<{ baselines: TaskBaseline[] }>(`/api/task-baselines/${project.id}`);
@@ -107,11 +109,13 @@ export function MyProjectsPanel() {
           taskBaselineId: selectedBaseline.id,
           logDate,
           actualOutputQty: qty,
+          remarks: remarks.trim() || undefined,
         }),
       });
       toast('Work log submitted for manager approval', 'success');
       setActiveProject(null);
       setOutputQty('');
+      setRemarks('');
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Submit failed', 'error');
     } finally {
@@ -292,6 +296,15 @@ export function MyProjectsPanel() {
                       value={outputQty}
                       onChange={(e) => setOutputQty(e.target.value)}
                       placeholder="Enter quantity"
+                    />
+                  </label>
+                  <label className="form-group">
+                    Remarks
+                    <textarea
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder="Optional notes for your manager"
+                      rows={3}
                     />
                   </label>
                 </>
