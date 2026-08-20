@@ -26,6 +26,7 @@ export type EmployeeDirectoryEntry = {
   hobbies: string;
   profilePhotoUrl?: string | null;
   depth: number;
+  presenceToday?: boolean;
 };
 
 type DirectoryResponse = {
@@ -106,7 +107,10 @@ function EmployeeDirectoryCard({ person }: { person: EmployeeDirectoryEntry }) {
               </span>
             }
           />
-          <span className="employee-directory-card-status" title="Active employee" />
+          <span
+            className={`employee-directory-card-status${person.presenceToday ? ' is-present' : ' is-absent'}`}
+            title={person.presenceToday ? 'Present today' : 'Absent or logged out today'}
+          />
         </div>
 
         <h3 className="employee-directory-card-name">{person.name}</h3>

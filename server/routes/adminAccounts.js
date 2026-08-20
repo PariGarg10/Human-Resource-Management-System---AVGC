@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { requireAdminAccess, requireSuperAdmin } = require('../middleware/adminAuth');
-const { generateEmployeeCode } = require('../utils/employeeCode');
+const { generateEmployeeCode, normalizeEmployeeCode, isValidEmployeeCode } = require('../utils/employeeCode');
 const { logAudit } = require('../utils/audit');
 const {
   ALL_MODULES,
@@ -27,6 +27,7 @@ function adminToJson(row, permissions) {
     email: row.email,
     designation: row.designation || '',
     department: row.department || '',
+    employeecode: row.employeecode || '',
     isSuperAdmin: Boolean(row.is_super_admin),
     isActive: Boolean(row.is_active),
     employeeId: row.employee_id,
@@ -45,9 +46,11 @@ router.get('/', async (_req, res) => {
   try {
     const { rows } = await pool.query(
       `
-        SELECT id, name, email, designation, department, is_super_admin, is_active, employee_id, created_at
-        FROM admins
-        ORDER BY is_super_admin DESC, name ASC
+        SELECT a.id, a.name, a.email, a.designation, a.department, a.is_super_admin, a.is_active,
+               a.employee_id, a.created_at, e.employeecode
+        FROM admins a
+        LEFT JOIN employees e ON e.id = a.employee_id
+        ORDER BY a.is_super_admin DESC, a.name ASC
       `
     );
     const admins = [];
@@ -76,12 +79,10 @@ router.post('/', async (req, res) => {
       return res.status(409).json({ message: 'An admin with this email already exists' });
     }
 
-    let code = String(employeecode || '')
-      .trim()
-      .toUpperCase();
+    let code = normalizeEmployeeCode(employeecode);
     if (!code) {
       code = await generateEmployeeCode();
-    } else if (!/^[A-Z0-9_-]+$/.test(code)) {
+    } else if (!isValidEmployeeCode(code)) {
       return res.status(400).json({
         message: 'Employee code may only contain letters, numbers, hyphen, and underscore',
       });
@@ -150,16 +151,30 @@ router.patch('/:id', async (req, res) => {
     const adminId = Number(req.params.id);
     if (!Number.isFinite(adminId)) return res.status(400).json({ message: 'Invalid admin id' });
 
-    const target = await pool.query('SELECT * FROM admins WHERE id = $1', [adminId]);
+    const target = await pool.query(
+      `
+        SELECT a.*, e.employeecode AS linked_employeecode
+        FROM admins a
+        LEFT JOIN employees e ON e.id = a.employee_id
+        WHERE a.id = $1
+      `,
+      [adminId]
+    );
     const row = target.rows[0];
     if (!row) return res.status(404).json({ message: 'Admin not found' });
+
+    const { name, designation, department, isActive, password, permissions, employeecode } = req.body;
+
     if (row.is_super_admin) {
-      return res.status(400).json({ message: 'Super Admin account cannot be modified here' });
+      if (permissions != null || isActive === false) {
+        return res.status(400).json({ message: 'Super Admin permissions and deactivation cannot be changed here' });
+      }
     }
 
-    const { name, designation, department, isActive, password, permissions } = req.body;
     let passwordhash = row.passwordhash;
-    if (password) passwordhash = bcrypt.hashSync(String(password), 10);
+    if (password && !row.is_super_admin) {
+      passwordhash = bcrypt.hashSync(String(password), 10);
+    }
 
     await pool.query(
       `
@@ -175,32 +190,86 @@ router.patch('/:id', async (req, res) => {
         name != null ? String(name).trim() : null,
         designation != null ? String(designation).trim() : null,
         department != null ? String(department).trim() : null,
-        isActive != null ? Boolean(isActive) : null,
+        !row.is_super_admin && isActive != null ? Boolean(isActive) : null,
         passwordhash,
         adminId,
       ]
     );
 
-    if (row.employee_id && name) {
-      await pool.query('UPDATE employees SET name = $1, department = COALESCE($2, department) WHERE id = $3', [
-        String(name).trim(),
-        department != null ? String(department).trim() : null,
-        row.employee_id,
-      ]);
+    if (row.employee_id) {
+      const employeeUpdates = [];
+      const employeeParams = [];
+      let paramIndex = 1;
+
+      if (name != null) {
+        employeeUpdates.push(`name = $${paramIndex++}`);
+        employeeParams.push(String(name).trim());
+      }
+      if (department != null) {
+        employeeUpdates.push(`department = $${paramIndex++}`);
+        employeeParams.push(String(department).trim() || null);
+      }
+      if (designation != null) {
+        employeeUpdates.push(`designation = $${paramIndex++}`);
+        employeeParams.push(String(designation).trim() || null);
+      }
+      if (employeecode != null) {
+        const code = normalizeEmployeeCode(employeecode);
+        if (!code) {
+          return res.status(400).json({ message: 'Employee code is required' });
+        }
+        if (!isValidEmployeeCode(code)) {
+          return res.status(400).json({
+            message: 'Employee code may only contain letters, numbers, hyphen, and underscore',
+          });
+        }
+        const duplicateCode = await pool.query(
+          `
+            SELECT id FROM employees
+            WHERE upper(trim(employeecode)) = upper($1) AND id <> $2
+            LIMIT 1
+          `,
+          [code, row.employee_id]
+        );
+        if (duplicateCode.rows[0]) {
+          return res.status(409).json({ message: `Employee code "${code}" is already in use` });
+        }
+        employeeUpdates.push(`employeecode = $${paramIndex++}`);
+        employeeParams.push(code);
+      }
+
+      if (employeeUpdates.length) {
+        employeeParams.push(row.employee_id);
+        await pool.query(
+          `UPDATE employees SET ${employeeUpdates.join(', ')} WHERE id = $${paramIndex}`,
+          employeeParams
+        );
+      }
     }
 
-    if (permissions != null) {
+    if (permissions != null && !row.is_super_admin) {
       await replaceAdminPermissions(pool, adminId, normalizeModuleList(permissions));
     }
 
     const updated = await pool.query(
-      'SELECT id, name, email, designation, department, is_super_admin, is_active, employee_id, created_at FROM admins WHERE id = $1',
+      `
+        SELECT a.id, a.name, a.email, a.designation, a.department, a.is_super_admin, a.is_active,
+               a.employee_id, a.created_at, e.employeecode
+        FROM admins a
+        LEFT JOIN employees e ON e.id = a.employee_id
+        WHERE a.id = $1
+      `,
       [adminId]
     );
-    const perms = await loadAdminPermissions(pool, adminId);
+    const perms = row.is_super_admin
+      ? ALL_MODULES
+      : await loadAdminPermissions(pool, adminId);
     await logAudit(req.adminEmployeeId, 'ADMIN_UPDATED', 'admins', { adminId });
     return res.json({ message: 'Admin updated', admin: adminToJson(updated.rows[0], perms) });
   } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ message: 'Employee code or email already in use' });
+    }
     console.error('PATCH /admin/accounts/:id:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
   }

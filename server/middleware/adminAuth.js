@@ -34,12 +34,10 @@ async function resolveAdminContext(user) {
   const employee = empResult.rows[0];
   if (!employee) return null;
 
-  const role = String(employee.role || '').toLowerCase().trim();
-  if (role !== 'admin' && !isFounderUser(employee)) return null;
-
-  const linked = await pool.query('SELECT id, is_super_admin, is_active, employee_id FROM admins WHERE employee_id = $1', [
-    employee.id,
-  ]);
+  const linked = await pool.query(
+    'SELECT id, is_super_admin, is_active, employee_id FROM admins WHERE employee_id = $1',
+    [employee.id]
+  );
   if (linked.rows[0]) {
     const admin = linked.rows[0];
     if (!admin.is_active) return null;
@@ -56,6 +54,9 @@ async function resolveAdminContext(user) {
       employeeId: row.employee_id,
     };
   }
+
+  const role = String(employee.role || '').toLowerCase().trim();
+  if (role !== 'admin' && !isFounderUser(employee)) return null;
 
   if (isFounderUser(employee)) {
     return {

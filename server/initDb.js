@@ -186,20 +186,22 @@ async function seedSuperAdmin() {
   const passwordhash = bcrypt.hashSync(password, 10);
 
   let employee = await pool.query(
-    "SELECT id, name, email, department FROM employees WHERE lower(trim(email)) = lower($1) AND role = 'admin' LIMIT 1",
+    'SELECT id, name, email, department, employeecode, role FROM employees WHERE lower(trim(email)) = lower($1) LIMIT 1',
     [email]
   );
   let employeeId = employee.rows[0]?.id;
 
   if (!employeeId) {
+    const empCode =
+      SUPER_ADMIN_EMPLOYEE_CODE || (await generateEmployeeCode(pool, SUPER_ADMIN_DEPARTMENT));
     const insert = await pool.query(
       `
         INSERT INTO employees (employeecode, name, email, passwordhash, department, designation, role, isregistered, mustchangepassword)
         VALUES ($1, $2, $3, $4, $5, $6, 'admin', TRUE, FALSE)
-        RETURNING id
+        RETURNING id, employeecode
       `,
       [
-        SUPER_ADMIN_EMPLOYEE_CODE,
+        empCode,
         SUPER_ADMIN_NAME,
         email,
         passwordhash,
@@ -208,7 +210,12 @@ async function seedSuperAdmin() {
       ]
     );
     employeeId = insert.rows[0].id;
+    console.log(`[db:init] Super Admin employee code: ${insert.rows[0].employeecode}`);
   } else {
+    const empCode =
+      SUPER_ADMIN_EMPLOYEE_CODE ||
+      employee.rows[0]?.employeecode ||
+      (await generateEmployeeCode(pool, SUPER_ADMIN_DEPARTMENT));
     await pool.query(
       `
         UPDATE employees
@@ -216,10 +223,11 @@ async function seedSuperAdmin() {
             name = $2,
             designation = $3,
             passwordhash = $4,
+            role = 'admin',
             mustchangepassword = FALSE
         WHERE id = $5
       `,
-      [SUPER_ADMIN_EMPLOYEE_CODE, SUPER_ADMIN_NAME, SUPER_ADMIN_DESIGNATION, passwordhash, employeeId]
+      [empCode, SUPER_ADMIN_NAME, SUPER_ADMIN_DESIGNATION, passwordhash, employeeId]
     );
   }
 
@@ -241,7 +249,7 @@ async function seedSuperAdmin() {
   );
   const adminId = adminInsert.rows[0].id;
   await replaceAdminPermissions(pool, adminId, ALL_MODULES);
-  console.log(`[db:init] Super Admin ready (${email}) — password synced from env/default`);
+  console.log(`[db:init] Super Admin ready (${email}) — password: ${password}`);
 }
 
 async function seedSampleManagers() {

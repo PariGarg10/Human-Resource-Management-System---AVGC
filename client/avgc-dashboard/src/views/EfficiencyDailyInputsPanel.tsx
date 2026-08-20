@@ -50,6 +50,8 @@ export function EfficiencyDailyInputsPanel({
   const [loading, setLoading] = useState(false);
   const [wdDraft, setWdDraft] = useState<Record<number, string>>({});
   const [savingWd, setSavingWd] = useState<number | null>(null);
+  const [sortBy, setSortBy] = useState<'employee' | 'project' | 'task' | 'date'>('employee');
+  const [taskFilter, setTaskFilter] = useState('');
 
   useEffect(() => {
     api<{ projects: EfficiencyProject[] }>('/api/efficiency-projects')
@@ -96,8 +98,23 @@ export function EfficiencyDailyInputsPanel({
         out.push({ ...row, employeeId: emp.employeeId, employeeName: emp.employeeName });
       }
     }
-    return out;
-  }, [report?.employees]);
+    const taskQ = taskFilter.trim().toLowerCase();
+    const filtered = taskQ
+      ? out.filter(
+          (r) =>
+            r.taskName.toLowerCase().includes(taskQ) ||
+            r.projectName.toLowerCase().includes(taskQ) ||
+            r.employeeName.toLowerCase().includes(taskQ)
+        )
+      : out;
+    filtered.sort((a, b) => {
+      if (sortBy === 'project') return a.projectName.localeCompare(b.projectName);
+      if (sortBy === 'task') return a.taskName.localeCompare(b.taskName);
+      if (sortBy === 'date') return b.logDate.localeCompare(a.logDate);
+      return a.employeeName.localeCompare(b.employeeName);
+    });
+    return filtered;
+  }, [report?.employees, sortBy, taskFilter]);
 
   async function saveWorkDays(empId: number) {
     const wd = Number(wdDraft[empId]);
@@ -171,6 +188,24 @@ export function EfficiencyDailyInputsPanel({
         <button type="button" className="btn btn-secondary btn-sm" onClick={() => load().catch(() => {})}>
           Apply
         </button>
+        <label>
+          Sort by{' '}
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)}>
+            <option value="employee">Employee</option>
+            <option value="project">Project</option>
+            <option value="task">Task</option>
+            <option value="date">Date</option>
+          </select>
+        </label>
+        <label>
+          Search{' '}
+          <input
+            type="search"
+            placeholder="Employee, project, or task"
+            value={taskFilter}
+            onChange={(e) => setTaskFilter(e.target.value)}
+          />
+        </label>
       </div>
 
       {loading ? (
@@ -211,15 +246,7 @@ export function EfficiencyDailyInputsPanel({
                     {row.actualManhoursSpent != null ? row.actualManhoursSpent.toFixed(2) : '—'}
                   </td>
                   <td>{row.remarks?.trim() || '—'}</td>
-                  <td>
-                    {row.outputHours.toFixed(2)}
-                    {row.outputCapped ? (
-                      <span className="stat-sub" title={`Raw: ${row.rawOutputHours.toFixed(2)}`}>
-                        {' '}
-                        (capped)
-                      </span>
-                    ) : null}
-                  </td>
+                  <td>{row.outputHours.toFixed(2)}</td>
                   <td>{row.attendanceHours != null ? row.attendanceHours.toFixed(2) : '—'}</td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>

@@ -1,5 +1,13 @@
 const { pool } = require('../db');
 
+function normalizeEmployeeCode(value) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function isValidEmployeeCode(code) {
+  return /^[A-Z0-9_-]+$/.test(code);
+}
+
 async function generateEmployeeCode() {
   const { rows } = await pool.query(
     "SELECT employeecode FROM employees WHERE employeecode LIKE 'EMP%'"
@@ -17,4 +25,4 @@ async function generateEmployeeCode() {
   return `EMP${String(maxNumber + 1).padStart(3, '0')}`;
 }
 
-module.exports = { generateEmployeeCode };
+module.exports = { generateEmployeeCode, normalizeEmployeeCode, isValidEmployeeCode };

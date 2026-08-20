@@ -5,7 +5,7 @@ const { logAudit } = require('../utils/audit');
 const { getHolidayDatesSet } = require('../utils/holidaysRange');
 const { createNotification } = require('../utils/notifications');
 const { TEAM_LEAD_SQL } = require('../utils/teamLeads');
-const { isEmployeeRole } = require('../constants/roles');
+const { isEmployeeRole, isManagerRole } = require('../constants/roles');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -62,6 +62,26 @@ async function cancellationRecipients(leave) {
   return [];
 }
 
+async function assertValidReportingPerson(reportingId, applicantId) {
+  const id = Number(reportingId);
+  if (!Number.isFinite(id) || id <= 0 || id === applicantId) return null;
+  const { rows } = await pool.query(
+    `
+      SELECT id, name, designation, role
+      FROM employees
+      WHERE id = $1
+        AND COALESCE(isregistered, TRUE) = TRUE
+        AND (
+          lower(trim(role)) IN ('manager', 'admin', 'founder', 'it_head')
+          OR ${TEAM_LEAD_SQL.replace(/\n/g, ' ')}
+        )
+      LIMIT 1
+    `,
+    [id]
+  );
+  return rows[0] || null;
+}
+
 async function assertTeamLeadEmployee(teamLeadId) {
   const id = Number(teamLeadId);
   if (!Number.isFinite(id) || id <= 0) return null;
@@ -85,13 +105,15 @@ async function notifyLeaveApplied(leave, employee, reportingToId) {
   const notified = new Set();
 
   if (reportingToId) {
-    const teamLead = await assertTeamLeadEmployee(reportingToId);
-    if (teamLead) {
-      await createNotification(teamLead.id, 'leave_applied', message, {
+    const reportingPerson =
+      (await assertTeamLeadEmployee(reportingToId)) ||
+      (await assertValidReportingPerson(reportingToId, employee.id));
+    if (reportingPerson) {
+      await createNotification(reportingPerson.id, 'leave_applied', message, {
         subjectEmployeeId: employee.id,
         eventDate: leave.fromdate,
       });
-      notified.add(teamLead.id);
+      notified.add(reportingPerson.id);
     }
   }
 
@@ -226,13 +248,16 @@ router.post('/apply', requireRoles(...EMPLOYEE_SELF_SERVICE_ROLES), async (req, 
     const teamLeadsExist = teamLeadRows.length > 0;
     let reportingId = reportingRaw != null && reportingRaw !== '' ? Number(reportingRaw) : null;
 
-    if (teamLeadsExist && isEmployeeRole(req.user.role)) {
+    const needsReporting =
+      (teamLeadsExist && isEmployeeRole(req.user.role)) || isManagerRole(req.user.role);
+
+    if (needsReporting) {
       if (!Number.isFinite(reportingId) || reportingId <= 0) {
-        return res.status(400).json({ message: 'Please select who you are currently reporting to' });
+        return res.status(400).json({ message: 'Please select who you are reporting to' });
       }
-      const teamLead = await assertTeamLeadEmployee(reportingId);
-      if (!teamLead) {
-        return res.status(400).json({ message: 'Selected team lead is not valid' });
+      const reportingPerson = await assertValidReportingPerson(reportingId, req.user.id);
+      if (!reportingPerson) {
+        return res.status(400).json({ message: 'Selected reporting manager is not valid' });
       }
     } else {
       reportingId = null;

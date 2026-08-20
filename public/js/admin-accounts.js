@@ -52,17 +52,19 @@
     ]);
     const modules = modulesData.modules || [];
     window.__adminModules = modules;
+    window.__adminAccountsCache = accountsData.admins || [];
 
     body.innerHTML = (accountsData.admins || [])
       .map((admin) => {
         const status = admin.isActive ? 'Active' : 'Inactive';
         const badge = admin.isSuperAdmin ? 'Super Admin' : permissionSummary(admin.permissions);
         const actions = admin.isSuperAdmin
-          ? '<span class="stat-sub">Protected</span>'
+          ? `<button type="button" class="btn btn-outline btn-sm" data-edit-admin="${admin.id}">Edit profile</button>`
           : `<button type="button" class="btn btn-outline btn-sm" data-edit-admin="${admin.id}">Edit</button>
              <button type="button" class="btn btn-outline btn-sm" data-toggle-admin="${admin.id}" data-active="${admin.isActive}">${admin.isActive ? 'Deactivate' : 'Activate'}</button>
              <button type="button" class="btn btn-outline btn-sm" data-delete-admin="${admin.id}">Delete</button>`;
         return `<tr>
+          <td>${escapeHtml(admin.employeecode || '—')}</td>
           <td>${escapeHtml(admin.name)}</td>
           <td>${escapeHtml(admin.designation || '—')}</td>
           <td>${escapeHtml(admin.department || '—')}</td>
@@ -79,10 +81,16 @@
         const admin = accountsData.admins.find((a) => String(a.id) === btn.getAttribute('data-edit-admin'));
         if (!admin) return;
         document.getElementById('editAdminId').value = String(admin.id);
+        document.getElementById('editAdminEmpCode').value = admin.employeecode || '';
         document.getElementById('editAdminName').value = admin.name;
         document.getElementById('editAdminDesignation').value = admin.designation || '';
         document.getElementById('editAdminDepartment').value = admin.department || '';
         document.getElementById('editAdminActive').checked = admin.isActive;
+        document.getElementById('editAdminActive').disabled = admin.isSuperAdmin;
+        document.getElementById('editAdminPassword').value = '';
+        document.getElementById('editAdminPassword').disabled = admin.isSuperAdmin;
+        document.getElementById('editAdminPasswordWrap').classList.toggle('hidden', admin.isSuperAdmin);
+        document.getElementById('editAdminPermissionsWrap').classList.toggle('hidden', admin.isSuperAdmin);
         renderChecklist(document.getElementById('editAdminPermissions'), modules, admin.permissions);
         document.getElementById('editAdminPanel')?.classList.remove('hidden');
       });
@@ -164,22 +172,35 @@
       e.preventDefault();
       const id = document.getElementById('editAdminId').value;
       const msg = document.getElementById('manageAdminsMessage');
+      const admin = (window.__adminAccountsCache || []).find((a) => String(a.id) === String(id));
       try {
+        const payload = {
+          employeecode: document.getElementById('editAdminEmpCode').value.trim(),
+          name: document.getElementById('editAdminName').value.trim(),
+          designation: document.getElementById('editAdminDesignation').value.trim(),
+          department: document.getElementById('editAdminDepartment').value.trim(),
+        };
+        if (!admin?.isSuperAdmin) {
+          payload.isActive = document.getElementById('editAdminActive').checked;
+          payload.password = document.getElementById('editAdminPassword').value || undefined;
+          payload.permissions = selectedModules(document.getElementById('editAdminForm'));
+        }
         await api(`/api/admin/accounts/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: document.getElementById('editAdminName').value.trim(),
-            designation: document.getElementById('editAdminDesignation').value.trim(),
-            department: document.getElementById('editAdminDepartment').value.trim(),
-            isActive: document.getElementById('editAdminActive').checked,
-            password: document.getElementById('editAdminPassword').value || undefined,
-            permissions: selectedModules(document.getElementById('editAdminForm')),
-          }),
+          body: JSON.stringify(payload),
         });
         HRMS.toast('Admin updated', 'success');
         document.getElementById('editAdminPanel')?.classList.add('hidden');
+        document.getElementById('editAdminActive').disabled = false;
+        document.getElementById('editAdminPassword').disabled = false;
+        document.getElementById('editAdminPasswordWrap').classList.remove('hidden');
+        document.getElementById('editAdminPermissionsWrap').classList.remove('hidden');
         await loadAdminAccounts(api);
+        if (window.invalidateAdminEmployeesCache) window.invalidateAdminEmployeesCache();
+        if (window.HRMS?.reloadAdminEmployees) {
+          window.HRMS.reloadAdminEmployees();
+        }
       } catch (err) {
         if (msg) msg.textContent = err.message;
         HRMS.toast(err.message || 'Update failed', 'error');

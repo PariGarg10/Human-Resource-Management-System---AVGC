@@ -3,6 +3,8 @@
  * Tracks applied files in schema_migrations.
  *
  * Usage: npm run db:migrate
+ *
+ * Production deploy: use npm run db:migrate:deploy instead (schema + Super Admin only).
  */
 require('dotenv').config();
 const fs = require('fs');

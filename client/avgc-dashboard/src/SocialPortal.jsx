@@ -497,7 +497,7 @@ function ChannelLanding({ onEnter }) {
         STEP INTO A ROOM.
       </h1>
       <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {cards.map((card, index) => (
+        {cards.map((card) => (
           <button
             key={card.id}
             type="button"
@@ -510,9 +510,6 @@ function ChannelLanding({ onEnter }) {
                 alt=""
                 className="h-full w-full object-cover grayscale transition-[filter] duration-400 ease-in-out group-hover:grayscale-0"
               />
-              <span className="absolute left-3 top-3 rounded-full bg-white/90 px-2 py-0.5 font-mono text-xs text-stone-700">
-                №{String(index + 1).padStart(2, '0')}
-              </span>
               <span
                 className={`absolute right-3 top-3 rounded-full px-2 py-0.5 text-xs font-bold text-white ${card.badgeClass}`}
               >
@@ -732,8 +729,8 @@ export default function SocialPortal({ currentUserName = 'You', isAdminUser = fa
   }, []);
 
   return (
-    <div className="avgc-social-portal flex h-full min-h-0 flex-col overflow-hidden bg-[#ebebec] font-sans text-[#000000]">
-      <header className="z-40 shrink-0 border-b border-stone-200 bg-[#f9f9f7]/95 backdrop-blur">
+    <div className="avgc-social-portal flex h-full min-h-0 flex-col overflow-hidden font-sans">
+      <header className="avgc-social-portal-header z-40 shrink-0 border-b backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <button
             type="button"

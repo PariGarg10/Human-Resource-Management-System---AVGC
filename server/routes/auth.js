@@ -185,6 +185,45 @@ async function applyFailedLogin(employeeId) {
   return { locked: true, lockUntil };
 }
 
+async function issueLinkedAdminEmployeeLogin(res, employee, admin) {
+  await pool.query(`UPDATE employees SET role = 'admin' WHERE id = $1`, [employee.id]);
+  const permissions = admin.is_super_admin ? ALL_MODULES : await loadAdminPermissions(pool, admin.id);
+  const forcePasswordChange = Boolean(
+    admin.mustchangepassword || employee.force_password_change || employee.mustchangepassword
+  );
+
+  const payload = {
+    id: employee.id,
+    adminId: admin.id,
+    name: admin.name || employee.name,
+    email: admin.email || employee.email,
+    role: 'admin',
+    isSuperAdmin: Boolean(admin.is_super_admin),
+    permissions,
+    employeecode: employee.employeecode || null,
+    department: employee.department || admin.department || null,
+  };
+
+  const safeEmployee = {
+    id: employee.id,
+    adminId: admin.id,
+    name: payload.name,
+    email: payload.email,
+    department: payload.department,
+    role: 'admin',
+    designation: admin.designation || employee.designation || null,
+    isSuperAdmin: Boolean(admin.is_super_admin),
+    permissions,
+    employeecode: employee.employeecode,
+    force_password_change: forcePasswordChange,
+    isFirstLogin: employee.is_first_login === true,
+    onboardingCompleted: employee.onboarding_completed === true,
+  };
+
+  await resetFailedLoginState(employee.id);
+  return issueAuthResponse(res, payload, safeEmployee, forcePasswordChange);
+}
+
 async function issueEmployeeLogin(res, employee, allowedRole) {
   const role = String(employee.role || 'employee').toLowerCase().trim();
   const expectedRole = String(allowedRole || '').toLowerCase().trim();
@@ -288,6 +327,19 @@ async function handleEmployeeCredentialLogin(res, loginId, password, allowedRole
     if (String(lwd).slice(0, 10) < today) {
       return res.status(403).json({ message: 'Your access has ended. Please contact HR if you need assistance.' });
     }
+  }
+
+  const linkedAdminResult = await pool.query(
+    `
+      SELECT id, name, email, designation, department, is_super_admin, is_active, mustchangepassword
+      FROM admins
+      WHERE employee_id = $1 AND is_active = TRUE
+      LIMIT 1
+    `,
+    [employee.id]
+  );
+  if (linkedAdminResult.rows[0]) {
+    return issueLinkedAdminEmployeeLogin(res, employee, linkedAdminResult.rows[0]);
   }
 
   return issueEmployeeLogin(res, employee, allowedRole);
@@ -642,7 +694,10 @@ router.get('/me', authMiddleware, async (req, res) => {
       id: user.id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      role: req.user.role,
+      adminId: req.user.adminId || undefined,
+      isSuperAdmin: req.user.isSuperAdmin || undefined,
+      permissions: req.user.permissions || undefined,
       force_password_change: Boolean(user.force_password_change || user.mustchangepassword),
       onboardingCompleted: user.onboarding_completed === true,
     });

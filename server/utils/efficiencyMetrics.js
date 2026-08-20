@@ -240,6 +240,7 @@ async function buildEfficiencyReport(filters) {
       version_label: row.version_label,
       log_date: row.log_date,
       actual_output_qty: row.actual_output_qty,
+      actual_manhours_spent: row.actual_manhours_spent,
       implied_mhs: row.cappedImpliedMhs,
       raw_implied_mhs: row.rawImpliedMhs,
       attendance_hours: row.attendanceHours,

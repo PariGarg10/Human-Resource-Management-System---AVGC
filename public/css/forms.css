@@ -43,6 +43,20 @@
   gap: 12px;
 }
 
+.admin-employee-form-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 10px;
+}
+
+.admin-employee-form-actions .btn {
+  width: auto;
+  min-width: 0;
+  padding: 8px 14px;
+}
+
 .form-actions {
   display: flex;
   flex-wrap: wrap;

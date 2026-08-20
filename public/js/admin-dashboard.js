@@ -17,13 +17,28 @@ function portalPathForRole(role) {
   return '/employee/dashboard';
 }
 
+function isAdminPortalUser(profile) {
+  const role = normalizePortalRole(profile?.role);
+  return (
+    role === 'admin' ||
+    role === 'founder' ||
+    isFounderProfile(profile) ||
+    Boolean(profile?.isSuperAdmin) ||
+    Boolean(profile?.adminId)
+  );
+}
+
 function normalizePortalRole(role) {
   return String(role || 'employee').toLowerCase().trim();
 }
 
-if (normalizePortalRole(user.role) !== 'admin' && !isFounderProfile(user)) {
+if (!isAdminPortalUser(user)) {
   window.location.replace(portalPathForRole(user.role));
 } else {
+  if ((user.isSuperAdmin || user.adminId) && normalizePortalRole(user.role) !== 'admin') {
+    user = { ...user, role: 'admin' };
+    localStorage.setItem('employee', JSON.stringify(user));
+  }
 
 HRMS.loadPortalUserIdentity(api).catch(() => HRMS.syncPortalUserIdentity(user, '—', '—'));
 document.getElementById('navProfileEmail').textContent = user.email || '';
@@ -606,6 +621,12 @@ function invalidateAdminEmployeesCache() {
   adminEmployeesCacheAt = 0;
   leaveEntitlementEmployees = [];
 }
+window.invalidateAdminEmployeesCache = invalidateAdminEmployeesCache;
+window.HRMS = window.HRMS || {};
+window.HRMS.reloadAdminEmployees = () => {
+  invalidateAdminEmployeesCache();
+  return Promise.all([loadEmployees().catch(() => {}), loadRoleManagement().catch(() => {})]);
+};
 
 async function fetchAdminEmployees(force = false) {
   const now = Date.now();
@@ -630,73 +651,77 @@ async function loadEmployees() {
             ? ''
             : `<button type="button" class="btn btn-outline btn-sm" data-initiate-exit="${emp.id}" data-exit-name="${escapeHtml(emp.name)}">Initiate Exit</button>`;
           const removeBtn = isSelf
-            ? '<span class="stat-sub">—</span>'
+            ? ''
             : `<button type="button" class="btn btn-outline btn-sm" data-remove-employee="${emp.id}">Remove</button>`;
           const roleVal = portalRoleSelectValue(emp.role);
-          const roleCell = `<div class="table-cell-stack emp-role-cell">
-              <select data-role-select="${emp.id}">
+          const isAdminRole = ['admin', 'founder', 'it_head'].includes(String(emp.role || '').toLowerCase().trim());
+          const dojVal = emp.dateOfJoining ? String(emp.dateOfJoining).slice(0, 10) : '';
+          const roleCell = isAdminRole
+            ? `<span class="stat-sub">admin</span>`
+            : `<select data-emp-role="${emp.id}">
                 <option value="employee"${roleVal === 'employee' ? ' selected' : ''}>Employee</option>
                 <option value="manager"${roleVal === 'manager' ? ' selected' : ''}>Manager</option>
-              </select>
-              <button type="button" class="btn btn-outline btn-sm" data-role-save-emp="${emp.id}">Save</button>
-            </div>`;
-          const designationCell = `<div class="table-cell-stack">
-              <input data-designation-emp="${emp.id}" value="${escapeHtml(emp.designation || '')}" placeholder="e.g. Team Lead" />
-              <button type="button" class="btn btn-outline btn-sm" data-designation-save-emp="${emp.id}">Save</button>
-            </div>`;
-          const actionsCell = `<td class="table-cell-actions" data-label="Actions">
-              <div class="table-actions-wrap">
-                ${exitBtn}
-                ${removeBtn}
-              </div>
-            </td>`;
-          return `<tr>
-            <td data-label="Code">${escapeHtml(emp.employeecode)}</td>
-            <td data-label="Name">${escapeHtml(emp.name)}</td>
-            <td data-label="Email" class="col-hide-mobile">${escapeHtml(emp.email)}</td>
-            <td data-label="Designation">${designationCell}</td>
+              </select>`;
+          return `<tr data-emp-row="${emp.id}">
+            <td data-label="Code"><input data-emp-code="${emp.id}" value="${escapeHtml(emp.employeecode || '')}" placeholder="e.g. EMP002" /></td>
+            <td data-label="Name"><input data-emp-name="${emp.id}" value="${escapeHtml(emp.name || '')}" /></td>
+            <td data-label="Email" class="col-hide-mobile"><input data-emp-email="${emp.id}" type="email" value="${escapeHtml(emp.email || '')}" /></td>
+            <td data-label="Dept"><input data-emp-dept="${emp.id}" value="${escapeHtml(emp.department || '')}" placeholder="Department" /></td>
+            <td data-label="Designation"><input data-emp-designation="${emp.id}" value="${escapeHtml(emp.designation || '')}" placeholder="e.g. Team Lead" /></td>
+            <td data-label="Date of joining"><input data-emp-doj="${emp.id}" type="date" value="${dojVal}" /></td>
             <td data-label="Portal role">${roleCell}</td>
-            ${actionsCell}
+            <td class="table-cell-actions" data-label="Actions">
+              <div class="table-actions-wrap table-actions-wrap--stack">
+                <button type="button" class="btn btn-primary btn-sm" data-save-emp="${emp.id}">Save</button>
+                <div class="table-actions-secondary">
+                  ${exitBtn}
+                  ${removeBtn}
+                </div>
+              </div>
+            </td>
           </tr>`;
         })
         .join('')
-    : '<tr><td colspan="6" class="stat-sub" style="padding:24px;text-align:center;">No employees found.</td></tr>';
-  body.querySelectorAll('[data-designation-save-emp]').forEach((btn) => {
+    : '<tr><td colspan="8" class="stat-sub" style="padding:24px;text-align:center;">No employees found.</td></tr>';
+  body.querySelectorAll('[data-save-emp]').forEach((btn) => {
     btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-designation-save-emp');
-      const input = body.querySelector(`[data-designation-emp="${id}"]`);
-      if (!id || !input) return;
+      const id = btn.getAttribute('data-save-emp');
+      if (!id) return;
+      const code = body.querySelector(`[data-emp-code="${id}"]`)?.value?.trim();
+      const name = body.querySelector(`[data-emp-name="${id}"]`)?.value?.trim();
+      const email = body.querySelector(`[data-emp-email="${id}"]`)?.value?.trim();
+      const department = body.querySelector(`[data-emp-dept="${id}"]`)?.value?.trim();
+      const designation = body.querySelector(`[data-emp-designation="${id}"]`)?.value?.trim();
+      const dateOfJoining = body.querySelector(`[data-emp-doj="${id}"]`)?.value?.trim();
+      const roleSelect = body.querySelector(`select[data-emp-role="${id}"]`);
+      const role = roleSelect ? roleSelect.value : undefined;
+      if (!name || !email) {
+        HRMS.toast('Name and email are required', 'error');
+        return;
+      }
+      if (!code) {
+        HRMS.toast('Employee code is required', 'error');
+        return;
+      }
       try {
-        await api(`/api/admin/employees/${id}/designation`, {
+        await api(`/api/admin/employees/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ designation: input.value.trim() || null }),
+          body: JSON.stringify({
+            employeecode: code,
+            name,
+            email,
+            department: department || null,
+            designation: designation || null,
+            dateOfJoining: dateOfJoining || null,
+            ...(role != null ? { role } : {}),
+          }),
         });
-        HRMS.toast('Designation updated', 'success');
+        HRMS.toast('Employee updated', 'success');
         invalidateAdminEmployeesCache();
         await Promise.all([loadEmployees(), loadRoleManagement()]);
       } catch (e) {
-        HRMS.toast(e.message || 'Could not update designation', 'error');
-      }
-    });
-  });
-  body.querySelectorAll('[data-role-save-emp]').forEach((btn) => {
-    btn.addEventListener('click', async () => {
-      const id = btn.getAttribute('data-role-save-emp');
-      const select = body.querySelector(`[data-role-select="${id}"]`);
-      if (!id || !select) return;
-      try {
-        await api(`/api/admin/employees/${id}/role`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ role: select.value }),
-        });
-        HRMS.toast('Role updated', 'success');
-        invalidateAdminEmployeesCache();
-        await loadEmployees();
-        await loadRoleManagement();
-      } catch (e) {
-        HRMS.toast(e.message || 'Could not update role', 'error');
+        HRMS.toast(e.message || 'Could not update employee', 'error');
       }
     });
   });
@@ -737,7 +762,12 @@ async function loadRoleManagement() {
             (emp) => `
       <tr>
         <td>${emp.id}</td>
-        <td>${escapeHtml(emp.employeecode)}</td>
+        <td>
+          <div class="table-cell-stack">
+            <input data-emp-code-role="${emp.id}" value="${escapeHtml(emp.employeecode || '')}" placeholder="e.g. EMP002" />
+            <button type="button" class="btn btn-outline btn-sm" data-code-save-role="${emp.id}">Save code</button>
+          </div>
+        </td>
         <td>${escapeHtml(emp.name)}</td>
         <td>${escapeHtml(emp.email)}</td>
         <td>${escapeHtml(emp.department || '—')}</td>
@@ -747,7 +777,7 @@ async function loadRoleManagement() {
             <button type="button" class="btn btn-outline btn-sm" data-designation-save-role="${emp.id}">Save</button>
           </div>
         </td>
-        <td>${escapeHtml(portalRoleSelectValue(emp.role) === 'manager' ? 'manager' : 'employee')}</td>
+        <td>${escapeHtml(['admin', 'founder', 'it_head'].includes(String(emp.role || '').toLowerCase()) ? 'admin' : portalRoleSelectValue(emp.role) === 'manager' ? 'manager' : 'employee')}</td>
         <td>
           <div class="table-cell-stack">
             <select data-role-select-role="${emp.id}">
@@ -763,6 +793,36 @@ async function loadRoleManagement() {
           )
           .join('')
       : '<tr><td colspan="8" class="stat-sub" style="padding:24px;text-align:center;">No employees found.</td></tr>';
+
+    body.querySelectorAll('[data-code-save-role]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = btn.getAttribute('data-code-save-role');
+        const input = body.querySelector(`[data-emp-code-role="${id}"]`);
+        if (!id || !input) return;
+        const code = input.value.trim();
+        if (!code) {
+          HRMS.toast('Employee code is required', 'error');
+          return;
+        }
+        try {
+          const row = employees.find((e) => String(e.id) === String(id));
+          await api(`/api/admin/employees/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              employeecode: code,
+              name: row?.name,
+              email: row?.email,
+            }),
+          });
+          HRMS.toast('Employee code updated', 'success');
+          invalidateAdminEmployeesCache();
+          await Promise.all([loadRoleManagement(), loadEmployees()]);
+        } catch (error) {
+          HRMS.toast(error.message || 'Could not update employee code', 'error');
+        }
+      });
+    });
 
     body.querySelectorAll('[data-designation-save-role]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -2021,19 +2081,32 @@ document.getElementById('holSampleBtn')?.addEventListener('click', async (e) => 
 
 document.getElementById('attendanceSampleBtn')?.addEventListener('click', (e) => {
   e.stopPropagation();
-  const headers = ['Name', 'Employee Code', 'Date', 'Shift', 'InTime', 'OutTime', 'Work Dur.', 'OT', 'Tot. Dur.', 'Status'];
+  const headers = [
+    'SNo',
+    'E. Code',
+    'Name',
+    'Shift',
+    'InTime',
+    'OutTime',
+    'Work Dur.',
+    'OT',
+    'Tot. Dur.',
+    'Status',
+    'Remarks',
+  ];
   downloadSampleExcel('attendance-import-sample.xls', headers, [
     {
-      Name: 'Amit Sharma',
-      'Employee Code': 'EMP001',
-      Date: new Date().toISOString().slice(0, 10),
-      Shift: 'General',
-      InTime: '09:30',
-      OutTime: '18:30',
-      'Work Dur.': '09:00',
+      SNo: 1,
+      'E. Code': '1001',
+      Name: 'ASHISH MISHRA',
+      Shift: 'GS',
+      InTime: '09:48',
+      OutTime: '16:41',
+      'Work Dur.': '6:53',
       OT: '00:00',
-      'Tot. Dur.': '09:00',
+      'Tot. Dur.': '6:53',
       Status: 'Present',
+      Remarks: '',
     },
   ]);
 });
@@ -2148,6 +2221,27 @@ function mondayIndexFromJsDay(jsDay) {
   return (jsDay + 6) % 7;
 }
 
+/** 1st/3rd/5th Saturday working; 2nd/4th off (matches server default). */
+function defaultSaturdayStatus(dateStr) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr || '').trim());
+  if (!m) return 'working';
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const dayOfMonth = Number(m[3]);
+  let saturdayIndex = 0;
+  for (let d = 1; d <= dayOfMonth; d += 1) {
+    if (new Date(y, mo - 1, d).getDay() === 6) saturdayIndex += 1;
+  }
+  return saturdayIndex % 2 === 0 ? 'off' : 'working';
+}
+
+function resolveSaturdayStatus(dateStr, storedStatus) {
+  const defaultStatus = defaultSaturdayStatus(dateStr);
+  if (!storedStatus) return defaultStatus;
+  if (storedStatus === 'off' && defaultStatus === 'working') return defaultStatus;
+  return storedStatus;
+}
+
 const saturdayAdmin = { entriesMap: new Map() };
 
 function syncSaturdayViewModeFields() {
@@ -2188,7 +2282,7 @@ function renderSatMonthGrid(year, month, map) {
     cell.style.cursor = 'default';
     cell.style.padding = '4px';
     if (dow === 6) {
-      const st = map.get(dateStr) || 'off';
+      const st = resolveSaturdayStatus(dateStr, map.get(dateStr));
       cell.style.cursor = 'pointer';
       cell.style.background = st === 'working' ? 'rgba(34,197,94,0.18)' : 'rgba(120,120,120,0.1)';
       cell.style.borderColor = st === 'working' ? '#697279' : 'var(--border)';
@@ -2196,7 +2290,7 @@ function renderSatMonthGrid(year, month, map) {
       cell.innerHTML = `<strong>${day}</strong><span style="font-size:10px;margin-top:2px;">${st === 'working' ? 'Work' : 'Off'}</span>`;
       cell.addEventListener('click', async () => {
         try {
-          const cur = map.get(dateStr) || 'off';
+          const cur = resolveSaturdayStatus(dateStr, map.get(dateStr));
           const next = cur === 'working' ? 'off' : 'working';
           await api('/api/saturday-config', {
             method: 'POST',
@@ -2233,7 +2327,7 @@ function renderSatYearList(entries) {
     btn.style.padding = '10px 12px';
     btn.style.border = '1px solid var(--border)';
     btn.style.cursor = 'pointer';
-    const st = e.status || 'off';
+    const st = resolveSaturdayStatus(e.date, e.status);
     btn.style.background = st === 'working' ? 'rgba(34,197,94,0.18)' : 'var(--surface)';
     btn.style.borderColor = st === 'working' ? '#697279' : 'var(--border)';
     btn.textContent = `${e.date} · ${st === 'working' ? 'Working' : 'Off'}`;
@@ -2279,7 +2373,9 @@ async function loadSaturdayAdminConfig() {
     }
     const data = await api(path);
     const entries = data.entries || [];
-    saturdayAdmin.entriesMap = new Map(entries.map((e) => [e.date, e.status]));
+    saturdayAdmin.entriesMap = new Map(
+      entries.map((e) => [e.date, resolveSaturdayStatus(e.date, e.status)])
+    );
     if (mode === 'year') {
       document.getElementById('satMonthWrap')?.classList.add('hidden');
       document.getElementById('satYearWrap')?.classList.remove('hidden');
@@ -2602,6 +2698,22 @@ function mountTeamHubWhenReady(section) {
     performance: () => window.HRMS?.mountAdminPerformance?.('#adminPerformanceRoot'),
     efficiency: () => window.HRMS?.mountAdminEfficiency?.('#adminEfficiencyRoot'),
   };
+  const mountRoots = {
+    dashboard: '#adminDashboardReactRoot',
+    teams: '#teamHubOrgTreeRoot',
+    'holiday-calendar': '#adminPublicHolidayRoot',
+    'employee-directory': '#adminEmployeeDirectoryRoot',
+    calendar: '#adminCalendarRoot',
+    'leave-apply': '#adminLeaveApplyRoot',
+    'company-social': '#adminSocialPortalRoot',
+    profile: '#adminProfileReactRoot',
+    settings: '#adminSettingsReactRoot',
+    exit: '#adminMyExitRoot',
+    'exit-clearances': '#adminExitClearancesRoot',
+    onboarding: '#adminOnboardingRoot',
+    performance: '#adminPerformanceRoot',
+    efficiency: '#adminEfficiencyRoot',
+  };
   const mountFn = mounts[section];
   if (!mountFn) return;
   const tryMount = (attempt) => {
@@ -2625,8 +2737,22 @@ function mountTeamHubWhenReady(section) {
       return;
     }
     if (attempt < 50) setTimeout(() => tryMount(attempt + 1), 80);
+    else showAdminMountFailure(section, mountRoots[section]);
   };
   tryMount(0);
+}
+
+function showAdminMountFailure(section, rootSelector) {
+  if (!rootSelector) return;
+  const el = document.querySelector(rootSelector);
+  if (!el || el.textContent?.trim()) return;
+  el.innerHTML =
+    '<div class="panel" style="margin:24px">' +
+    '<h2 class="panel-title">Panel failed to load</h2>' +
+    '<p class="stat-sub">The ' +
+    section +
+    ' module did not load. Hard-refresh the page (Ctrl+Shift+R). If this continues after redeploy, contact IT.</p>' +
+    '</div>';
 }
 
 function hasPerm(moduleKey) {

@@ -307,6 +307,68 @@ router.get('/team-leads', authMiddleware, enforcePasswordChange, async (req, res
   }
 });
 
+router.get('/reporting-options', authMiddleware, enforcePasswordChange, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const meResult = await pool.query(
+      'SELECT id, reporting_to_id FROM employees WHERE id = $1',
+      [userId]
+    );
+    const me = meResult.rows[0];
+    if (!me) return res.status(404).json({ message: 'Employee not found' });
+
+    const mgrResult = await pool.query(
+      'SELECT managerid FROM manageremployees WHERE employeeid = $1 LIMIT 1',
+      [userId]
+    );
+    const defaultReportingToId = mgrResult.rows[0]?.managerid ?? me.reporting_to_id ?? null;
+
+    const { rows: managers } = await pool.query(
+      `
+        SELECT id, name, employeecode, designation, department, role
+        FROM employees
+        WHERE id != $1
+          AND COALESCE(isregistered, TRUE) = TRUE
+          AND COALESCE(is_active, TRUE) = TRUE
+          AND lower(trim(role)) IN ('manager', 'admin', 'founder', 'it_head')
+        ORDER BY name ASC
+      `,
+      [userId]
+    );
+
+    const abovePeople = [];
+    const seen = new Set();
+    let currentId = me.reporting_to_id;
+    while (currentId && !seen.has(currentId)) {
+      seen.add(currentId);
+      const { rows } = await pool.query(
+        `
+          SELECT id, name, employeecode, designation, department, role, reporting_to_id
+          FROM employees
+          WHERE id = $1 AND COALESCE(isregistered, TRUE) = TRUE
+        `,
+        [currentId]
+      );
+      if (!rows[0]) break;
+      abovePeople.push(rows[0]);
+      currentId = rows[0].reporting_to_id;
+    }
+
+    const byId = new Map();
+    for (const person of [...managers, ...abovePeople]) {
+      if (person.id !== userId) byId.set(person.id, person);
+    }
+    const options = Array.from(byId.values()).sort((a, b) =>
+      String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base' })
+    );
+
+    return res.json({ defaultReportingToId, options });
+  } catch (err) {
+    console.error('GET /users/reporting-options:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 router.get('/org-directory', authMiddleware, enforcePasswordChange, async (_req, res) => {
   try {
     await ensureProfilePhotoColumns();
@@ -338,12 +400,34 @@ router.get('/org-directory', authMiddleware, enforcePasswordChange, async (_req,
 router.get('/employee-directory', authMiddleware, async (_req, res) => {
   try {
     await ensureProfilePhotoColumns();
-    const [employeesResult, assignmentsResult] = await Promise.all([
+    const today = new Date().toISOString().slice(0, 10);
+    const [employeesResult, assignmentsResult, attendanceResult] = await Promise.all([
       pool.query(DIRECTORY_EMPLOYEE_SELECT),
       pool.query('SELECT managerid, employeeid FROM manageremployees'),
+      pool.query(
+        'SELECT employeeid, status, punchin, punchout FROM attendancelogs WHERE date = $1::date',
+        [today]
+      ),
     ]);
 
-    const employees = buildEmployeeDirectory(employeesResult.rows, assignmentsResult.rows);
+    const attendanceByEmp = new Map(
+      (attendanceResult.rows || []).map((row) => [row.employeeid, row])
+    );
+
+    function isPresentToday(log) {
+      if (!log) return false;
+      const status = String(log.status || '').toLowerCase();
+      if (status === 'present' || status === 'halfday') return true;
+      if (log.punchin && !log.punchout) return true;
+      return false;
+    }
+
+    const employees = buildEmployeeDirectory(employeesResult.rows, assignmentsResult.rows).map(
+      (entry) => ({
+        ...entry,
+        presenceToday: isPresentToday(attendanceByEmp.get(entry.id)),
+      })
+    );
     return res.json({
       employees,
       total: employees.length,

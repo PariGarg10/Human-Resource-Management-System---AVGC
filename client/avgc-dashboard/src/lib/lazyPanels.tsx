@@ -64,6 +64,9 @@ export const PerformancePanel = lazy(() =>
 export const MyProjectsPanel = lazy(() =>
   import('@/views/MyProjectsPanel').then((m) => ({ default: m.MyProjectsPanel }))
 );
+export const MyWorkLogsPanel = lazy(() =>
+  import('@/views/MyWorkLogsPanel').then((m) => ({ default: m.MyWorkLogsPanel }))
+);
 export const WorkLogApprovalPanel = lazy(() =>
   import('@/views/WorkLogApprovalPanel').then((m) => ({ default: m.WorkLogApprovalPanel }))
 );

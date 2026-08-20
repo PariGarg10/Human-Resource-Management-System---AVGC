@@ -14,6 +14,7 @@ function dashboardPathForRole(role) {
 }
 
 function dashboardPathForEmployee(employee) {
+  if (employee?.isSuperAdmin || employee?.adminId) return '/admin/dashboard';
   const name = String(employee?.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
   if (name === 'ashish mishra') return '/admin/dashboard';
   return dashboardPathForRole(employee?.role);
@@ -41,7 +42,15 @@ function dashboardPathForEmployee(employee) {
       if (!me) return;
       if (localStorage.getItem('token') !== tokenAtStart) return;
       try {
-        const emp = JSON.parse(localStorage.getItem('employee') || '{}');
+        const stored = JSON.parse(localStorage.getItem('employee') || '{}');
+        const emp = {
+          ...stored,
+          role: normalizeRole(me.role || stored.role || 'employee'),
+          adminId: me.adminId ?? stored.adminId ?? null,
+          isSuperAdmin: Boolean(me.isSuperAdmin ?? stored.isSuperAdmin),
+          permissions: Array.isArray(me.permissions) ? me.permissions : stored.permissions || [],
+        };
+        localStorage.setItem('employee', JSON.stringify(emp));
         window.location.replace(dashboardPathForEmployee(emp));
       } catch (_e) {}
     })

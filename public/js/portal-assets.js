@@ -50,9 +50,167 @@
     const inventoryImportSampleBtn = document.getElementById('assetInventorySampleBtn');
     const adminPanels = document.querySelectorAll('[data-asset-admin-only]');
 
+    const inventorySearch = document.getElementById('assetInventorySearch');
+    const inventorySort = document.getElementById('assetInventorySort');
+    const inventoryExportBtn = document.getElementById('assetInventoryExportBtn');
+    const inventoryBulkDeleteBtn = document.getElementById('assetInventoryBulkDeleteBtn');
+    const inventorySelectAll = document.getElementById('assetInventorySelectAll');
+    let inventoryCache = [];
+
     adminPanels.forEach((el) => {
       el.classList.toggle('hidden', !isAdmin);
     });
+
+    function inventoryColspan() {
+      return isAdmin ? 9 : 8;
+    }
+
+    function sortInventoryItems(items, sortKey) {
+      const list = [...items];
+      const cmpText = (a, b) => String(a || '').localeCompare(String(b || ''), undefined, { sensitivity: 'base' });
+      switch (sortKey) {
+        case 'name-desc':
+          return list.sort((a, b) => cmpText(b.name, a.name));
+        case 'category-asc':
+          return list.sort((a, b) => cmpText(a.category, b.category) || cmpText(a.name, b.name));
+        case 'total-desc':
+          return list.sort((a, b) => (b.totalCount || 0) - (a.totalCount || 0));
+        case 'available-desc':
+          return list.sort((a, b) => (b.availableCount || 0) - (a.availableCount || 0));
+        default:
+          return list.sort((a, b) => cmpText(a.name, b.name));
+      }
+    }
+
+    function filteredInventoryItems() {
+      const q = String(inventorySearch?.value || '').trim().toLowerCase();
+      const sortKey = inventorySort?.value || 'name-asc';
+      let items = inventoryCache;
+      if (q) {
+        items = items.filter((row) => {
+          const hay = [row.name, row.category, row.modelNumber, row.serialNumber]
+            .map((v) => String(v || '').toLowerCase())
+            .join(' ');
+          return hay.includes(q);
+        });
+      }
+      return sortInventoryItems(items, sortKey);
+    }
+
+    function bindInventoryRowActions() {
+      if (!invBody) return;
+      invBody.querySelectorAll('[data-edit-item]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-edit-item');
+          const name = window.prompt('Item name:', btn.getAttribute('data-name') || '');
+          if (name == null) return;
+          const category = window.prompt('Category:', btn.getAttribute('data-category') || '');
+          if (category == null) return;
+          const modelNumber = window.prompt('Model number:', btn.getAttribute('data-model-number') || '');
+          if (modelNumber == null) return;
+          const serialNumber = window.prompt('Serial number:', btn.getAttribute('data-serial-number') || '');
+          if (serialNumber == null) return;
+          const totalNext = window.prompt('Total count:', btn.getAttribute('data-total') || '0');
+          if (totalNext == null) return;
+          const totalCount = Number(totalNext);
+          if (!name.trim() || !category.trim() || !modelNumber.trim() || !serialNumber.trim()) {
+            HRMS.toast('Name, category, model number and serial number are required', 'error');
+            return;
+          }
+          if (!Number.isFinite(totalCount) || totalCount < 0) {
+            HRMS.toast('Enter a valid total count', 'error');
+            return;
+          }
+          try {
+            await apiJson(api, `/api/assets/inventory/${id}`, {
+              method: 'PATCH',
+              body: JSON.stringify({
+                name: name.trim(),
+                category: category.trim(),
+                modelNumber: modelNumber.trim(),
+                serialNumber: serialNumber.trim(),
+                totalCount,
+              }),
+            });
+            HRMS.toast('Item updated', 'success');
+            await refresh();
+          } catch (e) {
+            HRMS.toast(e.message, 'error');
+          }
+        });
+      });
+
+      invBody.querySelectorAll('[data-del-item]').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+          const id = btn.getAttribute('data-del-item');
+          if (!window.confirm('Remove this inventory item? Active allocations must be revoked first.')) return;
+          try {
+            await apiJson(api, `/api/assets/inventory/${id}`, { method: 'DELETE' });
+            HRMS.toast('Item removed', 'success');
+            await refresh();
+          } catch (e) {
+            HRMS.toast(e.message, 'error');
+          }
+        });
+      });
+    }
+
+    function renderInventoryTable() {
+      if (!invBody) return;
+      const items = filteredInventoryItems();
+      const colspan = inventoryColspan();
+      if (!items.length) {
+        invBody.innerHTML = `<tr><td colspan="${colspan}" class="stat-sub">No inventory items match your filters.</td></tr>`;
+        return;
+      }
+      invBody.innerHTML = items
+        .map((row) => {
+          const checkboxCell = isAdmin
+            ? `<td><input type="checkbox" class="asset-inv-select" data-inv-select="${row.id}" aria-label="Select ${esc(row.name)}" /></td>`
+            : '';
+          const editCell = isAdmin
+            ? `<td class="filters-inline" style="gap:6px;flex-wrap:wrap;">
+                <button type="button" class="btn btn-outline btn-sm" data-edit-item="${row.id}"
+                  data-name="${String(row.name || '').replace(/"/g, '&quot;')}"
+                  data-category="${String(row.category || '').replace(/"/g, '&quot;')}"
+                  data-model-number="${String(row.modelNumber || '').replace(/"/g, '&quot;')}"
+                  data-serial-number="${String(row.serialNumber || '').replace(/"/g, '&quot;')}"
+                  data-total="${row.totalCount}">Edit</button>
+                <button type="button" class="btn btn-outline btn-sm" data-del-item="${row.id}">Remove</button>
+              </td>`
+            : '<td class="stat-sub">—</td>';
+          return `<tr>
+            ${checkboxCell}
+            <td>${esc(row.name)}</td>
+            <td>${esc(row.category)}</td>
+            <td>${esc(row.modelNumber || '—')}</td>
+            <td>${esc(row.serialNumber || '—')}</td>
+            <td>${row.totalCount}</td>
+            <td>${row.allocatedCount}</td>
+            <td>${row.availableCount}</td>
+            ${editCell}
+          </tr>`;
+        })
+        .join('');
+      bindInventoryRowActions();
+      if (inventorySelectAll) inventorySelectAll.checked = false;
+    }
+
+    async function loadInventory() {
+      if (!invBody) return;
+      invBody.innerHTML = `<tr><td colspan="${inventoryColspan()}" class="stat-sub">Loading…</td></tr>`;
+      try {
+        const data = await api('/api/assets/inventory');
+        inventoryCache = data.items || [];
+        if (!inventoryCache.length) {
+          invBody.innerHTML = `<tr><td colspan="${inventoryColspan()}" class="stat-sub">No inventory items yet. Use the form above to add one.</td></tr>`;
+          return;
+        }
+        renderInventoryTable();
+      } catch (e) {
+        invBody.innerHTML = `<tr><td colspan="${inventoryColspan()}" class="stat-sub">${esc(e.message)}</td></tr>`;
+      }
+    }
 
     async function loadEmployees() {
       if (!isAdmin || !employeeSelect) return;
@@ -75,100 +233,67 @@
       }
     }
 
-    async function loadInventory() {
-      if (!invBody) return;
-      invBody.innerHTML = '<tr><td colspan="8" class="stat-sub">Loading…</td></tr>';
-      try {
-        const data = await api('/api/assets/inventory');
-        const items = data.items || [];
-        if (!items.length) {
-          invBody.innerHTML =
-            '<tr><td colspan="8" class="stat-sub">No inventory items yet. Use the form above to add one.</td></tr>';
+    if (isAdmin && inventorySearch && inventorySearch.dataset.assetBound !== '1') {
+      inventorySearch.dataset.assetBound = '1';
+      inventorySearch.addEventListener('input', () => renderInventoryTable());
+    }
+    if (isAdmin && inventorySort && inventorySort.dataset.assetBound !== '1') {
+      inventorySort.dataset.assetBound = '1';
+      inventorySort.addEventListener('change', () => renderInventoryTable());
+    }
+    if (isAdmin && inventorySelectAll && inventorySelectAll.dataset.assetBound !== '1') {
+      inventorySelectAll.dataset.assetBound = '1';
+      inventorySelectAll.addEventListener('change', () => {
+        const checked = inventorySelectAll.checked;
+        invBody?.querySelectorAll('.asset-inv-select').forEach((el) => {
+          el.checked = checked;
+        });
+      });
+    }
+    if (isAdmin && inventoryExportBtn && inventoryExportBtn.dataset.assetBound !== '1') {
+      inventoryExportBtn.dataset.assetBound = '1';
+      inventoryExportBtn.addEventListener('click', async () => {
+        try {
+          const token = localStorage.getItem('token');
+          const res = await fetch('/api/assets/inventory/export', {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (!res.ok) throw new Error('Export failed');
+          const blob = await res.blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = 'asset-inventory-export.xlsx';
+          document.body.appendChild(a);
+          a.click();
+          URL.revokeObjectURL(a.href);
+          a.remove();
+        } catch (e) {
+          HRMS.toast(e.message || 'Could not export inventory', 'error');
+        }
+      });
+    }
+    if (isAdmin && inventoryBulkDeleteBtn && inventoryBulkDeleteBtn.dataset.assetBound !== '1') {
+      inventoryBulkDeleteBtn.dataset.assetBound = '1';
+      inventoryBulkDeleteBtn.addEventListener('click', async () => {
+        const ids = Array.from(invBody?.querySelectorAll('.asset-inv-select:checked') || [])
+          .map((el) => Number(el.getAttribute('data-inv-select')))
+          .filter((n) => n > 0);
+        if (!ids.length) {
+          HRMS.toast('Select at least one item', 'error');
           return;
         }
-        invBody.innerHTML = items
-          .map((row) => {
-            const editCell = isAdmin
-              ? `<td class="filters-inline" style="gap:6px;flex-wrap:wrap;">
-                  <button type="button" class="btn btn-outline btn-sm" data-edit-item="${row.id}"
-                    data-name="${String(row.name || '').replace(/"/g, '&quot;')}"
-                    data-category="${String(row.category || '').replace(/"/g, '&quot;')}"
-                    data-model-number="${String(row.modelNumber || '').replace(/"/g, '&quot;')}"
-                    data-serial-number="${String(row.serialNumber || '').replace(/"/g, '&quot;')}"
-                    data-total="${row.totalCount}">Edit</button>
-                  <button type="button" class="btn btn-outline btn-sm" data-del-item="${row.id}">Remove</button>
-                </td>`
-              : '<td class="stat-sub">—</td>';
-            return `<tr>
-              <td>${esc(row.name)}</td>
-              <td>${esc(row.category)}</td>
-              <td>${esc(row.modelNumber || '—')}</td>
-              <td>${esc(row.serialNumber || '—')}</td>
-              <td>${row.totalCount}</td>
-              <td>${row.allocatedCount}</td>
-              <td>${row.availableCount}</td>
-              ${editCell}
-            </tr>`;
-          })
-          .join('');
-
-        invBody.querySelectorAll('[data-edit-item]').forEach((btn) => {
-          btn.addEventListener('click', async () => {
-            const id = btn.getAttribute('data-edit-item');
-            const name = window.prompt('Item name:', btn.getAttribute('data-name') || '');
-            if (name == null) return;
-            const category = window.prompt('Category:', btn.getAttribute('data-category') || '');
-            if (category == null) return;
-            const modelNumber = window.prompt('Model number:', btn.getAttribute('data-model-number') || '');
-            if (modelNumber == null) return;
-            const serialNumber = window.prompt('Serial number:', btn.getAttribute('data-serial-number') || '');
-            if (serialNumber == null) return;
-            const totalNext = window.prompt('Total count:', btn.getAttribute('data-total') || '0');
-            if (totalNext == null) return;
-            const totalCount = Number(totalNext);
-            if (!name.trim() || !category.trim() || !modelNumber.trim() || !serialNumber.trim()) {
-              HRMS.toast('Name, category, model number and serial number are required', 'error');
-              return;
-            }
-            if (!Number.isFinite(totalCount) || totalCount < 0) {
-              HRMS.toast('Enter a valid total count', 'error');
-              return;
-            }
-            try {
-              await apiJson(api, `/api/assets/inventory/${id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({
-                  name: name.trim(),
-                  category: category.trim(),
-                  modelNumber: modelNumber.trim(),
-                  serialNumber: serialNumber.trim(),
-                  totalCount,
-                }),
-              });
-              HRMS.toast('Item updated', 'success');
-              await refresh();
-            } catch (e) {
-              HRMS.toast(e.message, 'error');
-            }
+        if (!window.confirm(`Delete ${ids.length} selected item(s)?`)) return;
+        try {
+          const result = await apiJson(api, '/api/assets/inventory/bulk-delete', {
+            method: 'POST',
+            body: JSON.stringify({ ids }),
           });
-        });
-
-        invBody.querySelectorAll('[data-del-item]').forEach((btn) => {
-          btn.addEventListener('click', async () => {
-            const id = btn.getAttribute('data-del-item');
-            if (!window.confirm('Remove this inventory item? Active allocations must be revoked first.')) return;
-            try {
-              await apiJson(api, `/api/assets/inventory/${id}`, { method: 'DELETE' });
-              HRMS.toast('Item removed', 'success');
-              await refresh();
-            } catch (e) {
-              HRMS.toast(e.message, 'error');
-            }
-          });
-        });
-      } catch (e) {
-        invBody.innerHTML = `<tr><td colspan="8" class="stat-sub">${esc(e.message)}</td></tr>`;
-      }
+          HRMS.toast(result.message || 'Items removed', 'success');
+          await refresh();
+        } catch (e) {
+          HRMS.toast(e.message || 'Could not delete items', 'error');
+        }
+      });
     }
 
     async function loadAllocations() {

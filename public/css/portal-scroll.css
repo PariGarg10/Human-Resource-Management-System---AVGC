@@ -61,12 +61,13 @@ body:has(#root .app-main) {
 .content-area:has(> .view-section.reports-viewport.is-active),
 .content-area:has(> .view-section.social-portal-viewport.is-active),
 .content-area:has(> .view-section.live-activity-viewport.is-active),
-.content-area:has(> .view-section.employee-directory-viewport.is-active) {
+.content-area:has(> .view-section.employee-directory-viewport.is-active),
+.content-area:has(> .view-section.efficiency-viewport.is-active) {
   overflow: hidden;
 }
 
 /* Scrollable admin / portal sections */
-.view-section.is-active:not(.org-teams-viewport):not(.attendance-calendar-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport):not(.employee-documents-viewport):not(.manager-assignment-viewport):not(.asset-management-viewport):not(.import-attendance-viewport):not(.reports-viewport):not(.social-portal-viewport):not(.live-activity-viewport):not(.profile-viewport):not(.employee-directory-viewport) {
+.view-section.is-active:not(.org-teams-viewport):not(.attendance-calendar-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport):not(.employee-documents-viewport):not(.manager-assignment-viewport):not(.asset-management-viewport):not(.import-attendance-viewport):not(.reports-viewport):not(.social-portal-viewport):not(.live-activity-viewport):not(.profile-viewport):not(.employee-directory-viewport):not(.efficiency-viewport) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -86,7 +87,8 @@ body:has(#root .app-main) {
 .view-section.social-portal-viewport.is-active,
 .view-section.live-activity-viewport.is-active,
 .view-section.profile-viewport.is-active,
-.view-section.employee-directory-viewport.is-active {
+.view-section.employee-directory-viewport.is-active,
+.view-section.efficiency-viewport.is-active {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -101,6 +103,14 @@ body:has(#root .app-main) {
   flex-direction: column;
   height: 100%;
   background: #f3f4f6;
+}
+
+#adminEfficiencyRoot {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 #adminDashboardReactRoot {

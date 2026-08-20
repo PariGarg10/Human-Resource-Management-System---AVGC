@@ -10,6 +10,7 @@
     "build": "npm run build:dashboard",
     "db:init": "node server/initDb.js",
     "db:migrate": "node server/scripts/run-migrations.js",
+    "db:migrate:deploy": "node server/scripts/run-deploy-migrations.js",
     "db:check": "node scripts/check-db-connection.js",
     "test:smtp": "node server/scripts/test-smtp.js",
     "db:org-check": "node server/scripts/check-org-coverage.js",

@@ -5,7 +5,6 @@ import { monthName } from '@/lib/attendanceLabels';
 import { MIN_PORTAL_YEAR, MAX_PORTAL_YEAR } from '@/lib/yearMin';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useUser } from '@/context/UserContext';
-import { hasEmployeeAccess } from '@/lib/roles';
 
 type LeaveRow = {
   id?: number;
@@ -16,12 +15,17 @@ type LeaveRow = {
   reason?: string;
 };
 
-type TeamLeadOption = {
+type ReportingOption = {
   id: number;
   name: string;
   employeecode?: string;
   designation?: string | null;
 };
+
+function isLeaveApplicantRole(role?: string | null) {
+  const r = String(role || '').toLowerCase().trim();
+  return r === 'employee' || r === 'manager';
+}
 
 const LEAVE_TYPES = ['Paid Leave', 'Work From Home'] as const;
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -43,51 +47,55 @@ function dateRangeIncludesSunday(from: string, to: string) {
 
 export function LeaveApplyPanel() {
   const { user } = useUser();
-  const showTeamLeadReporting = hasEmployeeAccess(user?.role);
+  const showReportingTo = isLeaveApplicantRole(user?.role);
   const [leaveType, setLeaveType] = useState<(typeof LEAVE_TYPES)[number]>('Paid Leave');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [reason, setReason] = useState('');
   const [reportingToId, setReportingToId] = useState('');
-  const [teamLeads, setTeamLeads] = useState<TeamLeadOption[]>([]);
+  const [reportingOptions, setReportingOptions] = useState<ReportingOption[]>([]);
   const [loadingLeads, setLoadingLeads] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const loadTeamLeads = useCallback(async () => {
-    if (!showTeamLeadReporting) {
-      setTeamLeads([]);
+  const loadReportingOptions = useCallback(async () => {
+    if (!showReportingTo) {
+      setReportingOptions([]);
       setLoadingLeads(false);
       return;
     }
     setLoadingLeads(true);
     try {
-      const data = await api<{ teamLeads: TeamLeadOption[] }>('/api/users/team-leads');
-      const leads = data.teamLeads || [];
-      setTeamLeads(leads);
-      const saved = user?.reportingToId;
-      if (saved && leads.some((l) => l.id === saved)) {
-        setReportingToId(String(saved));
-      } else if (leads.length === 1) {
-        setReportingToId(String(leads[0].id));
+      const data = await api<{ defaultReportingToId?: number | null; options: ReportingOption[] }>(
+        '/api/users/reporting-options'
+      );
+      const options = data.options || [];
+      setReportingOptions(options);
+      const defaultId = data.defaultReportingToId ?? user?.reportingToId ?? null;
+      if (defaultId && options.some((o) => o.id === defaultId)) {
+        setReportingToId(String(defaultId));
+      } else if (user?.reportingToId && options.some((o) => o.id === user.reportingToId)) {
+        setReportingToId(String(user.reportingToId));
+      } else if (options.length === 1) {
+        setReportingToId(String(options[0].id));
       }
     } catch (e) {
-      toast(e instanceof Error ? e.message : 'Could not load team leads', 'error');
-      setTeamLeads([]);
+      toast(e instanceof Error ? e.message : 'Could not load reporting managers', 'error');
+      setReportingOptions([]);
     } finally {
       setLoadingLeads(false);
     }
-  }, [showTeamLeadReporting, user?.reportingToId]);
+  }, [showReportingTo, user?.reportingToId]);
 
   useEffect(() => {
-    loadTeamLeads().catch(() => {});
-  }, [loadTeamLeads]);
+    loadReportingOptions().catch(() => {});
+  }, [loadReportingOptions]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setSuccessMsg(null);
-    if (showTeamLeadReporting && teamLeads.length > 0 && !reportingToId) {
-      toast('Please select your reporting team lead', 'error');
+    if (showReportingTo && reportingOptions.length > 0 && !reportingToId) {
+      toast('Please select who you are reporting to', 'error');
       return;
     }
     if (from && to && from > to) {
@@ -130,8 +138,8 @@ export function LeaveApplyPanel() {
     <div className="panel">
       <h2 className="panel-title">Leave management</h2>
       <p className="stat-sub">
-        {showTeamLeadReporting
-          ? 'Submit a new leave request. Your reporting team lead will be notified.'
+        {showReportingTo
+          ? 'Submit a new leave request. Your reporting manager will be notified.'
           : 'Submit a new leave request for review.'}
       </p>
       {successMsg && (
@@ -188,22 +196,22 @@ export function LeaveApplyPanel() {
               placeholder="Brief reason for your time away"
             />
           </div>
-          {showTeamLeadReporting ? (
+          {showReportingTo ? (
             <div className="form-group">
               <label htmlFor="leave-reporting">Reporting to</label>
               <select
                 id="leave-reporting"
-                required={teamLeads.length > 0}
+                required={reportingOptions.length > 0}
                 value={reportingToId}
                 onChange={(e) => setReportingToId(e.target.value)}
                 disabled={loadingLeads}
               >
-                <option value="">{loadingLeads ? 'Loading team leads…' : 'Choose your team lead'}</option>
-                {teamLeads.map((lead) => (
-                  <option key={lead.id} value={lead.id}>
-                    {lead.name}
-                    {lead.designation ? ` — ${lead.designation}` : ''}
-                    {lead.employeecode ? ` (${lead.employeecode})` : ''}
+                <option value="">{loadingLeads ? 'Loading managers…' : 'Choose reporting manager'}</option>
+                {reportingOptions.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name}
+                    {person.designation ? ` — ${person.designation}` : ''}
+                    {person.employeecode ? ` (${person.employeecode})` : ''}
                   </option>
                 ))}
               </select>
@@ -211,9 +219,9 @@ export function LeaveApplyPanel() {
           ) : null}
         </div>
 
-        {showTeamLeadReporting && !loadingLeads && teamLeads.length === 0 && (
+        {showReportingTo && !loadingLeads && reportingOptions.length === 0 && (
           <p className="stat-sub" style={{ margin: '0 0 12px' }}>
-            No team leads are configured yet. Ask admin to set designation (e.g. Team Lead) on the right people.
+            No reporting managers are configured yet. Ask admin to assign managers in the org chart.
           </p>
         )}
 

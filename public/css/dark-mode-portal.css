@@ -1,0 +1,72 @@
+/* Portal-wide dark mode fixes (admin HTML shell + shared components) */
+
+[data-theme='dark'] .content-area,
+[data-theme='dark'] .app-main {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .view-section,
+[data-theme='dark'] .panel,
+[data-theme='dark'] .panel-title,
+[data-theme='dark'] .stat-label,
+[data-theme='dark'] .stat-value {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .stat-sub,
+[data-theme='dark'] .muted,
+[data-theme='dark'] .form-hint {
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] input:not([type='checkbox']):not([type='radio']):not([type='range']),
+[data-theme='dark'] select,
+[data-theme='dark'] textarea {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+[data-theme='dark'] input::placeholder,
+[data-theme='dark'] textarea::placeholder {
+  color: var(--placeholder);
+}
+
+[data-theme='dark'] .profile-dropdown,
+[data-theme='dark'] .navbar-search-results,
+[data-theme='dark'] .sidebar-flyout {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+[data-theme='dark'] #hrmsThemeFab {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+[data-theme='dark'] .import-preview-wrap,
+[data-theme='dark'] .import-preview-table,
+[data-theme='dark'] .attendance-import-preview {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .celebration-banner,
+[data-theme='dark'] .dashboard-widget,
+[data-theme='dark'] .home-widget {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .password-toggle-btn {
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] .sidebar-nav-item.is-active {
+  color: var(--sidebar-active-color);
+}

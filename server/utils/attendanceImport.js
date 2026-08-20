@@ -66,12 +66,13 @@ function parseDateTimeValue(value, fallbackDateStr) {
   if (value == null || value === '') return null;
 
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    // Excel time-only cells become epoch dates in UTC; use UTC parts to avoid +5:30 drift.
     if (fallbackDateStr && value.getFullYear() < 1980) {
       return dateFromYmd(
         fallbackDateStr,
-        value.getHours(),
-        value.getMinutes(),
-        value.getSeconds()
+        value.getUTCHours(),
+        value.getUTCMinutes(),
+        value.getUTCSeconds()
       );
     }
     return value;
@@ -128,7 +129,12 @@ function parseDateTimeValue(value, fallbackDateStr) {
   const d = new Date(raw);
   if (!Number.isNaN(d.getTime())) {
     if (fallbackDateStr && d.getFullYear() < 1980) {
-      return dateFromYmd(fallbackDateStr, d.getHours(), d.getMinutes(), d.getSeconds());
+      return dateFromYmd(
+        fallbackDateStr,
+        d.getUTCHours(),
+        d.getUTCMinutes(),
+        d.getUTCSeconds()
+      );
     }
     return d;
   }
@@ -280,20 +286,40 @@ function normalizeStatus(value) {
   return raw;
 }
 
-/** Find header row and return objects keyed by column titles (Name, InTime, …). */
+function stringifyEmployeeCode(value) {
+  if (value == null || value === '') return '';
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(Math.trunc(value));
+  }
+  return String(value).trim().replace(/\.0+$/, '');
+}
+
+/** Detect biometric daily export header row (skips Department / Default rows above). */
+function isAttendanceHeaderRow(row) {
+  const cells = row.map((c) => normalizeHeader(c));
+  const hasIn = cells.some(
+    (c) => c === 'intime' || c === 'in time' || c === 'in' || c.includes('in time')
+  );
+  if (!hasIn) return false;
+  const hasCode = cells.some(
+    (c) =>
+      c === 'e code' ||
+      c === 'employee code' ||
+      c === 'emp code' ||
+      c === 'employeecode' ||
+      c === 'enroll no'
+  );
+  const hasName = cells.some((c) => c === 'name' || c === 'employee name' || c === 'emp name');
+  return hasCode || hasName;
+}
+
+/** Find header row and return objects keyed by column titles (SNo, E. Code, Name, InTime, …). */
 function readAttendanceRowsFromFile(filePath) {
   const workbook = XLSX.readFile(filePath, { cellDates: true });
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const matrix = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
 
-  let headerIndex = matrix.findIndex((row) => {
-    const cells = row.map((c) => normalizeHeader(c));
-    const hasName = cells.some((c) => c === 'name' || c === 'employee name' || c === 'emp name');
-    const hasIn = cells.some(
-      (c) => c === 'intime' || c === 'in time' || c === 'in' || c.includes('in time')
-    );
-    return hasName && hasIn;
-  });
+  let headerIndex = matrix.findIndex((row) => isAttendanceHeaderRow(row));
 
   if (headerIndex === -1) {
     headerIndex = matrix.findIndex((row) => row.some((cell) => String(cell || '').trim()));
@@ -320,7 +346,8 @@ function readAttendanceRowsFromFile(filePath) {
 }
 
 /**
- * Name | Shift | InTime | OutTime | Work Dur. | OT | Tot. Dur. | Status
+ * Biometric daily export columns (order):
+ * SNo | E. Code | Name | Shift | InTime | OutTime | Work Dur. | OT | Tot. Dur. | Status | Remarks
  */
 function parseAttendanceRow(row, options = {}) {
   const fallbackDate = options.fallbackDate || null;
@@ -329,7 +356,7 @@ function parseAttendanceRow(row, options = {}) {
     pickRowField(row, ['name', 'employee name', 'emp name', 'full name']) || ''
   ).trim();
 
-  const employeecode = String(
+  const employeecode = stringifyEmployeeCode(
     pickRowField(row, [
       'e code',
       'e. code',
@@ -346,8 +373,8 @@ function parseAttendanceRow(row, options = {}) {
       'enrollment number',
       'biometric id',
       'device user id',
-    ]) || ''
-  ).trim();
+    ])
+  );
 
   const email = String(
     pickRowField(row, ['email', 'work email', 'employee email', 'mail']) || ''
@@ -557,10 +584,11 @@ async function findAdminAccessPerson(db, { employeecode, employeeName, email }) 
  * Resolve a file/device row to an employees.id for attendancelogs.
  * Matches regular employees, then admin-access accounts (admins + admin roles).
  */
-async function resolveAttendanceEmployee(db, { employeecode, employeeName, email }) {
-  let code = String(employeecode || '').trim();
+async function resolveAttendanceEmployee(db, { employeecode, employeeName, email }, options = {}) {
+  let code = stringifyEmployeeCode(employeecode);
   let name = normalizePersonName(employeeName);
   const normalizedEmail = String(email || '').trim().toLowerCase();
+  const matchByCodeOnly = options.matchByCodeOnly === true;
 
   // Biometric exports sometimes put the device user id in the name column (e.g. "1081").
   if (name && !code && /^\d+[a-z]?$/i.test(name)) {
@@ -571,6 +599,21 @@ async function resolveAttendanceEmployee(db, { employeecode, employeeName, email
   if (code) {
     const employee = await findEmployeeByCode(db, code);
     if (employee) return employee;
+
+    const adminPerson = await findAdminAccessPerson(db, {
+      employeecode: code,
+      employeeName: '',
+      email: '',
+    });
+    if (adminPerson?.id) {
+      return {
+        id: adminPerson.id,
+        name: adminPerson.name,
+        employeecode: adminPerson.employeecode,
+      };
+    }
+
+    if (matchByCodeOnly) return null;
   }
 
   if (normalizedEmail) {
@@ -599,13 +642,45 @@ async function resolveAttendanceEmployee(db, { employeecode, employeeName, email
   return null;
 }
 
+/** Store punch times in local wall-clock (avoid toISOString UTC shift in IST). */
+function punchTimestampForStorage(dateObj, fallbackDateYmd) {
+  if (!dateObj || Number.isNaN(dateObj.getTime())) return null;
+  let y = dateObj.getFullYear();
+  let m = dateObj.getMonth() + 1;
+  let d = dateObj.getDate();
+  if (y < 1980 && fallbackDateYmd) {
+    const [fy, fm, fd] = String(fallbackDateYmd).split('-').map(Number);
+    if (fy && fm && fd) {
+      y = fy;
+      m = fm;
+      d = fd;
+    }
+  }
+  return `${y}-${pad2(m)}-${pad2(d)}T${pad2(dateObj.getHours())}:${pad2(dateObj.getMinutes())}:${pad2(dateObj.getSeconds())}`;
+}
+
 module.exports = {
   normalizeImportDate,
   normalizeHeader,
   normalizePersonName,
+  stringifyEmployeeCode,
   readAttendanceRowsFromFile,
   parseAttendanceRow,
   parseDurationHours,
+  punchTimestampForStorage,
   resolveAttendanceEmployee,
   explainAttendanceMatchFailure,
+  ATTENDANCE_IMPORT_COLUMNS: [
+    'SNo',
+    'E. Code',
+    'Name',
+    'Shift',
+    'InTime',
+    'OutTime',
+    'Work Dur.',
+    'OT',
+    'Tot. Dur.',
+    'Status',
+    'Remarks',
+  ],
 };

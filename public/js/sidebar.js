@@ -194,7 +194,10 @@ HRMS.initSidebar = function initSidebar(options = {}) {
     const body = section.querySelector('.sidebar-accordion-body');
     if (body) {
       const sectionId = section.getAttribute('data-section') || '';
-      body.classList.toggle('sidebar-menu-two-col', sectionId === 'administration');
+      body.classList.toggle(
+        'sidebar-menu-two-col',
+        sectionId === 'administration' || sectionId === 'projects'
+      );
 
       body.addEventListener('mouseenter', () => {
         if (!isDesktop()) return;

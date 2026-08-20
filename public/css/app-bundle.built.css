@@ -2473,16 +2473,23 @@ body.has-floating-sidebar .navbar-logo {
 .table-wrap--people-scroll {
   flex: 1 1 auto;
   min-height: 0;
+  width: 100%;
   overflow-x: auto;
   overflow-y: auto;
   max-height: none;
   -webkit-overflow-scrolling: touch;
 }
 
-.data-table--roles,
+.data-table--roles {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 920px;
+}
+
 .data-table--people {
   table-layout: fixed;
   width: 100%;
+  min-width: 0;
 }
 
 .data-table--roles thead th,
@@ -2543,33 +2550,42 @@ body.has-floating-sidebar .navbar-logo {
 
 .data-table--people th:nth-child(1),
 .data-table--people td:nth-child(1) {
-  width: 10%;
+  width: 7%;
 }
 
 .data-table--people th:nth-child(2),
 .data-table--people td:nth-child(2) {
-  width: 14%;
+  width: 12%;
 }
 
 .data-table--people th:nth-child(3),
 .data-table--people td:nth-child(3) {
-  width: 22%;
+  width: 18%;
 }
 
 .data-table--people th:nth-child(4),
 .data-table--people td:nth-child(4) {
-  width: 16%;
+  width: 10%;
 }
 
 .data-table--people th:nth-child(5),
 .data-table--people td:nth-child(5) {
-  width: 16%;
+  width: 13%;
 }
 
 .data-table--people th:nth-child(6),
 .data-table--people td:nth-child(6) {
-  width: 20%;
-  min-width: 196px;
+  width: 12%;
+}
+
+.data-table--people th:nth-child(7),
+.data-table--people td:nth-child(7) {
+  width: 10%;
+}
+
+.data-table--people th:nth-child(8),
+.data-table--people td:nth-child(8) {
+  width: 18%;
 }
 
 .table-cell-stack {
@@ -2605,6 +2621,42 @@ body.has-floating-sidebar .navbar-logo {
   vertical-align: middle;
 }
 
+.data-table--people .table-cell-actions {
+  overflow: visible;
+}
+
+.data-table--people .table-actions-wrap--stack {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.data-table--people .table-actions-wrap--stack .btn {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  padding: 4px 8px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.data-table--people .table-actions-wrap--stack .btn.btn-primary {
+  min-width: 0;
+}
+
+.data-table--people .table-actions-wrap--stack .table-actions-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  justify-content: flex-start;
+  width: auto;
+  max-width: 100%;
+}
+
 .table-actions-wrap {
   display: flex;
   flex-wrap: wrap;
@@ -2612,6 +2664,25 @@ body.has-floating-sidebar .navbar-logo {
   align-items: center;
   justify-content: flex-start;
   max-width: 100%;
+}
+
+.table-actions-wrap--stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.table-actions-wrap--stack .btn {
+  width: 100%;
+}
+
+.data-table--people td input,
+.data-table--people td select {
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 13px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
 }
 
 .table-cell-actions .btn,
@@ -2698,6 +2769,20 @@ body.has-floating-sidebar .navbar-logo {
   flex-shrink: 0;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
   gap: 12px;
+}
+
+.admin-employee-form-actions {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0 10px;
+}
+
+.admin-employee-form-actions .btn {
+  width: auto;
+  min-width: 0;
+  padding: 8px 14px;
 }
 
 .form-actions {
@@ -3581,7 +3666,7 @@ a.btn-primary:visited,
 .manager-assignment-form .ma-combobox input,
 .manager-assignment-form .ma-multi-combobox input {
   width: 100%;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .ma-combobox-list {
@@ -3597,7 +3682,7 @@ a.btn-primary:visited,
   overflow: auto;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  background: #fff;
+  background: var(--bg-card);
   box-shadow: var(--shadow-md);
 }
 
@@ -3615,7 +3700,7 @@ a.btn-primary:visited,
   gap: 6px;
   padding: 6px 10px;
   border-radius: 999px;
-  background: #fff;
+  background: var(--bg-card);
   border: 1px solid var(--border);
   font-size: 13px;
   color: var(--text-primary);
@@ -3637,7 +3722,7 @@ a.btn-primary:visited,
   font-size: 14px;
   color: var(--text-primary);
   cursor: pointer;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .ma-combobox-option:hover,
@@ -3676,7 +3761,7 @@ a.btn-primary:visited,
   min-height: 38px;
   padding: 8px 16px !important;
   font-size: 13px;
-  background: #fff !important;
+  background: var(--bg-card) !important;
   color: var(--red) !important;
   border: 1px solid var(--red) !important;
   cursor: pointer;
@@ -3732,11 +3817,12 @@ a.btn-primary:visited,
 
 .toast-container {
   position: fixed;
-  top: 50%;
+  top: 24px;
+  bottom: auto;
   left: 50%;
   right: auto;
-  transform: translate(-50%, -50%);
-  z-index: 3000;
+  transform: translateX(-50%);
+  z-index: 30000;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -3948,12 +4034,13 @@ body:has(#root .app-main) {
 .content-area:has(> .view-section.reports-viewport.is-active),
 .content-area:has(> .view-section.social-portal-viewport.is-active),
 .content-area:has(> .view-section.live-activity-viewport.is-active),
-.content-area:has(> .view-section.employee-directory-viewport.is-active) {
+.content-area:has(> .view-section.employee-directory-viewport.is-active),
+.content-area:has(> .view-section.efficiency-viewport.is-active) {
   overflow: hidden;
 }
 
 /* Scrollable admin / portal sections */
-.view-section.is-active:not(.org-teams-viewport):not(.attendance-calendar-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport):not(.employee-documents-viewport):not(.manager-assignment-viewport):not(.asset-management-viewport):not(.import-attendance-viewport):not(.reports-viewport):not(.social-portal-viewport):not(.live-activity-viewport):not(.profile-viewport):not(.employee-directory-viewport) {
+.view-section.is-active:not(.org-teams-viewport):not(.attendance-calendar-viewport):not(.holiday-calendar-viewport):not(.dashboard-react-viewport):not(.admin-people-viewport):not(.employee-documents-viewport):not(.manager-assignment-viewport):not(.asset-management-viewport):not(.import-attendance-viewport):not(.reports-viewport):not(.social-portal-viewport):not(.live-activity-viewport):not(.profile-viewport):not(.employee-directory-viewport):not(.efficiency-viewport) {
   flex: 1 1 auto;
   min-height: 0;
   overflow-x: hidden;
@@ -3973,7 +4060,8 @@ body:has(#root .app-main) {
 .view-section.social-portal-viewport.is-active,
 .view-section.live-activity-viewport.is-active,
 .view-section.profile-viewport.is-active,
-.view-section.employee-directory-viewport.is-active {
+.view-section.employee-directory-viewport.is-active,
+.view-section.efficiency-viewport.is-active {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -3988,6 +4076,14 @@ body:has(#root .app-main) {
   flex-direction: column;
   height: 100%;
   background: #f3f4f6;
+}
+
+#adminEfficiencyRoot {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 #adminDashboardReactRoot {
@@ -4948,8 +5044,84 @@ body {
 }
 
 
+/* --- dark-mode-portal.css --- */
+/* Portal-wide dark mode fixes (admin HTML shell + shared components) */
+
+[data-theme='dark'] .content-area,
+[data-theme='dark'] .app-main {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .view-section,
+[data-theme='dark'] .panel,
+[data-theme='dark'] .panel-title,
+[data-theme='dark'] .stat-label,
+[data-theme='dark'] .stat-value {
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .stat-sub,
+[data-theme='dark'] .muted,
+[data-theme='dark'] .form-hint {
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] input:not([type='checkbox']):not([type='radio']):not([type='range']),
+[data-theme='dark'] select,
+[data-theme='dark'] textarea {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+[data-theme='dark'] input::placeholder,
+[data-theme='dark'] textarea::placeholder {
+  color: var(--placeholder);
+}
+
+[data-theme='dark'] .profile-dropdown,
+[data-theme='dark'] .navbar-search-results,
+[data-theme='dark'] .sidebar-flyout {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+[data-theme='dark'] #hrmsThemeFab {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+
+[data-theme='dark'] .import-preview-wrap,
+[data-theme='dark'] .import-preview-table,
+[data-theme='dark'] .attendance-import-preview {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .celebration-banner,
+[data-theme='dark'] .dashboard-widget,
+[data-theme='dark'] .home-widget {
+  background: var(--bg-card);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+[data-theme='dark'] .password-toggle-btn {
+  color: var(--text-muted);
+}
+
+[data-theme='dark'] .sidebar-nav-item.is-active {
+  color: var(--sidebar-active-color);
+}
+
+
 /* --- app-bundle tail --- */
 /* Load order — single entry for dashboards */
+
 
 
 

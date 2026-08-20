@@ -40,6 +40,7 @@ type EfficiencyReport = {
     version_label: string;
     log_date: string;
     actual_output_qty: number;
+    actual_manhours_spent?: number | null;
     implied_mhs: number;
   }>;
 };
@@ -50,7 +51,9 @@ function taskLabel(taskName: string, versionLabel: string) {
 }
 
 export function AdminEfficiencyPanel() {
-  const [tab, setTab] = useState<'reports' | 'daily' | 'setup'>('reports');
+  const [tab, setTab] = useState<'reports' | 'daily' | 'setup' | 'import-logs'>('reports');
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
   const [projects, setProjects] = useState<EfficiencyProject[]>([]);
   const [period, setPeriod] = useState<'day' | 'week' | 'month'>('week');
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
@@ -118,6 +121,52 @@ export function AdminEfficiencyPanel() {
       .catch((e) => toast(e instanceof Error ? e.message : 'Export failed', 'error'));
   }
 
+  async function importBackdatedLogs() {
+    if (!importFile) {
+      toast('Choose an Excel file first', 'error');
+      return;
+    }
+    setImportBusy(true);
+    try {
+      const form = new FormData();
+      form.append('file', importFile);
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/efficiency/work-logs/import', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(String(body.message || 'Import failed'));
+      toast(String(body.message || 'Import complete'), 'success');
+      setImportFile(null);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Import failed', 'error');
+    } finally {
+      setImportBusy(false);
+    }
+  }
+
+  function downloadWorkLogTemplate() {
+    const token = localStorage.getItem('token');
+    fetch('/api/efficiency/work-logs/import-template', {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Could not download template');
+        return res.blob();
+      })
+      .then((blob) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'efficiency-work-logs-import-template.xlsx';
+        a.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch((e) => toast(e instanceof Error ? e.message : 'Download failed', 'error'));
+  }
+
   const tableRows = report?.rows || [];
 
   const tabBar = (
@@ -143,8 +192,48 @@ export function AdminEfficiencyPanel() {
       >
         Projects &amp; task standards
       </button>
+      <button
+        type="button"
+        className={`btn btn-sm ${tab === 'import-logs' ? 'btn-primary' : 'btn-secondary'}`}
+        onClick={() => setTab('import-logs')}
+      >
+        Import backdated logs
+      </button>
     </div>
   );
+
+  if (tab === 'import-logs') {
+    return (
+      <div>
+        {tabBar}
+        <div className="panel panel--scroll">
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">Import backdated work logs</h2>
+              <p className="stat-sub">
+                Upload Excel with employee, project, task, date, output qty, and actual manhours. Use approved status for
+                historical efficiency data.
+              </p>
+            </div>
+          </div>
+          <div className="filters-inline" style={{ flexWrap: 'wrap', gap: 12 }}>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={downloadWorkLogTemplate}>
+              Download template
+            </button>
+            <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={importBusy || !importFile}
+              onClick={() => importBackdatedLogs()}
+            >
+              {importBusy ? 'Importing…' : 'Upload & import'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (tab === 'daily') {
     return (
@@ -244,6 +333,7 @@ export function AdminEfficiencyPanel() {
                 <th>Task</th>
                 <th>Date</th>
                 <th>Output</th>
+                <th>Actual MH</th>
                 <th>Implied MHs</th>
                 <th>Work days (WDs)</th>
                 <th>Efficiency%</th>
@@ -260,6 +350,9 @@ export function AdminEfficiencyPanel() {
                     <td>{taskLabel(row.task_name, row.version_label)}</td>
                     <td>{row.log_date}</td>
                     <td>{row.actual_output_qty}</td>
+                    <td>
+                      {row.actual_manhours_spent != null ? Number(row.actual_manhours_spent).toFixed(2) : '—'}
+                    </td>
                     <td>{Number(row.implied_mhs).toFixed(2)}</td>
                     <td>{emp?.wd ?? '—'}</td>
                     <td>{emp?.efficiencyPercent != null ? `${emp.efficiencyPercent}%` : '—'}</td>

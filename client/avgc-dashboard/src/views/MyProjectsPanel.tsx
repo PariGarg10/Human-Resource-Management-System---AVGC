@@ -12,10 +12,7 @@ type TaskBaseline = {
   calc_type: string;
 };
 
-type Tab = 'projects' | 'log-output';
-
 export function MyProjectsPanel() {
-  const [tab, setTab] = useState<Tab>('projects');
   const [projects, setProjects] = useState<EfficiencyProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeProject, setActiveProject] = useState<EfficiencyProject | null>(null);
@@ -86,11 +83,6 @@ export function MyProjectsPanel() {
     [baselines, taskName, versionLabel]
   );
 
-  function openLogForProject(project: EfficiencyProject) {
-    setTab('log-output');
-    openProject(project).catch(() => {});
-  }
-
   async function submitLog() {
     if (!activeProject || !selectedBaseline) {
       toast('Select task and version', 'error');
@@ -132,25 +124,6 @@ export function MyProjectsPanel() {
     }
   }
 
-  const tabBar = (
-    <div className="filters-inline" style={{ marginBottom: 16 }}>
-      <button
-        type="button"
-        className={`btn btn-sm ${tab === 'projects' ? 'btn-primary' : 'btn-secondary'}`}
-        onClick={() => setTab('projects')}
-      >
-        My projects
-      </button>
-      <button
-        type="button"
-        className={`btn btn-sm ${tab === 'log-output' ? 'btn-primary' : 'btn-secondary'}`}
-        onClick={() => setTab('log-output')}
-      >
-        Log output
-      </button>
-    </div>
-  );
-
   const projectTable =
     loading ? (
       <p className="stat-sub">Loading projects…</p>
@@ -158,7 +131,7 @@ export function MyProjectsPanel() {
       <p className="stat-sub">
         No efficiency projects configured yet. Ask your admin or manager to add projects and task standards.
       </p>
-    ) : tab === 'log-output' ? (
+    ) : (
       <div className="table-wrap">
         <table className="data-table">
           <thead>
@@ -190,44 +163,14 @@ export function MyProjectsPanel() {
           </tbody>
         </table>
       </div>
-    ) : (
-      <div className="table-wrap">
-        <table className="data-table">
-          <thead>
-            <tr>
-              <th>Project</th>
-            </tr>
-          </thead>
-          <tbody>
-            {projects.map((project) => (
-              <tr key={project.id}>
-                <td>
-                  <button
-                    type="button"
-                    className="btn btn-link"
-                    style={{ padding: 0, fontWeight: 600 }}
-                    onClick={() => openLogForProject(project)}
-                  >
-                    {project.name}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <p className="stat-sub" style={{ marginTop: 12 }}>
-          Select a project to log output, or switch to the Log output tab.
-        </p>
-      </div>
     );
-
   return (
     <div className="panel panel--scroll">
       <div className="panel-header">
         <div>
           <h2 className="panel-title">My projects</h2>
           <p className="stat-sub">
-            View assigned projects and log daily output. Your manager will approve before it counts toward efficiency.
+            Select a project and log daily output. View submitted entries under Logged outputs in the sidebar.
           </p>
         </div>
         <button type="button" className="btn btn-primary btn-sm" onClick={() => loadProjects().catch(() => {})}>
@@ -235,7 +178,6 @@ export function MyProjectsPanel() {
         </button>
       </div>
 
-      {tabBar}
       {projectTable}
 
       {activeProject ? (

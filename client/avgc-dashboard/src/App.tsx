@@ -31,6 +31,7 @@ import {
   ManagerExitClearancesPanel,
   ManagerTeamAttendancePanel,
   MyProjectsPanel,
+  MyWorkLogsPanel,
   OnboardingPanel,
   OrgTreePanel,
   EmployeeDirectoryPanel,
@@ -239,6 +240,12 @@ function renderPanel(
           <MyProjectsPanel />
         </LazyPanel>
       );
+    case 'my-work-logs':
+      return (
+        <LazyPanel>
+          <MyWorkLogsPanel />
+        </LazyPanel>
+      );
     case 'performance-team':
       return (
         <LazyPanel>
@@ -260,6 +267,18 @@ function dashboardPathForRole(role: string): string {
   if (r === 'admin' || r === 'founder') return '/admin/dashboard';
   if (r === 'manager') return '/manager/dashboard';
   return '/employee/dashboard';
+}
+
+function isAdminPortalUser(emp: EmployeeUser | null): boolean {
+  if (!emp) return false;
+  const role = String(emp.role || '').toLowerCase().trim();
+  const linked = emp as EmployeeUser & { adminId?: number | null; isSuperAdmin?: boolean };
+  return (
+    role === 'admin' ||
+    role === 'founder' ||
+    Boolean(linked.isSuperAdmin) ||
+    Boolean(linked.adminId)
+  );
 }
 
 export default function App() {
@@ -421,46 +440,16 @@ export default function App() {
       window.location.replace('/login');
       return;
     }
-    const emp = readEmployee();
+    let emp = readEmployee();
     if (!emp) {
       console.warn('[HRMS] Signed out: employee profile missing from browser storage after login');
       localStorage.clear();
       window.location.replace('/login');
       return;
     }
-    const role = String(emp.role || 'employee').toLowerCase().trim();
-    if (!['employee', 'manager', 'admin', 'it_head', 'founder'].includes(role)) {
-      console.warn('[HRMS] Signed out: unrecognized portal role:', role);
-      localStorage.clear();
-      window.location.replace('/login');
-      return;
-    }
-    if (role === 'admin') {
-      window.location.replace('/admin/dashboard');
-      return;
-    }
-
-    const expectedPath = dashboardPathForRole(role);
-    const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
-    const allowedExtraPaths =
-      portalRole === 'manager'
-        ? ['/profile', '/account/profile', '/manager/exit-clearances', '/manager/exit']
-        : ['/profile', '/account/profile', '/employee/onboarding', '/employee/exit'];
-    if (currentPath !== expectedPath && !allowedExtraPaths.includes(currentPath)) {
-      window.location.replace(expectedPath);
-      return;
-    }
-
-    if (portalRole === 'manager' && role !== 'manager') {
-      window.location.replace('/employee/dashboard');
-      return;
-    }
-    if (portalRole === 'employee' && role === 'manager') {
-      window.location.replace('/manager/dashboard');
-      return;
-    }
 
     void (async () => {
+      let sessionEmp = emp;
       try {
         const res = await fetch('/api/auth/me', {
           headers: { Authorization: `Bearer ${token}` },
@@ -472,7 +461,21 @@ export default function App() {
           return;
         }
         if (res.ok) {
-          const authMe = (await res.json()) as { force_password_change?: boolean };
+          const authMe = (await res.json()) as {
+            force_password_change?: boolean;
+            role?: string;
+            adminId?: number;
+            isSuperAdmin?: boolean;
+            permissions?: string[];
+          };
+          sessionEmp = {
+            ...sessionEmp,
+            role: authMe.role || sessionEmp.role,
+            adminId: authMe.adminId ?? sessionEmp.adminId,
+            isSuperAdmin: authMe.isSuperAdmin ?? sessionEmp.isSuperAdmin,
+            permissions: authMe.permissions ?? sessionEmp.permissions,
+          };
+          localStorage.setItem('employee', JSON.stringify(sessionEmp));
           if (authMe.force_password_change) {
             setPasswordRequired(true);
             setNav('onboarding');
@@ -482,11 +485,49 @@ export default function App() {
         /* offline — continue with cached session */
       }
 
-      setUser(emp);
-      if (emp.mustchangepassword) {
+      if (!sessionEmp) return;
+
+      const role = String(sessionEmp.role || 'employee').toLowerCase().trim();
+      if (isAdminPortalUser(sessionEmp)) {
+        window.location.replace('/admin/dashboard');
+        return;
+      }
+      if (!['employee', 'manager', 'admin', 'it_head', 'founder'].includes(role)) {
+        console.warn('[HRMS] Signed out: unrecognized portal role:', role);
+        localStorage.clear();
+        window.location.replace('/login');
+        return;
+      }
+      if (role === 'admin' || role === 'founder') {
+        window.location.replace('/admin/dashboard');
+        return;
+      }
+
+      const expectedPath = dashboardPathForRole(role);
+      const currentPath = window.location.pathname.replace(/\/$/, '') || '/';
+      const allowedExtraPaths =
+        portalRole === 'manager'
+          ? ['/profile', '/account/profile', '/manager/exit-clearances', '/manager/exit']
+          : ['/profile', '/account/profile', '/employee/onboarding', '/employee/exit'];
+      if (currentPath !== expectedPath && !allowedExtraPaths.includes(currentPath)) {
+        window.location.replace(expectedPath);
+        return;
+      }
+
+      if (portalRole === 'manager' && role !== 'manager') {
+        window.location.replace('/employee/dashboard');
+        return;
+      }
+      if (portalRole === 'employee' && role === 'manager') {
+        window.location.replace('/manager/dashboard');
+        return;
+      }
+
+      setUser(sessionEmp);
+      if (sessionEmp.mustchangepassword) {
         setPasswordRequired(true);
       }
-      if (emp.isFirstLogin === true && portalRole === 'employee' && !emp.mustchangepassword) {
+      if (sessionEmp.isFirstLogin === true && portalRole === 'employee' && !sessionEmp.mustchangepassword) {
         setShowFirstLogin(true);
       }
       setBooting(false);
@@ -503,9 +544,9 @@ export default function App() {
                 ? 'exit'
               : path === '/manager/exit-clearances'
                 ? 'exit-clearances'
-                : emp.mustchangepassword && portalRole === 'employee'
+                : sessionEmp.mustchangepassword && portalRole === 'employee'
                   ? 'onboarding'
-                  : portalRole === 'employee' && emp.onboardingCompleted !== true
+                  : portalRole === 'employee' && sessionEmp.onboardingCompleted !== true
                     ? 'onboarding'
                     : 'dashboard');
       window.history.replaceState(
@@ -523,13 +564,13 @@ export default function App() {
         .then((data) => {
           const p = data.profile;
           const merged: EmployeeUser = {
-            ...emp,
+            ...sessionEmp,
             name: p.name,
             email: p.email,
-            department: p.department ?? emp.department,
-            designation: p.designation ?? emp.designation,
-            reportingToId: p.reportingToId ?? emp.reportingToId ?? null,
-            employeecode: p.employeecode ?? emp.employeecode,
+            department: p.department ?? sessionEmp.department,
+            designation: p.designation ?? sessionEmp.designation,
+            reportingToId: p.reportingToId ?? sessionEmp.reportingToId ?? null,
+            employeecode: p.employeecode ?? sessionEmp.employeecode,
             dateOfBirth: p.dateOfBirth,
             dateOfJoining: p.dateOfJoining,
             phone: p.phone,
@@ -539,18 +580,18 @@ export default function App() {
             age: p.age,
             isFirstLogin: p.isFirstLogin === true,
             onboardingCompleted: p.onboardingCompleted === true,
-            mustchangepassword: emp.mustchangepassword,
+            mustchangepassword: sessionEmp.mustchangepassword,
           };
           localStorage.setItem('employee', JSON.stringify(merged));
           setUser(merged);
           if (portalRole === 'employee') {
             const incomplete = p.onboardingCompleted !== true;
             setOnboardingIncomplete(incomplete);
-            if (incomplete && !emp.mustchangepassword) {
+            if (incomplete && !sessionEmp.mustchangepassword) {
               setNav((current) => (isOnboardingNavAllowed(current) ? current : 'onboarding'));
             }
           }
-          if (p.isFirstLogin === true && portalRole === 'employee' && !emp.mustchangepassword) {
+          if (p.isFirstLogin === true && portalRole === 'employee' && !sessionEmp.mustchangepassword) {
             setShowFirstLogin(true);
           }
         })

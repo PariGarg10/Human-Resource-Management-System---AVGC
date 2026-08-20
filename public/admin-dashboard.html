@@ -37,7 +37,6 @@
         </button>
         <div class="sidebar-accordion-body">
           <button type="button" data-nav="dashboard" class="is-active"><span class="nav-icon" data-lucide="layout-dashboard"></span><span>Dashboard</span></button>
-          <button type="button" data-nav="calendar"><span class="nav-icon" data-lucide="calendar"></span><span>My attendance calendar</span></button>
           <button type="button" data-nav="teams" title="Interactive organization chart"><span class="nav-icon" data-lucide="network"></span><span>Organization chart</span></button>
           <button type="button" data-nav="employee-directory"><span class="nav-icon" data-lucide="contact"></span><span>Employee directory</span></button>
           <button type="button" data-nav="holiday-calendar"><span class="nav-icon" data-lucide="calendar-days"></span><span>Holiday Calendar</span></button>
@@ -242,9 +241,21 @@
           </div>
           <div class="panel asset-management-panel panel--asset-inventory">
             <h3 class="panel-title panel-title--sub">Inventory</h3>
+            <div class="asset-inventory-toolbar filters-inline" data-asset-admin-only style="flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+              <input type="search" id="assetInventorySearch" placeholder="Search assets…" style="min-width:180px;flex:1;" />
+              <select id="assetInventorySort">
+                <option value="name-asc">Name (A–Z)</option>
+                <option value="name-desc">Name (Z–A)</option>
+                <option value="category-asc">Category (A–Z)</option>
+                <option value="total-desc">Total (high–low)</option>
+                <option value="available-desc">Available (high–low)</option>
+              </select>
+              <button type="button" id="assetInventoryExportBtn" class="btn btn-outline btn-sm">Download Excel</button>
+              <button type="button" id="assetInventoryBulkDeleteBtn" class="btn btn-outline btn-sm btn-danger-outline">Delete selected</button>
+            </div>
             <div class="table-wrap table-wrap--scroll asset-table-scroll">
               <table class="data-table">
-                <thead><tr><th>Item name</th><th>Category</th><th>Model number</th><th>Serial number</th><th>Total</th><th>Allocated</th><th>Available</th><th>Actions</th></tr></thead>
+                <thead><tr><th data-asset-admin-only><input type="checkbox" id="assetInventorySelectAll" aria-label="Select all" /></th><th>Item name</th><th>Category</th><th>Model number</th><th>Serial number</th><th>Total</th><th>Allocated</th><th>Available</th><th>Actions</th></tr></thead>
                 <tbody id="assetInventoryBody"><tr><td colspan="8" class="stat-sub">Loading…</td></tr></tbody>
               </table>
             </div>
@@ -388,7 +399,8 @@
       <section id="view-employees" class="view-section admin-people-viewport">
         <div class="panel panel--people-fit">
           <div class="panel-header"><h2 class="panel-title">Employees</h2></div>
-          <form id="addEmployeeForm" class="form-row admin-employee-form">
+          <form id="addEmployeeForm">
+            <div class="form-row admin-employee-form">
             <div class="form-group"><label>Employee code</label><input id="newEmpCode" placeholder="Auto-generated if blank" /></div>
             <div class="form-group"><label>Name</label><input id="newEmpName" required /></div>
             <div class="form-group"><label>Email</label><input id="newEmpEmail" type="email" required /></div>
@@ -400,15 +412,19 @@
                 <option value="employee">employee</option><option value="manager">manager</option>
               </select>
             </div>
-            <div class="form-group form-group--action"><button type="submit" class="btn btn-primary">Save</button></div>
+            </div>
+            <div class="admin-employee-form-actions">
+              <button type="submit" class="btn btn-primary btn-sm">Save</button>
+            </div>
           </form>
+          <p class="stat-sub admin-people-meta">Employee code is editable in the table — click Save on each row after changes. Super Admin uses <strong>EMP001</strong>.</p>
           <p class="stat-sub admin-people-meta">Use designation &quot;Team Lead&quot; (or similar) so the person appears in employees&apos; &quot;Currently reporting to&quot; list.</p>
           <p id="adminMessage" class="message admin-people-meta"></p>
           <div class="admin-people-toolbar">
             <button type="button" class="btn btn-outline btn-sm" id="loadEmployeesBtn">Refresh</button>
           </div>
           <div class="table-wrap table-wrap--people-scroll">
-            <table class="data-table data-table--people"><thead><tr><th>Code</th><th>Name</th><th>Email</th><th>Designation</th><th>Portal role</th><th>Actions</th></tr></thead><tbody id="employeesBody"></tbody></table>
+            <table class="data-table data-table--people"><thead><tr><th>Code</th><th>Name</th><th>Email</th><th>Dept</th><th>Designation</th><th>Date of joining</th><th>Portal role</th><th>Actions</th></tr></thead><tbody id="employeesBody"></tbody></table>
           </div>
         </div>
       </section>
@@ -425,7 +441,7 @@
         <div id="adminPerformanceRoot"></div>
       </section>
 
-      <section id="view-efficiency" class="view-section">
+      <section id="view-efficiency" class="view-section efficiency-viewport">
         <div id="adminEfficiencyRoot"></div>
       </section>
 
@@ -609,8 +625,9 @@
         <div class="panel panel--import-form">
           <h2 class="panel-title">Import attendance</h2>
           <p class="stat-sub" style="margin-bottom:12px;">
-            Excel columns (first row = headers): <strong>Name</strong>, <strong>Shift</strong>, <strong>InTime</strong>, <strong>OutTime</strong>, <strong>Work Dur.</strong>, <strong>OT</strong>, <strong>Tot. Dur.</strong>, <strong>Status</strong>.
-            <strong>Name</strong> must match HRMS (unmatched rows are skipped). If InTime/OutTime are <strong>time only</strong>, set <strong>Attendance date</strong> below.
+            Use the biometric daily export with columns in this order:
+            <strong>SNo</strong>, <strong>E. Code</strong>, <strong>Name</strong>, <strong>Shift</strong>, <strong>InTime</strong>, <strong>OutTime</strong>, <strong>Work Dur.</strong>, <strong>OT</strong>, <strong>Tot. Dur.</strong>, <strong>Status</strong>, <strong>Remarks</strong>.
+            Rows are matched to HRMS by <strong>E. Code</strong> (employee code). If InTime/OutTime are <strong>time only</strong> (e.g. 09:48), set <strong>Attendance date</strong> below.
           </p>
           <div class="form-group" style="margin-bottom:12px;">
             <label for="attendanceImportDate">Attendance date (for time-only punches)</label>
@@ -865,7 +882,7 @@
 
         <div class="panel" style="margin-top:16px;">
           <h2 class="panel-title">Saturday configuration</h2>
-          <p class="stat-sub" style="margin-bottom:16px;">Mark each Saturday as a working day or off. Sundays stay off. Employees see this on the attendance calendar.</p>
+          <p class="stat-sub" style="margin-bottom:16px;">By default, 1st/3rd/5th Saturdays are working and 2nd/4th are off. Click any Saturday below to override.</p>
 
           <div class="form-row" style="align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
             <div class="form-group" style="margin:0;">
@@ -1022,7 +1039,7 @@
           <div class="table-wrap table-wrap--scroll">
             <table class="data-table">
               <thead>
-                <tr><th>Name</th><th>Designation</th><th>Department</th><th>Email</th><th>Status</th><th>Permissions</th><th>Actions</th></tr>
+                <tr><th>Code</th><th>Name</th><th>Designation</th><th>Department</th><th>Email</th><th>Status</th><th>Permissions</th><th>Actions</th></tr>
               </thead>
               <tbody id="manageAdminsBody"></tbody>
             </table>
@@ -1033,13 +1050,14 @@
             <form id="editAdminForm">
               <input type="hidden" id="editAdminId" />
               <div class="form-row">
+                <div class="form-group"><label>Employee code</label><input id="editAdminEmpCode" required placeholder="e.g. EMP001" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
                 <div class="form-group"><label>Name</label><input id="editAdminName" required style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
                 <div class="form-group"><label>Designation</label><input id="editAdminDesignation" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
                 <div class="form-group"><label>Department</label><input id="editAdminDepartment" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
-                <div class="form-group"><label>New password (optional)</label><input id="editAdminPassword" type="password" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
+                <div class="form-group" id="editAdminPasswordWrap"><label>New password (optional)</label><input id="editAdminPassword" type="password" style="padding:12px;border-radius:8px;border:1px solid var(--border);width:100%;" /></div>
                 <div class="form-group" style="align-self:center;"><label style="display:flex;align-items:center;gap:8px;"><input type="checkbox" id="editAdminActive" checked /> Active</label></div>
               </div>
-              <div class="form-group manage-admin-permissions"><label>Permissions</label><div id="editAdminPermissions" class="perm-checklist"></div></div>
+              <div class="form-group manage-admin-permissions" id="editAdminPermissionsWrap"><label>Permissions</label><div id="editAdminPermissions" class="perm-checklist"></div></div>
               <div style="display:flex;gap:8px;margin-top:12px;">
                 <button type="submit" class="btn btn-primary">Save changes</button>
                 <button type="button" class="btn btn-outline" id="cancelEditAdminBtn">Cancel</button>

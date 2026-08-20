@@ -18,6 +18,9 @@ export type EmployeeUser = {
   age?: number | null;
   isFirstLogin?: boolean;
   onboardingCompleted?: boolean;
+  adminId?: number | null;
+  isSuperAdmin?: boolean;
+  permissions?: string[];
 };
 export type UserProfile = {
   id: number;

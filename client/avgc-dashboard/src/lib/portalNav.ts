@@ -25,6 +25,7 @@ export type PortalNavId =
   | 'performance'
   | 'performance-team'
   | 'my-projects'
+  | 'my-work-logs'
   | 'work-log-approval'
   | 'efficiency-setup'
   | 'efficiency-import'
@@ -50,7 +51,6 @@ export type NavSection = {
 /** Shared workspace + people + time modules — identical React panels for manager and employee. */
 const SHARED_WORKSPACE: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'layout-dashboard' },
-  { id: 'calendar', label: 'Calendar', icon: 'calendar' },
   { id: 'holiday-calendar', label: 'Holiday Calendar', icon: 'calendar-days' },
   { id: 'employee-directory', label: 'Employee directory', icon: 'contact' },
 ];
@@ -103,7 +103,10 @@ const EMPLOYEE_PROJECTS: NavSection = {
   key: 'projects',
   label: 'Projects & tasks',
   icon: 'folder-kanban',
-  items: [{ id: 'my-projects', label: 'My projects', icon: 'folder-kanban' }],
+  items: [
+    { id: 'my-projects', label: 'My projects', icon: 'folder-kanban' },
+    { id: 'my-work-logs', label: 'Logged outputs', icon: 'folder-kanban' },
+  ],
 };
 
 const MANAGER_PROJECTS: NavSection = {
@@ -114,6 +117,7 @@ const MANAGER_PROJECTS: NavSection = {
     { id: 'efficiency-setup', label: 'Projects & task standards', icon: 'folder-kanban' },
     { id: 'efficiency-import', label: 'Bulk import', icon: 'upload' },
     { id: 'my-projects', label: 'My projects', icon: 'folder-kanban' },
+    { id: 'my-work-logs', label: 'Logged outputs', icon: 'folder-kanban' },
     { id: 'work-log-approval', label: 'Work log approvals', icon: 'folder-kanban' },
     { id: 'efficiency-daily', label: 'Daily project inputs', icon: 'folder-kanban' },
   ],
@@ -236,6 +240,7 @@ export const PORTAL_PAGE_TITLES: Record<PortalNavId, string> = {
   performance: 'Performance',
   'performance-team': 'Team performance',
   'my-projects': 'My projects',
+  'my-work-logs': 'Logged outputs',
   'work-log-approval': 'Work log approvals',
   'efficiency-setup': 'Projects & task standards',
   'efficiency-import': 'Bulk import',

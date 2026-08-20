@@ -42,7 +42,86 @@ async function openDocument(id: number) {
   window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-function DocList({ rows, empty }: { rows: DocRow[]; empty: string }) {
+function DocList({
+  rows,
+  empty,
+  editable,
+  onReload,
+}: {
+  rows: DocRow[];
+  empty: string;
+  editable?: boolean;
+  onReload?: () => Promise<void>;
+}) {
+  const [busyId, setBusyId] = useState<number | null>(null);
+
+  async function removeDoc(id: number) {
+    if (!window.confirm('Remove this document?')) return;
+    setBusyId(id);
+    try {
+      await api(`/api/employee-documents/mine/${id}`, { method: 'DELETE' });
+      toast('Document removed', 'success');
+      await onReload?.();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not remove document', 'error');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function editDoc(row: DocRow) {
+    const nextCategory = window.prompt(
+      'Document type (aadhar, pan, education, work_experience, cancelled_cheque):',
+      row.category
+    );
+    if (nextCategory == null) return;
+    const normalized = nextCategory.trim();
+    if (!EMPLOYEE_CATEGORY_LABELS[normalized]) {
+      toast('Invalid document type', 'error');
+      return;
+    }
+    const replace = window.confirm('Replace the file as well? Click OK to choose a new file, Cancel to keep the current file.');
+    setBusyId(row.id);
+    try {
+      if (replace) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.pdf,.jpg,.jpeg,.png,.doc,.docx';
+        const file = await new Promise<File | null>((resolve) => {
+          input.onchange = () => resolve(input.files?.[0] || null);
+          input.click();
+        });
+        if (!file) {
+          setBusyId(null);
+          return;
+        }
+        const fd = new FormData();
+        fd.append('category', normalized);
+        fd.append('file', file);
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/employee-documents/mine/${row.id}`, {
+          method: 'PATCH',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: fd,
+        });
+        const data = (await res.json().catch(() => ({}))) as { message?: string };
+        if (!res.ok) throw new Error(data.message || 'Update failed');
+      } else {
+        await api(`/api/employee-documents/mine/${row.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: normalized }),
+        });
+      }
+      toast('Document updated', 'success');
+      await onReload?.();
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not update document', 'error');
+    } finally {
+      setBusyId(null);
+    }
+  }
+
   if (!rows.length) {
     return <small>{empty}</small>;
   }
@@ -54,13 +133,35 @@ function DocList({ rows, empty }: { rows: DocRow[]; empty: string }) {
             {row.categoryLabel} — {row.originalName}
             {row.createdAt ? ` (${formatDisplayDate(row.createdAt)})` : ''}
           </span>
-          <button
-            type="button"
-            className="btn btn-outline btn-sm"
-            onClick={() => openDocument(row.id).catch((err) => toast(err.message, 'error'))}
-          >
-            View
-          </button>
+          <span className="profile-doc-actions">
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={() => openDocument(row.id).catch((err) => toast(err.message, 'error'))}
+            >
+              View
+            </button>
+            {editable ? (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  disabled={busyId === row.id}
+                  onClick={() => editDoc(row).catch(() => {})}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  disabled={busyId === row.id}
+                  onClick={() => removeDoc(row.id).catch(() => {})}
+                >
+                  Remove
+                </button>
+              </>
+            ) : null}
+          </span>
         </li>
       ))}
     </ul>
@@ -144,7 +245,11 @@ export function EmployeeDocumentsSection() {
       <div className="profile-docs-panel">
         <div className="profile-docs-block">
           <span>Your uploads</span>
-          {loading ? <small>Loading documents…</small> : <DocList rows={mine} empty="No documents uploaded yet." />}
+          {loading ? (
+            <small>Loading documents…</small>
+          ) : (
+            <DocList rows={mine} empty="No documents uploaded yet." editable onReload={load} />
+          )}
         </div>
 
         <div className="profile-docs-block">

@@ -23,7 +23,28 @@ function saturdaysBetweenInclusive(fromStr, toStr) {
   return dates;
 }
 
-/** Every Saturday in [fromStr, toStr] with status from DB or default `off`. */
+/** 1st/3rd/5th Saturday working; 2nd/4th off (common alternate pattern). */
+function defaultSaturdayStatus(dateStr) {
+  const dt = parseYmdLocal(dateStr);
+  if (!dt) return 'working';
+  const y = dt.getFullYear();
+  const m = dt.getMonth();
+  const dayOfMonth = dt.getDate();
+  let saturdayIndex = 0;
+  for (let d = 1; d <= dayOfMonth; d += 1) {
+    if (new Date(y, m, d).getDay() === 6) saturdayIndex += 1;
+  }
+  return saturdayIndex % 2 === 0 ? 'off' : 'working';
+}
+
+function resolveSaturdayStatus(dateStr, storedStatus) {
+  const defaultStatus = defaultSaturdayStatus(dateStr);
+  if (!storedStatus) return defaultStatus;
+  if (storedStatus === 'off' && defaultStatus === 'working') return defaultStatus;
+  return storedStatus;
+}
+
+/** Every Saturday in [fromStr, toStr] with status from DB or alternate default. */
 async function getSaturdayConfigMerged(fromStr, toStr) {
   const saturdays = saturdaysBetweenInclusive(fromStr, toStr);
   if (!saturdays.length) return [];
@@ -42,13 +63,19 @@ async function getSaturdayConfigMerged(fromStr, toStr) {
     if (row) {
       return {
         date,
-        status: row.status,
+        status: resolveSaturdayStatus(date, row.status),
         createdBy: row.createdBy,
         updatedAt: row.updatedAt,
       };
     }
-    return { date, status: 'off', createdBy: null, updatedAt: null };
+    return { date, status: defaultSaturdayStatus(date), createdBy: null, updatedAt: null };
   });
 }
 
-module.exports = { parseYmdLocal, saturdaysBetweenInclusive, getSaturdayConfigMerged };
+module.exports = {
+  parseYmdLocal,
+  saturdaysBetweenInclusive,
+  defaultSaturdayStatus,
+  resolveSaturdayStatus,
+  getSaturdayConfigMerged,
+};

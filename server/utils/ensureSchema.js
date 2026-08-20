@@ -310,9 +310,11 @@ async function ensureEfficiencySchema() {
       manager_id INTEGER REFERENCES employees(id) ON DELETE SET NULL,
       manager_remarks TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      approved_at TIMESTAMPTZ,
-      UNIQUE (employee_id, project_id, task_baseline_id, log_date)
+      approved_at TIMESTAMPTZ
     )
+  `);
+  await pool.query(`
+    ALTER TABLE work_logs DROP CONSTRAINT IF EXISTS work_logs_employee_id_project_id_task_baseline_id_log_date_key
   `);
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_work_logs_status_manager ON work_logs (status, manager_id)

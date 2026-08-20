@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 const { isAdminRole } = require('../constants/roles');
+const { loadAdminPermissions, ALL_MODULES } = require('../utils/adminPermissions');
 
 function parseCookies(cookieHeader) {
   const cookies = {};
@@ -27,12 +28,12 @@ function extractToken(req) {
 const AUTH_CACHE_TTL_MS = 60_000;
 const authUserCache = new Map();
 
-function authCacheKey(payload) {
-  return `${payload?.id}:${payload?.adminId || ''}`;
+function authCacheKey(employeeId, adminId = '') {
+  return `${employeeId}:${adminId || ''}`;
 }
 
-function getCachedAuthUser(payload) {
-  const key = authCacheKey(payload);
+function getCachedAuthUser(employeeId, adminId = '') {
+  const key = authCacheKey(employeeId, adminId);
   const entry = authUserCache.get(key);
   if (!entry) return null;
   if (Date.now() - entry.at > AUTH_CACHE_TTL_MS) {
@@ -42,8 +43,8 @@ function getCachedAuthUser(payload) {
   return entry.user;
 }
 
-function setCachedAuthUser(payload, user) {
-  authUserCache.set(authCacheKey(payload), { user, at: Date.now() });
+function setCachedAuthUser(employeeId, adminId, user) {
+  authUserCache.set(authCacheKey(employeeId, adminId), { user, at: Date.now() });
 }
 
 function invalidateAuthUserCache(userId, adminId = '') {
@@ -51,11 +52,20 @@ function invalidateAuthUserCache(userId, adminId = '') {
 }
 
 async function hydrateAuthUser(payload) {
-  const cached = getCachedAuthUser(payload);
-  if (cached) return cached;
-
   const employeeId = Number(payload?.id);
   if (!Number.isFinite(employeeId)) return null;
+
+  let adminId = payload?.adminId ? Number(payload.adminId) : null;
+  if (!adminId) {
+    const linked = await pool.query(
+      'SELECT id FROM admins WHERE employee_id = $1 AND is_active = TRUE LIMIT 1',
+      [employeeId]
+    );
+    adminId = linked.rows[0]?.id ?? null;
+  }
+
+  const cached = getCachedAuthUser(employeeId, adminId || '');
+  if (cached) return cached;
 
   const userRes = await pool.query(
     `
@@ -71,15 +81,24 @@ async function hydrateAuthUser(payload) {
 
   let forcePasswordChange = Boolean(employee.force_password_change || employee.mustchangepassword);
   let role = String(employee.role || '').toLowerCase().trim();
-  if (payload?.adminId) {
+  let isSuperAdmin = Boolean(payload?.isSuperAdmin);
+  let permissions = Array.isArray(payload?.permissions) ? payload.permissions : null;
+
+  if (adminId) {
     const adminRes = await pool.query(
-      'SELECT mustchangepassword FROM admins WHERE id = $1 AND is_active = TRUE LIMIT 1',
-      [payload.adminId]
+      'SELECT mustchangepassword, is_super_admin FROM admins WHERE id = $1 AND is_active = TRUE LIMIT 1',
+      [adminId]
     );
     if (!adminRes.rows[0]) return null;
     forcePasswordChange = forcePasswordChange || Boolean(adminRes.rows[0].mustchangepassword);
-    // Admin sessions must not inherit a stale portal role from the linked employee row.
+    isSuperAdmin = Boolean(adminRes.rows[0].is_super_admin);
     role = 'admin';
+    if (!permissions) {
+      permissions = isSuperAdmin ? ALL_MODULES : await loadAdminPermissions(pool, adminId);
+    }
+    pool
+      .query(`UPDATE employees SET role = 'admin' WHERE id = $1 AND role IS DISTINCT FROM 'admin'`, [employeeId])
+      .catch(() => {});
   }
 
   const user = {
@@ -88,10 +107,13 @@ async function hydrateAuthUser(payload) {
     name: employee.name,
     email: employee.email,
     role,
+    adminId: adminId || undefined,
+    isSuperAdmin: adminId ? isSuperAdmin : undefined,
+    permissions: adminId ? permissions : undefined,
     force_password_change: forcePasswordChange,
     mustchangepassword: forcePasswordChange,
   };
-  setCachedAuthUser(payload, user);
+  setCachedAuthUser(employeeId, adminId || '', user);
   return user;
 }
 

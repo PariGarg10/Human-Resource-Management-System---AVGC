@@ -98,6 +98,49 @@ function resolveEl(target: HTMLElement | string) {
   return typeof target === 'string' ? document.querySelector<HTMLElement>(target) : target;
 }
 
+function mountLazyAdminPanel(
+  target: HTMLElement | string,
+  mountedKey: string,
+  label: string,
+  loadPanel: () => Promise<ComponentType>
+) {
+  const el = resolveEl(target);
+  if (!el || el.dataset[mountedKey] === '1') return;
+
+  const root = createRoot(el);
+  roots.set(el, root);
+  root.render(<p className="stat-sub">Loading {label}…</p>);
+
+  void loadPanel()
+    .then((result) => {
+      const Panel =
+        typeof result === 'function'
+          ? result
+          : (result as { default?: ComponentType; AdminEfficiencyPanel?: ComponentType }).default ??
+            (result as { AdminEfficiencyPanel?: ComponentType }).AdminEfficiencyPanel;
+      if (typeof Panel !== 'function') {
+        throw new Error('Panel module did not export a component');
+      }
+      if (el.dataset[mountedKey] === '1') return;
+      el.dataset[mountedKey] = '1';
+      root.render(<Panel />);
+    })
+    .catch((err) => {
+      delete el.dataset[mountedKey];
+      const message = err instanceof Error ? err.message : 'Could not load this module';
+      root.render(
+        <div className="panel" style={{ margin: 24 }}>
+          <h2 className="panel-title">{label} failed to load</h2>
+          <p className="stat-sub">
+            {message}. Hard-refresh the page (Ctrl+Shift+R). If it persists, run{' '}
+            <code>npm run build:dashboard</code> and redeploy{' '}
+            <code>public/assets/avgc-dashboard/</code> (including <code>chunks/</code>).
+          </p>
+        </div>
+      );
+    });
+}
+
 function AdminProfileMount() {
   const [user, setUser] = useState<EmployeeUser | null>(() => readEmployee());
   const [avatarOverride, setAvatarOverride] = useState<string | null>(null);
@@ -282,51 +325,39 @@ hrms.mountLeaveApply = (target: HTMLElement | string) => {
 };
 
 hrms.mountAdminExitClearances = (target: HTMLElement | string) => {
-  const el = resolveEl(target);
-  if (!el || el.dataset.exitClearancesMounted === '1') return;
-  void import('@/views/AdminExitClearancesPanel').then(({ AdminExitClearancesPanel }) => {
-    if (el.dataset.exitClearancesMounted === '1') return;
-    const root = createRoot(el);
-    roots.set(el, root);
-    el.dataset.exitClearancesMounted = '1';
-    root.render(<AdminExitClearancesPanel />);
-  });
+  mountLazyAdminPanel(
+    target,
+    'exitClearancesMounted',
+    'Exit clearances',
+    () => import('@/views/AdminExitClearancesPanel').then((m) => m.AdminExitClearancesPanel)
+  );
 };
 
 hrms.mountAdminOnboarding = (target: HTMLElement | string) => {
-  const el = resolveEl(target);
-  if (!el || el.dataset.adminOnboardingMounted === '1') return;
-  void import('@/views/AdminOnboardingPanel').then(({ AdminOnboardingPanel }) => {
-    if (el.dataset.adminOnboardingMounted === '1') return;
-    const root = createRoot(el);
-    roots.set(el, root);
-    el.dataset.adminOnboardingMounted = '1';
-    root.render(<AdminOnboardingPanel />);
-  });
+  mountLazyAdminPanel(
+    target,
+    'adminOnboardingMounted',
+    'Onboarding',
+    () => import('@/views/AdminOnboardingPanel').then((m) => m.AdminOnboardingPanel)
+  );
 };
 
 hrms.mountAdminPerformance = (target: HTMLElement | string) => {
-  const el = resolveEl(target);
-  if (!el || el.dataset.adminPerformanceMounted === '1') return;
-  void import('@/views/AdminPerformancePanel').then(({ AdminPerformancePanel }) => {
-    if (el.dataset.adminPerformanceMounted === '1') return;
-    const root = createRoot(el);
-    roots.set(el, root);
-    el.dataset.adminPerformanceMounted = '1';
-    root.render(<AdminPerformancePanel />);
-  });
+  mountLazyAdminPanel(
+    target,
+    'adminPerformanceMounted',
+    'Performance',
+    () => import('@/views/AdminPerformancePanel').then((m) => m.AdminPerformancePanel)
+  );
 };
 
 hrms.mountAdminEfficiency = (target: HTMLElement | string) => {
-  const el = resolveEl(target);
-  if (!el || el.dataset.adminEfficiencyMounted === '1') return;
-  void import('@/views/AdminEfficiencyPanel').then(({ AdminEfficiencyPanel }) => {
-    if (el.dataset.adminEfficiencyMounted === '1') return;
-    const root = createRoot(el);
-    roots.set(el, root);
-    el.dataset.adminEfficiencyMounted = '1';
-    root.render(<AdminEfficiencyPanel />);
-  });
+  mountLazyAdminPanel(
+    target,
+    'adminEfficiencyMounted',
+    'Efficiency tracking',
+    () => import('@/views/AdminEfficiencyPanel').then((m) => m.AdminEfficiencyPanel)
+  );
 };
 
 hrms.mountPortalDashboard = (target: HTMLElement | string) => {

@@ -5,6 +5,7 @@ import { calendarDayAbbrev } from '@/lib/attendanceLabels';
 import { toast } from '@/lib/toast';
 import { formatTime } from '@/lib/datetime';
 import { CALENDAR_COLORS as C } from '@/lib/calendarColors';
+import { resolveSaturdayStatus } from '@/lib/saturdayDefaults';
 type HistoryRecord = {
   date: string;
   status?: string;
@@ -26,6 +27,7 @@ type CellKind =
   | 'absent'
   | 'leave'
   | 'halfday'
+  | 'off_saturday'
   | 'holiday_national'
   | 'holiday_festival'
   | 'holiday_optional';
@@ -61,6 +63,9 @@ function holidayTypeLabel(type: HolidayRow['type']) {
 function CalendarDayTooltip({ cell }: { cell: Cell }) {
   return (
     <div className="attendance-calendar-tooltip" role="tooltip">
+      {cell.kind === 'off_saturday' ? (
+        <p className="attendance-calendar-tooltip-holiday">Off Saturday</p>
+      ) : null}
       {cell.holidayLabel ? <p className="attendance-calendar-tooltip-holiday">{cell.holidayLabel}</p> : null}
       <p>
         Check-in:{' '}
@@ -98,7 +103,9 @@ export function CalendarPanel() {
         holidays?: HolidayRow[];
       }>(`/api/attendance/history?month=${m}&year=${y}`);
       const recordByDate = new Map((historyData.records || []).map((r) => [r.date, r]));
-      const saturdayStatus = new Map((historyData.saturdayConfig || []).map((e) => [e.date, e.status]));
+      const saturdayStatus = new Map(
+        (historyData.saturdayConfig || []).map((e) => [e.date, resolveSaturdayStatus(e.date, e.status)])
+      );
       const holidayByDate = new Map<string, HolidayRow[]>();
       for (const h of historyData.holidays || []) {
         const list = holidayByDate.get(h.date) || [];
@@ -133,12 +140,15 @@ export function CalendarPanel() {
 
         const isSunday = dow === 0;
         const isSaturday = dow === 6;
-        const satCfg = isSaturday ? saturdayStatus.get(dateStr) ?? 'off' : null;
-        const weekend = isSunday || (isSaturday && satCfg === 'off');
+        const satCfg = isSaturday ? saturdayStatus.get(dateStr) ?? 'working' : null;
+        const isOffSaturday = isSaturday && satCfg === 'off';
         const raw = (rec?.status || 'absent').toLowerCase();
         let kind: CellKind;
-        if (weekend) kind = 'weekend';
-        else if (raw === 'present') kind = 'present';
+        if (isSunday) {
+          kind = 'weekend';
+        } else if (isOffSaturday && !rec) {
+          kind = 'off_saturday';
+        } else if (raw === 'present') kind = 'present';
         else if (raw === 'leave') kind = 'leave';
         else if (raw === 'halfday') kind = 'halfday';
         else kind = 'absent';
@@ -176,6 +186,7 @@ export function CalendarPanel() {
     if (c.kind === 'holiday_national' || c.kind === 'holiday_festival' || c.kind === 'holiday_optional') {
       return 'attendance-calendar-day cal-day-holiday';
     }
+    if (c.kind === 'off_saturday') return 'attendance-calendar-day cal-day-holiday';
     if (c.kind === 'present') return 'attendance-calendar-day cal-day-present';
     if (c.kind === 'halfday') return 'attendance-calendar-day cal-day-halfday';
     if (c.kind === 'leave') return 'attendance-calendar-day cal-day-leave';
@@ -186,6 +197,7 @@ export function CalendarPanel() {
     if (c.kind === 'holiday_national' || c.kind === 'holiday_festival' || c.kind === 'holiday_optional') {
       return '#697279';
     }
+    if (c.kind === 'off_saturday') return '#697279';
     if (c.kind === 'present') return C.present;
     if (c.kind === 'halfday') return C.halfday;
     if (c.kind === 'leave') return C.leave;
@@ -198,6 +210,7 @@ export function CalendarPanel() {
     if (c.kind === 'holiday_national') return 'National';
     if (c.kind === 'holiday_festival') return 'Festival';
     if (c.kind === 'holiday_optional') return 'Optional';
+    if (c.kind === 'off_saturday') return '';
     if (c.kind === 'present' || c.kind === 'halfday' || c.kind === 'absent' || c.kind === 'leave') {
       return calendarDayAbbrev(c.kind);
     }

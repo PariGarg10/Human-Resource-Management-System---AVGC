@@ -6,6 +6,7 @@ require('dotenv').config();
 const bcrypt = require('bcrypt');
 const { pool } = require('../db');
 const { replaceAdminPermissions, ALL_MODULES } = require('../utils/adminPermissions');
+const { generateEmployeeCode } = require('../utils/employeeCode');
 const {
   SUPER_ADMIN_NAME,
   SUPER_ADMIN_EMAIL,
@@ -33,17 +34,23 @@ const password = SUPER_ADMIN_PASSWORD;
   }
 
   if (employeeId) {
+    const empCode =
+      SUPER_ADMIN_EMPLOYEE_CODE ||
+      (await pool.query('SELECT employeecode FROM employees WHERE id = $1', [employeeId])).rows[0]
+        ?.employeecode ||
+      (await generateEmployeeCode(pool, SUPER_ADMIN_DEPARTMENT));
     await pool.query(
       `
         UPDATE employees
         SET employeecode = $1,
             name = $2,
-            designation = $3,
-            passwordhash = $4,
+            email = $3,
+            designation = $4,
+            passwordhash = $5,
             mustchangepassword = FALSE
-        WHERE id = $5
+        WHERE id = $6
       `,
-      [SUPER_ADMIN_EMPLOYEE_CODE, SUPER_ADMIN_NAME, SUPER_ADMIN_DESIGNATION, passwordhash, employeeId]
+      [empCode, SUPER_ADMIN_NAME, email, SUPER_ADMIN_DESIGNATION, passwordhash, employeeId]
     );
   }
 
@@ -52,14 +59,15 @@ const password = SUPER_ADMIN_PASSWORD;
       `
         UPDATE admins
         SET name = $1,
-            designation = $2,
-            passwordhash = $3,
+            email = $2,
+            designation = $3,
+            passwordhash = $4,
             mustchangepassword = FALSE,
             is_active = TRUE,
             is_super_admin = TRUE
-        WHERE id = $4
+        WHERE id = $5
       `,
-      [SUPER_ADMIN_NAME, SUPER_ADMIN_DESIGNATION, passwordhash, admin.rows[0].id]
+      [SUPER_ADMIN_NAME, email, SUPER_ADMIN_DESIGNATION, passwordhash, admin.rows[0].id]
     );
     await replaceAdminPermissions(pool, admin.rows[0].id, ALL_MODULES);
     console.log(`[reset-super-admin] Updated admin id=${admin.rows[0].id} (${email})`);

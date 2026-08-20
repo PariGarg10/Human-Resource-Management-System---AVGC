@@ -14,6 +14,8 @@ type TaskBaseline = {
   standard_hours: number | null;
   calc_type: 'rate_based' | 'weight_based';
   manhours_per_unit: number;
+  total_actual_manhours?: number;
+  work_log_count?: number;
 };
 
 type BaselineForm = {
@@ -432,14 +434,16 @@ export function EfficiencyProjectSetupPanel({
             <button
               type="button"
               className="btn btn-secondary btn-sm"
-              onClick={() =>
-                selectedProject &&
-                setConfirmDelete({
-                  kind: 'project',
-                  projectId: selectedProject.id,
-                  projectName: selectedProject.name,
-                })
-              }
+              onClick={() => {
+                if (selectedProject) {
+                  setModalOpen(false);
+                  setConfirmDelete({
+                    kind: 'project',
+                    projectId: selectedProject.id,
+                    projectName: selectedProject.name,
+                  });
+                }
+              }}
               disabled={!selectedProject}
             >
               Delete project
@@ -465,7 +469,9 @@ export function EfficiencyProjectSetupPanel({
                     <th>Version</th>
                     <th>Type</th>
                     <th>Standard</th>
-                    <th>MH / unit</th>
+                    <th>Man hours</th>
+                    <th>Man hours / unit</th>
+                    <th>Actual MH logged</th>
                     <th>Actions</th>
                   </tr>
                 </thead>
@@ -480,7 +486,24 @@ export function EfficiencyProjectSetupPanel({
                           ? `${b.standard_hours} hrs / ${b.standard_output_qty} ${b.unit_label}`
                           : `Weight (${b.unit_label})`}
                       </td>
+                      <td>
+                        {b.calc_type === 'rate_based' && b.standard_hours != null
+                          ? Number(b.standard_hours).toFixed(2)
+                          : b.calc_type === 'weight_based'
+                            ? Number(b.manhours_per_unit).toFixed(4)
+                            : '—'}
+                      </td>
                       <td>{Number(b.manhours_per_unit).toFixed(4)}</td>
+                      <td>
+                        {Number(b.total_actual_manhours || 0) > 0
+                          ? Number(b.total_actual_manhours).toFixed(2)
+                          : '—'}
+                        {b.work_log_count ? (
+                          <small className="stat-sub" style={{ display: 'block' }}>
+                            {b.work_log_count} log{b.work_log_count === 1 ? '' : 's'}
+                          </small>
+                        ) : null}
+                      </td>
                       <td>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           <button type="button" className="btn btn-secondary btn-sm" onClick={() => openEditBaseline(b)}>
@@ -489,7 +512,10 @@ export function EfficiencyProjectSetupPanel({
                           <button
                             type="button"
                             className="btn btn-secondary btn-sm"
-                            onClick={() => setConfirmDelete({ kind: 'baseline', baseline: b })}
+                            onClick={() => {
+                              setModalOpen(false);
+                              setConfirmDelete({ kind: 'baseline', baseline: b });
+                            }}
                           >
                             Delete
                           </button>
@@ -625,12 +651,18 @@ export function EfficiencyProjectSetupPanel({
       ) : null}
 
       {confirmDelete ? (
-        <div className="manager-modal-backdrop" role="presentation" onClick={() => !deleting && setConfirmDelete(null)}>
+        <div
+          className="manager-modal-backdrop"
+          style={{ zIndex: 14000 }}
+          role="presentation"
+          onClick={() => !deleting && setConfirmDelete(null)}
+        >
           <div
             className="manager-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="delete-confirm-title"
+            style={{ zIndex: 14001, marginTop: modalOpen ? 48 : 0 }}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="manager-modal-head">

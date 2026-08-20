@@ -4,6 +4,8 @@ import { usePortalShell } from '@/hooks/usePortalShell';
 import { useUser } from '@/context/UserContext';
 import { EMPLOYEE_NAV_SECTIONS, type NavItem, type NavSection, type PortalNavId } from '@/lib/portalNav';
 
+const TWO_COL_NAV_SECTIONS = new Set(['administration', 'projects']);
+
 type Props = {
   activeNav: PortalNavId;
   pageTitle: string;
@@ -89,7 +91,14 @@ export function PortalAppShell({
                   <span className="nav-icon" data-lucide={section.icon} />
                   <span className="nav-label">{section.label}</span>
                 </button>
-                <div className="sidebar-accordion-body">
+                <div
+                  className={[
+                    'sidebar-accordion-body',
+                    TWO_COL_NAV_SECTIONS.has(section.key) ? 'sidebar-menu-two-col' : undefined,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                >
                   {section.items.map((item) => (
                     <button
                       key={item.id}

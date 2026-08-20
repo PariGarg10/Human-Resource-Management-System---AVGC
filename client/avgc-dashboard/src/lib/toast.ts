@@ -19,7 +19,7 @@ function ensureToastShell() {
     document.body.appendChild(root);
   }
   root.style.cssText =
-    'position:fixed;top:50%;left:50%;right:auto;transform:translate(-50%,-50%);z-index:2147483646;display:flex;flex-direction:column;align-items:center;gap:12px;pointer-events:none;box-sizing:border-box;width:min(92vw,560px);';
+    'position:fixed;top:24px;bottom:auto;left:50%;right:auto;transform:translateX(-50%);z-index:30000;display:flex;flex-direction:column;align-items:center;gap:12px;pointer-events:none;box-sizing:border-box;width:min(92vw,560px);';
   return root;
 }
 

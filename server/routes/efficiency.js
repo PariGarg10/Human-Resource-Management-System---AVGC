@@ -19,6 +19,12 @@ const {
   applyEfficiencyImport,
   buildImportTemplateBuffer,
 } = require('../utils/efficiencyProjectImport');
+const {
+  parseWorkbookBuffer: parseWorkLogWorkbookBuffer,
+  applyWorkLogImport,
+  buildWorkLogImportTemplateBuffer,
+} = require('../utils/efficiencyWorkLogImport');
+const { createNotification, broadcastToEmployeesAndManagers } = require('../utils/notifications');
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -120,6 +126,34 @@ async function efficiencyViewerFilters(req) {
   };
 }
 
+async function notifyEfficiencyUpdate(message) {
+  try {
+    await broadcastToEmployeesAndManagers('efficiency', message);
+  } catch (err) {
+    console.warn('Efficiency notification broadcast failed:', err.message);
+  }
+}
+
+async function ensureOwnedEditableWorkLog(userId, workLogId) {
+  const { rows } = await pool.query('SELECT * FROM work_logs WHERE id = $1 AND employee_id = $2', [
+    workLogId,
+    userId,
+  ]);
+  const log = rows[0];
+  if (!log) {
+    const err = new Error('Work log not found');
+    err.status = 404;
+    throw err;
+  }
+  const status = String(log.status).toLowerCase();
+  if (status !== 'pending' && status !== 'rejected') {
+    const err = new Error('Only pending or rejected work logs can be edited');
+    err.status = 400;
+    throw err;
+  }
+  return log;
+}
+
 router.get('/efficiency-projects', async (_req, res) => {
   try {
     const { rows } = await pool.query(
@@ -145,6 +179,7 @@ router.post('/efficiency-projects', requireEfficiencyConfigurator, async (req, r
       `,
       [name]
     );
+    await notifyEfficiencyUpdate(`New efficiency project added: "${rows[0].name}".`);
     return res.status(201).json({ project: rows[0] });
   } catch (err) {
     console.error('POST /efficiency-projects:', err.message);
@@ -167,6 +202,7 @@ router.patch('/efficiency-projects/:id', requireEfficiencyConfigurator, async (r
     );
     if (!rows[0]) return res.status(404).json({ message: 'Project not found' });
     await pool.query('UPDATE task_baselines SET project_name = $1 WHERE project_id = $2', [name, projectId]);
+    await notifyEfficiencyUpdate(`Efficiency project updated: "${name}".`);
     return res.json({ project: rows[0] });
   } catch (err) {
     if (err.code === '23505') {
@@ -195,6 +231,7 @@ router.delete('/efficiency-projects/:id', requireEfficiencyConfigurator, async (
     }
 
     await pool.query('DELETE FROM efficiency_projects WHERE id = $1', [projectId]);
+    await notifyEfficiencyUpdate(`Efficiency project removed: "${proj.rows[0].name}".`);
     return res.json({ message: 'Project deleted', projectId, name: proj.rows[0].name });
   } catch (err) {
     console.error('DELETE /efficiency-projects/:id:', err.message);
@@ -228,6 +265,10 @@ router.delete('/task-baselines/:id', requireEfficiencyConfigurator, async (req, 
     }
 
     await pool.query('DELETE FROM task_baselines WHERE id = $1', [baselineId]);
+    const b = baseline.rows[0];
+    await notifyEfficiencyUpdate(
+      `Task standard removed from ${b.project_name}: ${b.task_name}${b.version_label ? ` (${b.version_label})` : ''}.`
+    );
     return res.json({ message: 'Task standard deleted', baselineId });
   } catch (err) {
     console.error('DELETE /task-baselines/:id:', err.message);
@@ -384,6 +425,10 @@ router.post('/task-baselines', requireEfficiencyConfigurator, async (req, res) =
       row = inserted.rows[0];
     }
 
+    await notifyEfficiencyUpdate(
+      `Task standard updated for ${resolvedProjectName}: ${taskName}${versionLabel ? ` (${versionLabel})` : ''}.`
+    );
+
     return res.status(201).json({ baseline: row });
   } catch (err) {
     if (err.message?.includes('calc_type') || err.message?.includes('baseline')) {
@@ -405,11 +450,15 @@ router.get('/task-baselines/:projectId', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `
-        SELECT id, project_id, project_name, task_name, version_label, unit_label,
-               standard_output_qty, standard_hours, calc_type, manhours_per_unit
-        FROM task_baselines
-        WHERE project_id = $1
-        ORDER BY task_name ASC, version_label ASC
+        SELECT tb.id, tb.project_id, tb.project_name, tb.task_name, tb.version_label, tb.unit_label,
+               tb.standard_output_qty, tb.standard_hours, tb.calc_type, tb.manhours_per_unit,
+               COALESCE(SUM(wl.actual_manhours_spent), 0)::float AS total_actual_manhours,
+               COUNT(wl.id)::int AS work_log_count
+        FROM task_baselines tb
+        LEFT JOIN work_logs wl ON wl.task_baseline_id = tb.id
+        WHERE tb.project_id = $1
+        GROUP BY tb.id
+        ORDER BY tb.task_name ASC, tb.version_label ASC
       `,
       [projectId]
     );
@@ -486,12 +535,116 @@ router.post('/work-logs', requireRoles('employee', 'manager', 'admin', 'it_head'
     );
     return res.status(201).json({ workLog: rows[0] });
   } catch (err) {
-    if (err.code === '23505') {
-      return res.status(409).json({
-        message: 'A work log already exists for this employee, project, task, and date',
-      });
-    }
     console.error('POST /work-logs:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/work-logs/mine', requireRoles('employee', 'manager', 'admin', 'it_head'), async (req, res) => {
+  try {
+    const employeeId = req.user.id;
+    const from = String(req.query.from || '').trim();
+    const to = String(req.query.to || '').trim();
+    const status = String(req.query.status || '').trim().toLowerCase();
+    const params = [employeeId];
+    let filters = '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(from)) {
+      params.push(from);
+      filters += ` AND wl.log_date >= $${params.length}::date`;
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+      params.push(to);
+      filters += ` AND wl.log_date <= $${params.length}::date`;
+    }
+    if (['pending', 'approved', 'rejected'].includes(status)) {
+      params.push(status);
+      filters += ` AND wl.status = $${params.length}`;
+    }
+    const { rows } = await pool.query(
+      `
+        SELECT
+          wl.*,
+          ep.name AS project_name,
+          tb.task_name,
+          tb.version_label,
+          tb.unit_label
+        FROM work_logs wl
+        JOIN efficiency_projects ep ON ep.id = wl.project_id
+        JOIN task_baselines tb ON tb.id = wl.task_baseline_id
+        WHERE wl.employee_id = $1
+        ${filters}
+        ORDER BY wl.log_date DESC, wl.created_at DESC
+      `,
+      params
+    );
+    return res.json({ workLogs: rows });
+  } catch (err) {
+    console.error('GET /work-logs/mine:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.patch('/work-logs/:id', requireRoles('employee', 'manager', 'admin', 'it_head'), async (req, res) => {
+  const workLogId = Number(req.params.id);
+  if (!Number.isFinite(workLogId)) return res.status(400).json({ message: 'Invalid work log id' });
+
+  try {
+    const log = await ensureOwnedEditableWorkLog(req.user.id, workLogId);
+    const body = req.body || {};
+    const actualOutputQty = Number(body.actualOutputQty ?? body.actual_output_qty ?? log.actual_output_qty);
+    const actualManhoursSpent = Number(
+      body.actualManhoursSpent ?? body.actual_manhours_spent ?? log.actual_manhours_spent
+    );
+    const remarks =
+      body.remarks !== undefined
+        ? String(body.remarks ?? body.employeeRemarks ?? '').trim() || null
+        : log.remarks;
+    const resubmit = body.resubmit === true || body.resubmit === 'true';
+
+    if (!Number.isFinite(actualOutputQty) || actualOutputQty <= 0) {
+      return res.status(400).json({ message: 'actualOutputQty must be greater than 0' });
+    }
+    if (!Number.isFinite(actualManhoursSpent) || actualManhoursSpent <= 0) {
+      return res.status(400).json({ message: 'actualManhoursSpent must be greater than 0' });
+    }
+
+    const nextStatus =
+      resubmit || String(log.status).toLowerCase() === 'rejected' ? 'pending' : log.status;
+
+    const { rows } = await pool.query(
+      `
+        UPDATE work_logs
+        SET actual_output_qty = $1,
+            actual_manhours_spent = $2,
+            remarks = $3,
+            status = $4,
+            manager_remarks = CASE WHEN $4 = 'pending' THEN NULL ELSE manager_remarks END,
+            implied_mhs = NULL,
+            approved_at = NULL
+        WHERE id = $5 AND employee_id = $6
+        RETURNING *
+      `,
+      [actualOutputQty, actualManhoursSpent, remarks, nextStatus, workLogId, req.user.id]
+    );
+    return res.json({ workLog: rows[0] });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ message: err.message });
+    console.error('PATCH /work-logs/:id:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.delete('/work-logs/:id', requireRoles('employee', 'manager', 'admin', 'it_head'), async (req, res) => {
+  const workLogId = Number(req.params.id);
+  if (!Number.isFinite(workLogId)) return res.status(400).json({ message: 'Invalid work log id' });
+
+  try {
+    await ensureOwnedEditableWorkLog(req.user.id, workLogId);
+    await pool.query('DELETE FROM work_logs WHERE id = $1 AND employee_id = $2', [workLogId, req.user.id]);
+    return res.json({ message: 'Work log deleted', workLogId });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ message: err.message });
+    console.error('DELETE /work-logs/:id:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -559,6 +712,11 @@ router.patch('/work-logs/:id/approve', requireRoles('manager'), async (req, res)
       `,
       [impliedMhs, req.user.id, workLogId]
     );
+    await createNotification(
+      log.employee_id,
+      'efficiency',
+      'Your work log was approved by your manager.'
+    );
     return res.json({ workLog: rows[0] });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ message: err.message });
@@ -573,7 +731,7 @@ router.patch('/work-logs/:id/reject', requireRoles('manager'), async (req, res) 
   const remarks = String(req.body?.managerRemarks ?? req.body?.manager_remarks ?? '').trim() || null;
 
   try {
-    await ensureManagedPendingWorkLog(req.user.id, workLogId);
+    const log = await ensureManagedPendingWorkLog(req.user.id, workLogId);
     const { rows } = await pool.query(
       `
         UPDATE work_logs
@@ -585,6 +743,10 @@ router.patch('/work-logs/:id/reject', requireRoles('manager'), async (req, res) 
       `,
       [remarks, req.user.id, workLogId]
     );
+    const msg = remarks
+      ? `Your work log was rejected. Manager note: ${remarks}. You can fix and resubmit from Logged outputs.`
+      : 'Your work log was rejected. You can fix and resubmit from Logged outputs.';
+    await createNotification(log.employee_id, 'efficiency', msg);
     return res.json({ workLog: rows[0] });
   } catch (err) {
     if (err.status) return res.status(err.status).json({ message: err.message });
@@ -592,6 +754,40 @@ router.patch('/work-logs/:id/reject', requireRoles('manager'), async (req, res) 
     return res.status(500).json({ message: 'Internal server error' });
   }
 });
+
+router.get('/efficiency/work-logs/import-template', requireAnyAdmin, (_req, res) => {
+  try {
+    const buf = buildWorkLogImportTemplateBuffer();
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="efficiency-work-logs-import-template.xlsx"');
+    return res.send(buf);
+  } catch (err) {
+    console.error('GET /efficiency/work-logs/import-template:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.post(
+  '/efficiency/work-logs/import',
+  requireAnyAdmin,
+  uploadSingle('file'),
+  async (req, res) => {
+    if (!req.file?.buffer?.length) {
+      return res.status(400).json({ message: 'Excel file is required (.xlsx or .xls)' });
+    }
+    try {
+      const rows = parseWorkLogWorkbookBuffer(req.file.buffer);
+      const summary = await applyWorkLogImport(rows, { importedBy: req.user?.id ?? null });
+      return res.json({
+        message: `Imported ${summary.inserted} of ${summary.total} work log row(s)`,
+        ...summary,
+      });
+    } catch (err) {
+      console.error('POST /efficiency/work-logs/import:', err.message);
+      return res.status(400).json({ message: err.message || 'Import failed' });
+    }
+  }
+);
 
 router.get('/efficiency/daily-inputs', requireEfficiencyViewer, async (req, res) => {
   try {
@@ -698,6 +894,7 @@ router.get('/efficiency/export', requireEfficiencyViewer, async (req, res) => {
         Version: row.version_label,
         'Date/Period': report.periodLabel,
         'Output Qty': Number(row.actual_output_qty),
+        'Actual Manhours': row.actual_manhours_spent != null ? Number(row.actual_manhours_spent) : '',
         'Output Hours': Number(row.implied_mhs),
         'Work days (WDs)': emp.wd ?? '',
         'Efficiency%': emp.efficiencyPercent ?? '',
@@ -713,6 +910,7 @@ router.get('/efficiency/export', requireEfficiencyViewer, async (req, res) => {
         Version: '',
         'Date/Period': report.periodLabel,
         'Output Qty': '',
+        'Actual Manhours': '',
         'Output Hours': '',
         'Work days (WDs)': '',
         'Efficiency%': '',

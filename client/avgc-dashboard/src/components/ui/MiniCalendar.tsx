@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatAttendanceStatus, monthName } from '@/lib/attendanceLabels';
 import { cn } from '@/lib/cn';
+import { resolveSaturdayStatus } from '@/lib/saturdayDefaults';
 import { CALENDAR_COLORS as C } from '@/lib/calendarColors';
 
 type RecordRow = { date: string; status?: string; reason?: string | null };
@@ -14,19 +15,23 @@ function mondayIndex(jsDay: number) {
   return (jsDay + 6) % 7;
 }
 
-function dotColor(status: string) {
+function dotColor(status: string, isOffSaturday: boolean) {
+  if (isOffSaturday && !status) return '#697279';
   if (status === 'present') return C.present;
   if (status === 'halfday') return C.halfday;
   if (status === 'leave') return C.leave;
   if (status === 'absent') return C.absent;
+  if (!status) return C.absent;
   return 'transparent';
 }
 
-function cellClass(status: string) {
+function cellClass(status: string, isOffSaturday: boolean) {
+  if (isOffSaturday && !status) return '';
   if (status === 'present') return 'is-present';
   if (status === 'halfday') return 'is-halfday';
   if (status === 'leave') return 'is-leave';
   if (status === 'absent') return 'is-absent';
+  if (!status) return 'is-absent';
   return '';
 }
 
@@ -35,15 +40,27 @@ export function MiniCalendar({ onOpenCalendar }: Props) {
   const [month] = useState(now.getMonth() + 1);
   const [year] = useState(now.getFullYear());
   const [recordsByDate, setRecordsByDate] = useState<Map<string, RecordRow>>(new Map());
+  const [offSaturdays, setOffSaturdays] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await api<{ records: RecordRow[] }>(`/api/attendance/history?month=${month}&year=${year}`);
+      const data = await api<{
+        records: RecordRow[];
+        saturdayConfig?: { date: string; status: 'working' | 'off' }[];
+      }>(`/api/attendance/history?month=${month}&year=${year}`);
       setRecordsByDate(new Map((data.records || []).map((r) => [r.date, r])));
+      setOffSaturdays(
+        new Set(
+          (data.saturdayConfig || [])
+            .filter((entry) => resolveSaturdayStatus(entry.date, entry.status) === 'off')
+            .map((entry) => entry.date)
+        )
+      );
     } catch {
       setRecordsByDate(new Map());
+      setOffSaturdays(new Set());
     } finally {
       setLoading(false);
     }
@@ -102,25 +119,30 @@ export function MiniCalendar({ onOpenCalendar }: Props) {
           if (!c.day) return <span key={`pad-${idx}`} className="dashboard-mini-cal-pad" />;
           const record = recordsByDate.get(c.dateStr);
           const status = (record?.status || '').toLowerCase();
+          const dow = new Date(`${c.dateStr}T12:00:00`).getDay();
+          const isOffSaturday = dow === 6 && offSaturdays.has(c.dateStr);
+          const effectiveStatus = status || (isOffSaturday ? '' : 'absent');
           const label = status
             ? formatAttendanceStatus(status, record?.reason)
-            : 'No record';
+            : isOffSaturday
+              ? 'Off Saturday'
+              : 'Absent';
           return (
             <span
               key={c.dateStr}
               title={`${c.day} ${monthName(month)}: ${label}`}
-              className={cn('dashboard-mini-cal-day', cellClass(status), c.dateStr === todayStr && 'is-today')}
+              className={cn(
+                'dashboard-mini-cal-day',
+                cellClass(effectiveStatus, isOffSaturday && !status),
+                c.dateStr === todayStr && 'is-today'
+              )}
             >
               <span className="dashboard-mini-cal-day-num">{c.day}</span>
-              {status ? (
-                <span
-                  className="dashboard-mini-cal-dot"
-                  style={{ background: dotColor(status) }}
-                  aria-hidden="true"
-                />
-              ) : (
-                <span className="dashboard-mini-cal-dot is-empty" aria-hidden="true" />
-              )}
+              <span
+                className="dashboard-mini-cal-dot"
+                style={{ background: dotColor(status, isOffSaturday && !status) }}
+                aria-hidden="true"
+              />
             </span>
           );
         })}

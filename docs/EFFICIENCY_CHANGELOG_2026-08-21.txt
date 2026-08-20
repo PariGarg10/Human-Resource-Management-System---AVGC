@@ -1,0 +1,104 @@
+AVGC HRMS — Projects & Tasks / Efficiency Module Change Log
+================================================================
+Date: 2026-08-21
+
+----------------------------------------------------------------
+MODULE: Projects & Tasks (Efficiency Tracking)
+----------------------------------------------------------------
+
+What changed (simple language):
+
+1. Daily inputs — sort & filter
+   - Managers and admins can sort daily inputs by employee, project, task, or date.
+   - Added a search box to filter by employee, project, or task name.
+   - Files: EfficiencyDailyInputsPanel.tsx
+
+2. Output hours capping — why it happens & UI fix
+   - Reason: If an employee’s total implied output hours for a day exceed their attendance
+     hours minus 1 hour, the system caps the day at 8 output hours (fairness rule).
+   - The word “(capped)” in brackets was removed from the table; capped values still
+     show the adjusted number only.
+   - Files: efficiencyMetrics.js (logic unchanged), EfficiencyDailyInputsPanel.tsx
+
+3. Actual man hours (MH) everywhere
+   - Employees must enter actual man hours when logging output.
+   - Column shown on: work log approvals, daily inputs, efficiency reports, Excel export.
+   - Database column: work_logs.actual_manhours_spent
+   - Files: MyProjectsPanel.tsx, WorkLogApprovalPanel.tsx, AdminEfficiencyPanel.tsx,
+     efficiency.js, efficiencyMetrics.js
+
+4. Logged outputs — employee/manager self-service
+   - New sidebar item “Logged outputs” lists your own submissions.
+   - You can filter, sort, edit, or delete pending entries.
+   - Rejected entries can be fixed and resubmitted for manager approval.
+   - Files: MyWorkLogsPanel.tsx (new), portalNav.ts, App.tsx
+   - API: GET /api/work-logs/mine, PATCH /api/work-logs/:id, DELETE /api/work-logs/:id
+
+5. Rejection → fix → resubmit
+   - When a manager rejects a log, the employee gets a notification.
+   - Employee opens Logged outputs, edits, and clicks “Fix & resubmit”.
+   - Status returns to pending for manager review.
+   - Files: efficiency.js, MyWorkLogsPanel.tsx, notifications on reject/approve
+
+6. Employee portal navigation rename
+   - “My projects” = pick a project and log new output.
+   - “Logged outputs” = view/edit your daily submitted logs.
+   - Files: portalNav.ts, MyProjectsPanel.tsx
+
+7. Unlimited work log entries
+   - Removed the one-log-per-day limit for the same employee + project + task + date.
+   - Employees and managers can submit as many entries as needed.
+   - Migration: 2026_08_21_work_logs_multi_and_resubmit.sql
+
+8. Admin backdated Excel import
+   - Admin → Efficiency → “Import backdated logs” tab.
+   - Upload Excel with historical approved/pending work logs.
+   - Files: AdminEfficiencyPanel.tsx, efficiencyWorkLogImport.js, efficiency.js
+
+9. Delete confirmation modals
+   - Project/task delete confirmations use higher z-index so they are not hidden behind
+     other modals; edit modal closes before delete confirm opens.
+   - Files: EfficiencyProjectSetupPanel.tsx
+
+10. Notifications for project/task updates
+    - Creating, updating, or deleting projects and task standards notifies all employees
+      and managers.
+    - Approve/reject work logs notifies the employee.
+    - Files: efficiency.js, notifications.js
+
+----------------------------------------------------------------
+MODULE: Super Admin account
+----------------------------------------------------------------
+
+What changed:
+- Default name: Super Admin (was Ashish Mishra)
+- Default email: office@avgcstudios.com (was admin@hrms.com)
+- Employee code auto-generated on db:init if not set in env
+- Default password unchanged unless SUPER_ADMIN_PASSWORD is set in .env: Admin@123
+- Migration updates existing super admin rows in database
+- Files: superAdmin.js, initDb.js, migrations/2026_08_21_super_admin_profile.sql
+
+To reset super admin password/profile on an existing database:
+  npm run db:reset-super-admin
+
+----------------------------------------------------------------
+MODULE: Admin Efficiency panel load fix
+----------------------------------------------------------------
+
+- Fixed React panel mount when dynamic import returns unexpected shape (“e is not a function”).
+- Added loading/error messages if a panel fails to load.
+- Files: team-hub-entry.tsx, admin-dashboard.js, server/index.js (chunk cache headers)
+
+----------------------------------------------------------------
+Deploy checklist
+----------------------------------------------------------------
+
+1. npm run build:dashboard
+2. eb deploy (or your deploy command)
+3. npm run db:migrate
+4. npm run db:reset-super-admin   (optional — syncs Super Admin creds)
+5. Hard refresh browsers (Ctrl+Shift+R)
+
+Super Admin login (after reset, if env not overridden):
+  Email: office@avgcstudios.com
+  Password: Admin@123  (or value of SUPER_ADMIN_PASSWORD in .env)

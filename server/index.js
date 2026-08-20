@@ -132,7 +132,11 @@ function staticCacheHeaders(res, filePath) {
   }
   if (!isProd) return;
   if (/[/\\]assets[/\\]avgc-dashboard[/\\]/.test(filePath)) {
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    if (/[/\\]chunks[/\\]/.test(filePath)) {
+      res.setHeader('Cache-Control', 'public, max-age=3600, must-revalidate');
+    } else {
+      res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+    }
   }
 }
 
@@ -339,9 +343,12 @@ if (require.main === module) {
     if (isProd) {
       try {
         const { applyPendingMigrations } = require('./utils/applyPendingMigrations');
-        const { applied } = await applyPendingMigrations();
+        const { applied, skipped } = await applyPendingMigrations();
         if (applied.length) {
           console.log(`[AVGC] Startup migrations applied: ${applied.join(', ')}`);
+        }
+        if (skipped.length) {
+          console.log(`[AVGC] Startup migrations skipped (prod-safe): ${skipped.join(', ')}`);
         }
       } catch (err) {
         console.warn('[AVGC] Startup migrations skipped:', err.message);

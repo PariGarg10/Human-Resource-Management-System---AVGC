@@ -362,6 +362,74 @@ router.patch('/inventory/:id', requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT
   }
 });
 
+/** GET inventory export (Excel) — admin only */
+router.get('/inventory/export', requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT_HEAD), async (_req, res) => {
+  try {
+    const items = await inventoryWithCounts();
+    const rows = items.map((row) => ({
+      'Item name': row.name,
+      Category: row.category,
+      'Model number': row.modelNumber || '',
+      'Serial number': row.serialNumber || '',
+      Total: row.totalCount,
+      Allocated: row.allocatedCount,
+      Available: row.availableCount,
+    }));
+    const sheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, sheet, 'Inventory');
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename="asset-inventory-export.xlsx"'
+    );
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    return res.send(buffer);
+  } catch (err) {
+    console.error('GET /assets/inventory/export:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+/** POST bulk delete inventory — admin only */
+router.post(
+  '/inventory/bulk-delete',
+  requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT_HEAD),
+  async (req, res) => {
+    try {
+      const ids = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter((n) => n > 0) : [];
+      if (!ids.length) {
+        return res.status(400).json({ message: 'ids array is required' });
+      }
+      let deleted = 0;
+      const skipped = [];
+      for (const id of ids) {
+        const active = await pool.query(
+          `SELECT COUNT(*)::int AS cnt FROM asset_allocations WHERE inventory_item_id = $1 AND status = 'active'`,
+          [id]
+        );
+        if ((active.rows[0]?.cnt || 0) > 0) {
+          skipped.push(id);
+          continue;
+        }
+        const del = await pool.query('DELETE FROM inventory_items WHERE id = $1 RETURNING id', [id]);
+        if (del.rows[0]) deleted += 1;
+      }
+      return res.json({
+        message: `Removed ${deleted} item(s)${skipped.length ? `; ${skipped.length} skipped (active allocations)` : ''}`,
+        deleted,
+        skipped,
+      });
+    } catch (err) {
+      console.error('POST /assets/inventory/bulk-delete:', err.message);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  }
+);
+
 /** DELETE inventory — admin only */
 router.delete('/inventory/:id', requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT_HEAD), async (req, res) => {
   try {

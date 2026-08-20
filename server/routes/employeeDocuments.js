@@ -216,6 +216,83 @@ router.post('/admin/upload', requirePortalAdmin, upload.single('file'), async (r
   }
 );
 
+/** DELETE my document — employee uploads only */
+router.delete('/mine/:id', async (req, res) => {
+  try {
+    await ensureEmployeeDocumentsTable();
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ message: 'Invalid id' });
+
+    const { rows } = await pool.query('SELECT * FROM employee_documents WHERE id = $1', [id]);
+    const doc = rows[0];
+    if (!doc) return res.status(404).json({ message: 'Document not found' });
+    if (doc.employee_id !== req.user.id) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+    if (doc.source !== 'employee') {
+      return res.status(400).json({ message: 'Only your own uploads can be removed here' });
+    }
+
+    const filePath = path.join(uploadDir, doc.stored_name);
+    await pool.query('DELETE FROM employee_documents WHERE id = $1', [id]);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    await syncProfileTask(req.user.id).catch(() => {});
+    return res.json({ message: 'Document removed' });
+  } catch (err) {
+    console.error('DELETE /employee-documents/mine/:id:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+/** PATCH my document — change category or replace file */
+router.patch('/mine/:id', upload.single('file'), async (req, res) => {
+  try {
+    await ensureEmployeeDocumentsTable();
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ message: 'Invalid id' });
+
+    const { rows } = await pool.query('SELECT * FROM employee_documents WHERE id = $1', [id]);
+    const doc = rows[0];
+    if (!doc) return res.status(404).json({ message: 'Document not found' });
+    if (doc.employee_id !== req.user.id || doc.source !== 'employee') {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    const category = req.body?.category != null ? String(req.body.category).trim() : doc.category;
+    if (!isEmployeeCategory(category)) {
+      return res.status(400).json({ message: 'Invalid document category' });
+    }
+
+    let storedName = doc.stored_name;
+    let originalName = doc.original_name;
+    let mimeType = doc.mime_type;
+    let fileSize = doc.file_size;
+
+    if (req.file) {
+      const oldPath = path.join(uploadDir, doc.stored_name);
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      storedName = req.file.filename;
+      originalName = req.file.originalname;
+      mimeType = req.file.mimetype;
+      fileSize = req.file.size;
+    }
+
+    await pool.query(
+      `
+        UPDATE employee_documents
+        SET category = $1, stored_name = $2, original_name = $3, mime_type = $4, file_size = $5
+        WHERE id = $6
+      `,
+      [category, storedName, originalName, mimeType, fileSize, id]
+    );
+    await syncProfileTask(req.user.id).catch(() => {});
+    return res.json({ message: 'Document updated' });
+  } catch (err) {
+    console.error('PATCH /employee-documents/mine/:id:', err.message);
+    return res.status(400).json({ message: err.message || 'Update failed' });
+  }
+});
+
 /** GET download — owner or admin */
 router.get('/:id/download', async (req, res) => {
   try {

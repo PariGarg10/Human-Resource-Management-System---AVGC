@@ -12,7 +12,7 @@ const { requireAdminAccess } = require('../middleware/adminAuth');
 const { requirePermission, PERMISSION_MODULES } = require('../utils/adminPermissions');
 const { logAudit } = require('../utils/audit');
 const { calculateTotalHours, getAttendanceStatus } = require('../utils/attendance');
-const { generateEmployeeCode } = require('../utils/employeeCode');
+const { generateEmployeeCode, normalizeEmployeeCode, isValidEmployeeCode } = require('../utils/employeeCode');
 const { getEffectiveAttendanceStatus } = require('../utils/attendanceView');
 const { approvedLeaveEmployeeIdsForDate } = require('../utils/attendanceLeaveLookup');
 const { filterUpcomingBirthdays } = require('../utils/birthdays');
@@ -31,6 +31,7 @@ const {
   readAttendanceRowsFromFile,
   resolveAttendanceEmployee,
   explainAttendanceMatchFailure,
+  punchTimestampForStorage,
 } = require('../utils/attendanceImport');
 const {
   parseMonthlyDailyAttendanceBuffer,
@@ -158,12 +159,10 @@ router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEME
       return res.status(400).json({ message: 'Password is required for manager role' });
     }
 
-    let code = String(employeecode || '')
-      .trim()
-      .toUpperCase();
+    let code = normalizeEmployeeCode(employeecode);
     if (!code) {
       code = await generateEmployeeCode();
-    } else if (!/^[A-Z0-9_-]+$/.test(code)) {
+    } else if (!isValidEmployeeCode(code)) {
       return res.status(400).json({ message: 'Employee code may only contain letters, numbers, hyphen, and underscore' });
     }
 
@@ -235,7 +234,9 @@ router.post('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEME
 router.get('/employees', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (_req, res) => {
   try {
     const { rows: employees } = await pool.query(
-      'SELECT id, employeecode, name, email, department, designation, role, isregistered, createdat FROM employees ORDER BY id ASC'
+      `SELECT id, employeecode, name, email, department, designation, role, isregistered,
+              date_of_joining AS "dateOfJoining", createdat
+       FROM employees ORDER BY id ASC`
     );
     return res.json({ employees });
   } catch (err) {
@@ -282,6 +283,110 @@ router.delete('/employees/:id', requirePermission(PERMISSION_MODULES.EMPLOYEE_MA
     return res.json({ message: 'Employee removed successfully' });
   } catch (err) {
     console.error('DELETE /admin/employees/:id:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.patch('/employees/:id', requirePermission(PERMISSION_MODULES.EMPLOYEE_MANAGEMENT), async (req, res) => {
+  try {
+    const employeeId = Number(req.params.id);
+    if (!Number.isFinite(employeeId) || employeeId <= 0) {
+      return res.status(400).json({ message: 'Valid employee id is required' });
+    }
+
+    const targetResult = await pool.query(
+      `SELECT id, employeecode, name, email, department, designation, role, date_of_joining
+       FROM employees WHERE id = $1`,
+      [employeeId]
+    );
+    const target = targetResult.rows[0];
+    if (!target) return res.status(404).json({ message: 'Employee not found' });
+
+    const name = req.body.name != null ? String(req.body.name).trim() : target.name;
+    const email = req.body.email != null ? String(req.body.email).trim().toLowerCase() : target.email;
+    const employeecode =
+      req.body.employeecode != null
+        ? normalizeEmployeeCode(req.body.employeecode)
+        : normalizeEmployeeCode(target.employeecode);
+    const department =
+      req.body.department != null ? String(req.body.department).trim() || null : target.department;
+    const designation =
+      req.body.designation != null ? String(req.body.designation).trim() || null : target.designation;
+    const dateOfJoiningRaw = req.body.dateOfJoining ?? req.body.date_of_joining;
+    const dateOfJoining =
+      dateOfJoiningRaw != null && String(dateOfJoiningRaw).trim()
+        ? normalizeImportDate(dateOfJoiningRaw)
+        : target.date_of_joining;
+
+    let role = target.role;
+    const linkedAdmin = await pool.query(
+      'SELECT id, is_super_admin FROM admins WHERE employee_id = $1 LIMIT 1',
+      [employeeId]
+    );
+    const isAdminEmployee =
+      Boolean(linkedAdmin.rows[0]) ||
+      ['admin', 'founder', 'it_head'].includes(String(target.role || '').toLowerCase().trim());
+
+    if (req.body.role != null && !isAdminEmployee) {
+      const normalizedRole = String(req.body.role).toLowerCase().trim();
+      if (!EMPLOYEE_PORTAL_ROLES.has(normalizedRole)) {
+        return res.status(400).json({ message: 'Portal role must be employee or manager' });
+      }
+      role = normalizedRole;
+    }
+
+    if (!name || !email) {
+      return res.status(400).json({ message: 'Name and email are required' });
+    }
+
+    if (!employeecode) {
+      return res.status(400).json({ message: 'Employee code is required' });
+    }
+    if (!isValidEmployeeCode(employeecode)) {
+      return res.status(400).json({ message: 'Employee code may only contain letters, numbers, hyphen, and underscore' });
+    }
+
+    const duplicateCode = await pool.query(
+      `
+        SELECT id FROM employees
+        WHERE upper(trim(employeecode)) = upper($1) AND id <> $2
+        LIMIT 1
+      `,
+      [employeecode, employeeId]
+    );
+    if (duplicateCode.rows[0]) {
+      return res.status(409).json({ message: `Employee code "${employeecode}" is already in use` });
+    }
+
+    await pool.query(
+      `
+        UPDATE employees
+        SET name = $1, email = $2, employeecode = $3, department = $4,
+            designation = $5, date_of_joining = $6::date, role = $7
+        WHERE id = $8
+      `,
+      [name, email, employeecode, department, designation, dateOfJoining, role, employeeId]
+    );
+
+    await logAudit(req.user.id, 'EMPLOYEE_UPDATED', 'employees', { employeeId, email });
+    return res.json({
+      message: 'Employee updated',
+      employee: {
+        id: employeeId,
+        name,
+        email,
+        employeecode,
+        department,
+        designation,
+        dateOfJoining,
+        role,
+      },
+    });
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ message: 'Employee with same code or email already exists' });
+    }
+    console.error('PATCH /admin/employees/:id:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -1512,7 +1617,9 @@ router.post('/import-attendance', requirePermission(PERMISSION_MODULES.IMPORT_DA
         }
 
         let employeeResult;
-        const matchedPerson = await resolveAttendanceEmployee(pool, { employeecode, employeeName, email });
+        const matchedPerson = await resolveAttendanceEmployee(pool, { employeecode, employeeName, email }, {
+          matchByCodeOnly: !!employeecode,
+        });
         if (matchedPerson) {
           employeeResult = { rows: [matchedPerson] };
         } else {
@@ -1560,8 +1667,8 @@ router.post('/import-attendance', requirePermission(PERMISSION_MODULES.IMPORT_DA
           [
             employeeId,
             date,
-            punchIn && !Number.isNaN(punchIn.getTime()) ? punchIn.toISOString() : null,
-            punchOut && !Number.isNaN(punchOut.getTime()) ? punchOut.toISOString() : null,
+            punchIn && !Number.isNaN(punchIn.getTime()) ? punchTimestampForStorage(punchIn, date) : null,
+            punchOut && !Number.isNaN(punchOut.getTime()) ? punchTimestampForStorage(punchOut, date) : null,
             Number.isNaN(totalHours) ? null : totalHours,
             status,
           ]
