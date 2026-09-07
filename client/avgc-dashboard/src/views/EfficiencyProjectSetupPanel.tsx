@@ -316,7 +316,7 @@ export function EfficiencyProjectSetupPanel({
   }
 
   return (
-    <div className="panel panel--scroll">
+    <div className="panel panel--scroll efficiency-setup-panel">
       <div className="panel-header">
         <div>
           <h2 className="panel-title">{panelTitle}</h2>
@@ -461,7 +461,7 @@ export function EfficiencyProjectSetupPanel({
               define standard hours and output quantity.
             </p>
           ) : (
-            <div className="table-wrap table-wrap--scroll">
+            <div className="table-wrap table-wrap--scroll efficiency-task-table-wrap">
               <table className="data-table">
                 <thead>
                   <tr>

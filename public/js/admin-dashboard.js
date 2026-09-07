@@ -1119,37 +1119,60 @@ document.getElementById('newManagerForm')?.addEventListener('submit', async (e) 
   }
 });
 
-async function loadAdminDailyAttendance() {
-  const date = document.getElementById('dailyDate').value;
-  const data = await api(`/api/admin/attendance/daily?date=${date}`);
+let dailyAttendanceCache = [];
+
+function renderAdminDailyAttendanceRows(records) {
   const statusOptions = ['present', 'halfday', 'absent', 'leave'];
-  document.getElementById('dailyBody').innerHTML = data.records
-    .map(
-      (row) => {
-        const currentStatus = String(row.status || 'absent').toLowerCase();
-        const statusCell =
-          currentStatus === 'holiday'
-            ? HRMS.badge(row.status)
-            : `<select class="admin-attendance-status" data-employee-id="${row.employeeid}" data-attendance-date="${date}" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);min-width:120px;">
-                ${statusOptions
-                  .map(
-                    (s) =>
-                      `<option value="${s}"${s === currentStatus ? ' selected' : ''}>${s}</option>`
-                  )
-                  .join('')}
-              </select>`;
-        return `
+  const search = String(document.getElementById('dailySearch')?.value || '')
+    .trim()
+    .toLowerCase();
+  const sortKey = document.getElementById('dailySort')?.value || 'name-asc';
+  let rows = [...records];
+  if (search) {
+    rows = rows.filter(
+      (row) =>
+        String(row.name || '').toLowerCase().includes(search) ||
+        String(row.employeecode || '').toLowerCase().includes(search) ||
+        String(row.department || '').toLowerCase().includes(search)
+    );
+  }
+  rows.sort((a, b) => {
+    if (sortKey === 'name-desc') return String(b.name || '').localeCompare(String(a.name || ''));
+    if (sortKey === 'status-asc') {
+      return String(a.status || '').localeCompare(String(b.status || '')) || String(a.name || '').localeCompare(String(b.name || ''));
+    }
+    if (sortKey === 'hours-desc') {
+      return Number(b.totalhours || 0) - Number(a.totalhours || 0);
+    }
+    return String(a.name || '').localeCompare(String(b.name || ''));
+  });
+
+  const date = document.getElementById('dailyDate')?.value;
+  document.getElementById('dailyBody').innerHTML = rows
+    .map((row) => {
+      const currentStatus = String(row.status || 'absent').toLowerCase();
+      const statusCell =
+        currentStatus === 'holiday'
+          ? HRMS.badge(row.status)
+          : `<select class="admin-attendance-status" data-employee-id="${row.employeeid}" data-attendance-date="${date}" style="padding:6px 8px;border-radius:6px;border:1px solid var(--border);min-width:120px;">
+              ${statusOptions
+                .map(
+                  (s) =>
+                    `<option value="${s}"${s === currentStatus ? ' selected' : ''}>${HRMS.attendanceStatusLabel(s)}</option>`
+                )
+                .join('')}
+            </select>`;
+      return `
     <tr>
       <td>${row.employeecode}</td>
       <td>${row.name}</td>
       <td>${row.department || '—'}</td>
       <td>${formatDateTime(row.punchin)}</td>
       <td>${formatDateTime(row.punchout)}</td>
-      <td>${row.totalhours ?? '—'}</td>
+      <td>${HRMS.formatHours ? HRMS.formatHours(row.totalhours) : row.totalhours ?? '—'}</td>
       <td>${statusCell}</td>
     </tr>`;
-      }
-    )
+    })
     .join('');
 
   document.getElementById('dailyBody').querySelectorAll('.admin-attendance-status').forEach((sel) => {
@@ -1160,14 +1183,19 @@ async function loadAdminDailyAttendance() {
       const previous = sel.dataset.prev || status;
       sel.disabled = true;
       try {
-        await api('/api/admin/attendance/daily/status', {
+        const result = await api('/api/admin/attendance/daily/status', {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ employeeId, date: attendanceDate, status }),
         });
         sel.dataset.prev = status;
+        const cached = dailyAttendanceCache.find((r) => r.employeeid === employeeId);
+        if (cached) {
+          cached.status = result.status || status;
+          cached.totalhours = result.totalhours ?? cached.totalhours;
+        }
         HRMS.toast('Attendance status updated', 'success');
-        await loadAdminDailyAttendance();
+        renderAdminDailyAttendanceRows(dailyAttendanceCache);
       } catch (e) {
         sel.value = previous;
         HRMS.toast(e.message || 'Could not update status', 'error');
@@ -1178,7 +1206,73 @@ async function loadAdminDailyAttendance() {
     sel.dataset.prev = sel.value;
   });
 }
-document.getElementById('loadDailyBtn').addEventListener('click', () => loadAdminDailyAttendance().catch((e) => HRMS.toast(e.message, 'error')));
+
+async function loadAdminDailyAttendance() {
+  const date = document.getElementById('dailyDate').value;
+  const data = await api(`/api/admin/attendance/daily?date=${date}`);
+  dailyAttendanceCache = data.records || [];
+  renderAdminDailyAttendanceRows(dailyAttendanceCache);
+}
+
+async function loadAdminRegularizationQueue() {
+  const body = document.getElementById('regularizationBody');
+  if (!body) return;
+  try {
+    const data = await api('/api/admin/attendance/regularization');
+    const items = data.items || [];
+    if (!items.length) {
+      body.innerHTML = '<tr><td colspan="5" class="stat-sub">No pending regularization requests.</td></tr>';
+      return;
+    }
+    body.innerHTML = items
+      .map(
+        (item) => `
+      <tr>
+        <td>${item.employeeName} <span class="stat-sub">${item.employeecode || ''}</span></td>
+        <td>${item.attendanceDate}</td>
+        <td>${item.requestType === 'regularize_and_leave' ? 'Regularize + leave' : 'Regularize'}</td>
+        <td>${item.reason || '—'}</td>
+        <td>
+          <button type="button" class="btn btn-primary btn-sm" data-reg-action="approve" data-reg-id="${item.id}">Approve</button>
+          <button type="button" class="btn btn-outline btn-sm" data-reg-action="reject" data-reg-id="${item.id}">Reject</button>
+        </td>
+      </tr>`
+      )
+      .join('');
+    body.querySelectorAll('[data-reg-action]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const id = Number(btn.getAttribute('data-reg-id'));
+        const action = btn.getAttribute('data-reg-action');
+        btn.disabled = true;
+        try {
+          await api(`/api/admin/attendance/regularization/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action }),
+          });
+          HRMS.toast(`Request ${action === 'approve' ? 'approved' : 'rejected'}`, 'success');
+          await loadAdminRegularizationQueue();
+          await loadAdminDailyAttendance();
+        } catch (e) {
+          HRMS.toast(e.message || 'Action failed', 'error');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
+  } catch (e) {
+    body.innerHTML = `<tr><td colspan="5" class="stat-sub">${e.message || 'Could not load queue'}</td></tr>`;
+  }
+}
+
+document.getElementById('dailyDate')?.addEventListener('change', () => {
+  loadAdminDailyAttendance().catch((e) => HRMS.toast(e.message, 'error'));
+});
+document.getElementById('dailySearch')?.addEventListener('input', () => renderAdminDailyAttendanceRows(dailyAttendanceCache));
+document.getElementById('dailySort')?.addEventListener('change', () => renderAdminDailyAttendanceRows(dailyAttendanceCache));
+document.getElementById('refreshRegularizationBtn')?.addEventListener('click', () =>
+  loadAdminRegularizationQueue().catch((e) => HRMS.toast(e.message, 'error'))
+);
 
 function formatImportFileSize(bytes) {
   if (!bytes && bytes !== 0) return '';
@@ -1687,6 +1781,29 @@ document.getElementById('esslImportBtn')?.addEventListener('click', async () => 
     const text = `Imported ${data.punchesImported ?? 0} punch(es) across ${data.daysUpdated ?? 0} employee day(s). Skipped ${data.skipped ?? 0} (unmatched or outside work hours).`;
     if (msg) msg.textContent = text;
     HRMS.toast(text, 'success');
+    await loadEsslPunchList();
+  } catch (error) {
+    if (msg) msg.textContent = error.message;
+    HRMS.toast(error.message, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+});
+
+document.getElementById('esslSqlSyncBtn')?.addEventListener('click', async () => {
+  const msg = document.getElementById('esslSyncMessage');
+  const btn = document.getElementById('esslSqlSyncBtn');
+  if (msg) msg.textContent = 'Syncing from SQL Server…';
+  if (btn) btn.disabled = true;
+  try {
+    const data = await api('/api/admin/attendance/essl-sql-sync', { method: 'POST' });
+    const text = data.skipped && data.reason
+      ? `Skipped: ${data.reason}`
+      : data.error
+        ? `Error: ${data.error}`
+        : `SQL sync — rows ${data.sqlRows ?? 0}, matched ${data.matched ?? 0}, ${data.daysUpdated ?? 0} day(s) updated.`;
+    if (msg) msg.textContent = text;
+    HRMS.toast(text, data.error ? 'error' : 'success');
     await loadEsslPunchList();
   } catch (error) {
     if (msg) msg.textContent = error.message;
@@ -2816,6 +2933,7 @@ HRMS.initSidebar({
     }
     if (section === 'attendance') {
       loadAdminDailyAttendance().catch((e) => HRMS.toast(e.message, 'error'));
+      loadAdminRegularizationQueue().catch((e) => HRMS.toast(e.message, 'error'));
     }
     if (section === 'import-employees') {
       loadImportHistory().catch((e) => HRMS.toast(e.message, 'error'));
@@ -2871,6 +2989,7 @@ HRMS.initSidebar({
 });
 
 HRMS.initNavbarClock('navbarClock');
+HRMS.initNavBackButton();
 HRMS.initProfileDropdown();
 HRMS.initNotificationBell((path, opts) => api(path, opts || {}));
 HRMS.initNavbarSearch(['employeesBody', 'dailyBody', 'importHistoryBody', 'adminLeavesBody']);

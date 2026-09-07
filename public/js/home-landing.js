@@ -20,26 +20,31 @@
       .replace(/"/g, '&quot;');
   }
 
-  function avatarHtml(person) {
+  function avatarHtml(person, variant) {
     const ini = initials(person.name);
     const alt = esc(person.name);
     const image = person.image || person.imageUrl || '';
+    const photoClass = image ? 'home-person-card__photo home-person-card__photo--has-image' : 'home-person-card__photo';
     if (!image) {
       return `
-        <div class="home-person-card__avatar">
-          <span class="home-person-card__initials" aria-hidden="true">${ini}</span>
+        <div class="${photoClass}">
+          <div class="home-person-card__avatar home-person-card__avatar--${variant}">
+            <span class="home-person-card__initials" aria-hidden="true">${ini}</span>
+          </div>
         </div>
       `;
     }
     return `
-      <div class="home-person-card__avatar">
-        <img
-          src="${esc(image)}"
-          alt="${alt}"
-          loading="lazy"
-          onerror="this.classList.add('is-hidden'); this.nextElementSibling.removeAttribute('hidden');"
-        />
-        <span class="home-person-card__initials" hidden aria-hidden="true">${ini}</span>
+      <div class="${photoClass}">
+        <div class="home-person-card__avatar home-person-card__avatar--${variant}">
+          <img
+            src="${esc(image)}"
+            alt="${alt}"
+            loading="lazy"
+            onerror="this.closest('.home-person-card__photo').classList.remove('home-person-card__photo--has-image'); this.classList.add('is-hidden'); this.nextElementSibling.removeAttribute('hidden');"
+          />
+          <span class="home-person-card__initials" hidden aria-hidden="true">${ini}</span>
+        </div>
       </div>
     `;
   }
@@ -47,9 +52,11 @@
   function personCard(person, variant) {
     return `
       <article class="home-person-card home-person-card--${variant}">
-        ${avatarHtml(person)}
-        <p class="home-person-card__name">${esc(person.name)}</p>
-        <p class="home-person-card__designation">${esc(person.designation)}</p>
+        ${avatarHtml(person, variant)}
+        <div class="home-person-card__info">
+          <p class="home-person-card__name">${esc(person.name)}</p>
+          <p class="home-person-card__designation">${esc(person.designation)}</p>
+        </div>
       </article>
     `;
   }

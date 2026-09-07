@@ -1695,6 +1695,32 @@ body.has-floating-sidebar .navbar-logo {
   flex-shrink: 0;
 }
 
+.portal-nav-back-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.portal-nav-back-btn.is-disabled,
+.portal-nav-back-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+[data-theme="light"] .portal-nav-back-btn {
+  background: #FFFFFF;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
 .mobile-menu-btn {
   display: none;
   width: 42px;
@@ -4084,6 +4110,30 @@ body:has(#root .app-main) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+.efficiency-admin-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.efficiency-admin-shell > .panel--scroll,
+.efficiency-setup-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.efficiency-setup-panel .efficiency-task-table-wrap {
+  flex: 1 1 auto;
+  min-height: 120px;
+  max-height: none;
+  overflow: auto;
 }
 
 #adminDashboardReactRoot {

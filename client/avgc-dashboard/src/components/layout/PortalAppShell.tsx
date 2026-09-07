@@ -136,6 +136,15 @@ export function PortalAppShell({
       <div className="app-main">
         <header className="top-navbar">
           <div className="navbar-left">
+            <button
+              type="button"
+              className="portal-nav-back-btn is-disabled"
+              id="portalNavBackBtn"
+              aria-label="Go back"
+              disabled
+            >
+              <span className="nav-icon" data-lucide="arrow-left" />
+            </button>
             <button type="button" className="mobile-menu-btn" id="mobileMenuBtn">
               ☰
             </button>

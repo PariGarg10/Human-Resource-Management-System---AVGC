@@ -1728,6 +1728,48 @@ body.has-floating-sidebar.sidebar-collapsed #root .app-main {
   flex-shrink: 0;
 }
 
+.attendance-calendar-ticket-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 12000;
+  padding: 16px;
+}
+
+.attendance-calendar-ticket-modal {
+  width: min(480px, 100%);
+  background: var(--bg-primary, #fff);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+}
+
+.leave-action-flash {
+  margin: 0 0 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  color: var(--text-primary);
+  font-size: 0.92rem;
+}
+
+.leave-reject-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
 .holiday-calendar-viewport,
 .profile-viewport {
   flex: 1 1 auto;

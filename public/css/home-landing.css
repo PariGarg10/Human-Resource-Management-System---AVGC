@@ -169,13 +169,19 @@ body.home-landing {
 
 /* —— Person cards —— */
 .home-person-card {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: flex-start;
   text-align: center;
+  overflow: hidden;
   background: #ffffff;
+  color: #1a1a1a;
+  font-family: Verdana, Geneva, sans-serif;
+  font-size: 16px;
   border: 1px solid #ebebec;
-  border-radius: 14px;
+  border-radius: 4px;
   padding: 1.25rem 1rem 1.1rem;
   transition: border-color 0.2s ease, transform 0.2s ease;
 }
@@ -192,6 +198,8 @@ body.home-landing {
   box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.12);
   min-width: 220px;
   max-width: 280px;
+  width: auto;
+  height: auto;
 }
 
 .home-person-card__badge {
@@ -219,22 +227,54 @@ body.home-landing {
 }
 
 .home-person-card--lead {
-  min-width: 130px;
-  max-width: 170px;
-  flex: 0 1 150px;
-  padding: 0.85rem 0.75rem 0.75rem;
+  width: 176px;
+  height: 164.42px;
+  min-width: 176px;
+  max-width: 176px;
+  flex: 0 0 176px;
+  padding: 13.6px 12px 12px;
+  gap: 0;
+  justify-content: flex-start;
 }
 
 .home-person-card--employee {
-  min-width: 118px;
-  max-width: 155px;
-  flex: 0 1 130px;
-  padding: 0.75rem 0.65rem;
+  width: 152.78px;
+  height: 146.47px;
+  min-width: 152.78px;
+  max-width: 152.78px;
+  flex: 0 0 152.78px;
+  padding: 12px 10.4px;
+  gap: 0;
+  justify-content: flex-start;
+}
+
+/* Top photo zone (~75–80% of card) */
+.home-person-card__photo {
+  flex: 1 1 0;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.home-person-card__photo--has-image .home-person-card__avatar {
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 0;
+  aspect-ratio: auto;
+}
+
+.home-person-card__photo--has-image .home-person-card__avatar img {
+  border-radius: 0;
 }
 
 .home-person-card__avatar {
   position: relative;
-  border-radius: 50%;
+  border-radius: 0;
   overflow: hidden;
   background: #ebebec;
   flex-shrink: 0;
@@ -243,23 +283,19 @@ body.home-landing {
   justify-content: center;
 }
 
-.home-person-card--lead .home-person-card__avatar {
-  width: clamp(64px, 10vh, 84px);
-  height: clamp(64px, 10vh, 84px);
-  margin-bottom: 0.55rem;
-}
-
-.home-person-card--employee .home-person-card__avatar {
-  width: clamp(56px, 8vh, 72px);
-  height: clamp(56px, 8vh, 72px);
-  margin-bottom: 0.45rem;
+.home-person-card__avatar--lead,
+.home-person-card__avatar--employee {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  max-height: 100%;
+  aspect-ratio: 1;
 }
 
 .home-person-card__avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  border-radius: 50%;
   display: block;
 }
 
@@ -284,35 +320,59 @@ body.home-landing {
 }
 
 .home-person-card--lead .home-person-card__initials {
-  font-size: 1.65rem;
+  font-size: 1.85rem;
 }
 
 .home-person-card--employee .home-person-card__initials {
-  font-size: 1.35rem;
+  font-size: 1.55rem;
+}
+
+/* Bottom name + designation strip */
+.home-person-card__info {
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 0;
+  padding-top: 4px;
+  text-align: center;
+  overflow: hidden;
+}
+
+.home-person-card--lead .home-person-card__info {
+  flex-basis: 38px;
+  min-height: 38px;
+  max-height: 38px;
+}
+
+.home-person-card--employee .home-person-card__info {
+  flex-basis: 34px;
+  min-height: 34px;
+  max-height: 34px;
 }
 
 .home-person-card__name {
-  margin: 0 0 0.35rem;
-  font-size: 15px;
-  font-weight: 500;
+  margin: 0;
+  width: 100%;
+  font-family: Verdana, Geneva, sans-serif;
+  font-size: 16px;
+  font-weight: 600;
   color: #1a1a1a;
-  line-height: 1.35;
-}
-
-.home-person-card--employee .home-person-card__name {
-  font-size: 14px;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .home-person-card__designation {
   margin: 0;
+  width: 100%;
+  font-family: Verdana, Geneva, sans-serif;
   font-size: 13px;
   font-weight: 400;
   color: #6b7280;
-  line-height: 1.4;
-}
-
-.home-person-card--employee .home-person-card__designation {
-  font-size: 12px;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (max-width: 640px) {
@@ -325,11 +385,20 @@ body.home-landing {
     max-width: 300px;
   }
 
-  .home-person-card--lead,
+  .home-person-card--lead {
+    flex: 0 0 176px;
+    min-width: 176px;
+    max-width: 176px;
+    width: 176px;
+    height: 164.42px;
+  }
+
   .home-person-card--employee {
-    flex: 0 1 calc(50% - 0.5rem);
-    min-width: 0;
-    max-width: none;
+    flex: 0 0 152.78px;
+    min-width: 152.78px;
+    max-width: 152.78px;
+    width: 152.78px;
+    height: 146.47px;
   }
 }
 

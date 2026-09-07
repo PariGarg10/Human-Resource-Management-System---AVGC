@@ -36,7 +36,15 @@ const ADMIN_NAV_MAP: Partial<Record<PortalNavId, string>> = {
 function jumpAdminNav(nav: PortalNavId) {
   const section = ADMIN_NAV_MAP[nav] || nav;
   const btn = document.querySelector(`.sidebar-nav [data-nav="${section}"]`);
-  if (btn instanceof HTMLElement) btn.click();
+  if (btn instanceof HTMLElement) {
+    btn.click();
+    return;
+  }
+  const hrmsNav = (window.HRMS as unknown as { navigatePortalSection?: (section: string, label?: string) => void })
+    ?.navigatePortalSection;
+  if (typeof hrmsNav === 'function') {
+    hrmsNav(section, section);
+  }
 }
 
 function PortalDashboardIsland() {

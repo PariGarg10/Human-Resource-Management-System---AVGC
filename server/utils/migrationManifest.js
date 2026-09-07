@@ -23,6 +23,7 @@ const DEPLOY_APPLY = new Set([
   '2026_08_21_super_admin_profile.sql',
   '2026_08_21_super_admin_designation_admin.sql',
   '2026_08_21_super_admin_emp_code.sql',
+  '2026_09_07_hrms_fixes.sql',
 ]);
 
 /** Do not run on production — record as applied without executing */

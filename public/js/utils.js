@@ -20,6 +20,23 @@ HRMS.formatDateTime = function formatDateTime(value) {
   return new Date(value).toLocaleString();
 };
 
+HRMS.formatHours = function formatHours(value) {
+  if (value === null || value === undefined || value === '') return '—';
+  const num = Number(value);
+  if (Number.isNaN(num)) return '—';
+  return num.toFixed(2);
+};
+
+HRMS.attendanceStatusLabel = function attendanceStatusLabel(status) {
+  const s = String(status || '').toLowerCase();
+  if (s === 'present') return 'Present';
+  if (s === 'halfday') return 'Half Day';
+  if (s === 'leave') return 'Leave';
+  if (s === 'holiday') return 'Holiday';
+  if (s === 'absent') return 'Absent';
+  return status || '—';
+};
+
 /** DD MMM YYYY — consistent across portals */
 HRMS.formatDisplayDate = function formatDisplayDate(value) {
   if (!value) return '—';

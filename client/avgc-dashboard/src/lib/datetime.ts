@@ -1,3 +1,10 @@
+export function formatHours(value?: number | string | null): string {
+  if (value === null || value === undefined || value === '') return '—';
+  const num = Number(value);
+  if (Number.isNaN(num)) return '—';
+  return num.toFixed(2);
+}
+
 export function formatDateTime(value?: string | null): string {
   if (!value) return '—';
   return new Date(value).toLocaleString();

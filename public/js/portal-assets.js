@@ -62,7 +62,7 @@
     });
 
     function inventoryColspan() {
-      return isAdmin ? 9 : 8;
+      return isAdmin ? 10 : 9;
     }
 
     function sortInventoryItems(items, sortKey) {
@@ -88,7 +88,7 @@
       let items = inventoryCache;
       if (q) {
         items = items.filter((row) => {
-          const hay = [row.name, row.category, row.modelNumber, row.serialNumber]
+          const hay = [row.assetId, row.name, row.category, row.modelNumber, row.serialNumber]
             .map((v) => String(v || '').toLowerCase())
             .join(' ');
           return hay.includes(q);
@@ -181,6 +181,7 @@
             : '<td class="stat-sub">—</td>';
           return `<tr>
             ${checkboxCell}
+            <td>${esc(row.assetId || '—')}</td>
             <td>${esc(row.name)}</td>
             <td>${esc(row.category)}</td>
             <td>${esc(row.modelNumber || '—')}</td>
@@ -298,13 +299,13 @@
 
     async function loadAllocations() {
       if (!allocBody) return;
-      allocBody.innerHTML = '<tr><td colspan="8" class="stat-sub">Loading…</td></tr>';
+      allocBody.innerHTML = '<tr><td colspan="9" class="stat-sub">Loading…</td></tr>';
       try {
         const data = await api('/api/assets/allocations');
         const rows = data.allocations || [];
         if (!rows.length) {
           allocBody.innerHTML =
-            '<tr><td colspan="8" class="stat-sub">No assets allocated yet.</td></tr>';
+            '<tr><td colspan="9" class="stat-sub">No assets allocated yet.</td></tr>';
           return;
         }
         allocBody.innerHTML = rows
@@ -315,6 +316,7 @@
                 : '—';
             return `<tr>
               <td>${esc(row.employeeName)}</td>
+              <td>${esc(row.assetId || '—')}</td>
               <td>${esc(row.itemName)}</td>
               <td>${esc(row.modelNumber || '—')}</td>
               <td>${esc(row.serialNumber || '—')}</td>
@@ -340,7 +342,7 @@
           });
         });
       } catch (e) {
-        allocBody.innerHTML = `<tr><td colspan="8" class="stat-sub">${esc(e.message)}</td></tr>`;
+        allocBody.innerHTML = `<tr><td colspan="9" class="stat-sub">${esc(e.message)}</td></tr>`;
       }
     }
 
@@ -366,6 +368,7 @@
       invForm.dataset.assetBound = '1';
       invForm.addEventListener('submit', async (ev) => {
         ev.preventDefault();
+        const assetId = document.getElementById('assetItemAssetId')?.value?.trim();
         const name = document.getElementById('assetItemName')?.value?.trim();
         const category = document.getElementById('assetItemCategory')?.value?.trim();
         const modelNumber = document.getElementById('assetItemModelNumber')?.value?.trim();
@@ -378,7 +381,7 @@
         try {
           await apiJson(api, '/api/assets/inventory', {
             method: 'POST',
-            body: JSON.stringify({ name, category, modelNumber, serialNumber, totalCount }),
+            body: JSON.stringify({ assetId: assetId || null, name, category, modelNumber, serialNumber, totalCount }),
           });
           HRMS.toast('Item added', 'success');
           invForm.reset();
@@ -392,9 +395,10 @@
         ev.preventDefault();
         downloadSampleExcel(
           'asset-inventory-import-sample.xls',
-          ['Device Type', 'Category', 'Model Number', 'Serial Number', 'Quantity', 'Assigned To'],
+          ['Asset ID', 'Device Type', 'Category', 'Model Number', 'Serial Number', 'Quantity', 'Assigned To'],
           [
             {
+              'Asset ID': 'AST-001',
               'Device Type': 'Laptop',
               Category: 'IT Asset',
               'Model Number': 'LEN-T14-G5',
@@ -481,15 +485,17 @@
               .filter((i) => i.availableCount > 0)
               .map(
                 (i) =>
-                  `<option value="${i.id}" data-model-number="${esc(i.modelNumber || '')}" data-serial-number="${esc(i.serialNumber || '')}">${esc(i.name)} (${i.availableCount} available)</option>`
+                  `<option value="${i.id}" data-asset-id="${esc(i.assetId || '')}" data-model-number="${esc(i.modelNumber || '')}" data-serial-number="${esc(i.serialNumber || '')}">${esc(i.assetId ? `${i.assetId} · ` : '')}${esc(i.name)} (${i.availableCount} available)</option>`
               )
               .join('');
           if (sel.dataset.assetModelBound !== '1') {
             sel.dataset.assetModelBound = '1';
             sel.addEventListener('change', () => {
               const selected = sel.options[sel.selectedIndex];
+              const assetIdField = document.getElementById('assetAllocateAssetId');
               const modelField = document.getElementById('assetAllocateModelNumber');
               const serialField = document.getElementById('assetAllocateSerialNumber');
+              if (assetIdField) assetIdField.value = selected?.getAttribute('data-asset-id') || '';
               if (modelField) modelField.value = selected?.getAttribute('data-model-number') || '';
               if (serialField) serialField.value = selected?.getAttribute('data-serial-number') || '';
             });

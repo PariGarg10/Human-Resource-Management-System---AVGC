@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { toast } from '@/lib/toast';
-import { formatTime } from '@/lib/datetime';
+import { formatHours, formatTime } from '@/lib/datetime';
 import {
   formatAttendanceStatus,
   formatLiveDate,
@@ -110,7 +110,7 @@ export function AttendancePanel() {
           <div className="stat-card">
             <p className="stat-label">Total hours</p>
             <p className="stat-value" style={{ fontSize: '1rem' }}>
-              {todayCard?.totalhours != null ? String(todayCard.totalhours) : '—'}
+              {todayCard?.totalhours != null ? formatHours(todayCard.totalhours) : '—'}
             </p>
           </div>
           <div className="stat-card">
@@ -158,13 +158,13 @@ export function AttendancePanel() {
                 ))}
               </select>
             </label>
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => load().catch(() => {})}>
-              Submit
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => load().catch(() => {})}>
+              Refresh
             </button>
           </div>
         </div>
         <p className="stat-sub" style={{ marginTop: 8 }}>
-          {summary || 'Select month and year, then submit.'}
+          {summary || 'Attendance loads automatically when you change month or year.'}
         </p>
         <div className="table-wrap" style={{ marginTop: 16 }}>
           {grouped.length === 0 ? (
@@ -191,7 +191,7 @@ export function AttendancePanel() {
                         <td>{row.date}</td>
                         <td>{row.punchin ? formatTime(row.punchin) : '—'}</td>
                         <td>{row.punchout ? formatTime(row.punchout) : '—'}</td>
-                        <td>{row.totalhours != null ? row.totalhours : '—'}</td>
+                        <td>{row.totalhours != null ? formatHours(row.totalhours) : '—'}</td>
                         <td>{formatAttendanceStatus(row.status, row.reason)}</td>
                       </tr>
                     ))}

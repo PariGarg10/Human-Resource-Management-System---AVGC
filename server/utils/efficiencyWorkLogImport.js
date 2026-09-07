@@ -184,24 +184,107 @@ async function applyWorkLogImport(rows, { importedBy }) {
 }
 
 function buildWorkLogImportTemplateBuffer() {
-  const rows = [
-    {
-      'Employee Code': 'E001',
-      'Employee Email': '',
-      'Employee Name': '',
-      Project: 'Sample Project',
-      Task: 'Sample Task',
-      Version: '',
-      Date: '2026-01-15',
-      'Output Qty': 10,
-      'Actual MH': 4,
-      Remarks: '',
-      Status: 'approved',
-    },
+  const workLogRows = [
+    [
+      'Employee Code',
+      'Employee Email',
+      'Employee Name',
+      'Project',
+      'Task',
+      'Version',
+      'Date',
+      'Output Qty',
+      'Actual MH',
+      'Remarks',
+      'Status',
+    ],
+    [
+      'EMP001',
+      '',
+      '',
+      'Sample Project',
+      'Sample Task',
+      '',
+      '2026-01-15',
+      10,
+      4,
+      'Backdated entry by employee code',
+      'approved',
+    ],
+    [
+      '',
+      'employee@company.com',
+      '',
+      'Sample Project',
+      'Sample Task',
+      'V1',
+      '2026-01-16',
+      8,
+      3.5,
+      'Backdated entry by email',
+      'approved',
+    ],
+    [
+      '',
+      '',
+      'Jane Doe',
+      'Sample Project',
+      'Sample Task',
+      '',
+      '2026-01-17',
+      5,
+      2,
+      '',
+      'approved',
+    ],
   ];
-  const ws = XLSX.utils.json_to_sheet(rows);
+
+  const instructionRows = [
+    ['How to upload backdated work logs'],
+    [''],
+    ['Required columns', 'Project, Task, Date, Output Qty, Actual MH'],
+    ['Employee (pick one)', 'Employee Code OR Employee Email OR Employee Name — must match HRMS exactly'],
+    ['Date format', 'YYYY-MM-DD (example: 2026-01-15)'],
+    ['Status', 'approved (recommended for historical data), pending, or rejected. Defaults to approved if blank.'],
+    ['Version', 'Task version label if your project setup uses versions; leave blank otherwise'],
+    [''],
+    ['Before you import'],
+    ['1', 'Create the project and task standards under Efficiency → Projects & task standards'],
+    ['2', 'Replace sample rows with real employee codes/emails, projects, tasks, and dates'],
+    ['3', 'Delete the Instructions sheet before upload (optional — only the first sheet is read)'],
+    ['4', 'Upload the file from Efficiency → Import backdated logs'],
+    [''],
+    ['Column aliases also accepted'],
+    ['Employee Code', 'Emp Code, Code'],
+    ['Project', 'Project Name'],
+    ['Task', 'Task Name'],
+    ['Date', 'Log Date'],
+    ['Output Qty', 'Output, Quantity, Actual Output Qty'],
+    ['Actual MH', 'Manhours, Actual Manhours, Actual Man Hours'],
+  ];
+
+  const workLogSheet = XLSX.utils.aoa_to_sheet(workLogRows);
+  workLogSheet['!cols'] = [
+    { wch: 14 },
+    { wch: 22 },
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 14 },
+    { wch: 10 },
+    { wch: 12 },
+    { wch: 11 },
+    { wch: 10 },
+    { wch: 28 },
+    { wch: 10 },
+  ];
+
+  const instructionSheet = XLSX.utils.aoa_to_sheet(instructionRows);
+  instructionSheet['!cols'] = [{ wch: 22 }, { wch: 72 }];
+  instructionSheet['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 1 } }];
+
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'WorkLogs');
+  XLSX.utils.book_append_sheet(wb, workLogSheet, 'WorkLogs');
+  XLSX.utils.book_append_sheet(wb, instructionSheet, 'Instructions');
   return XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
 }
 

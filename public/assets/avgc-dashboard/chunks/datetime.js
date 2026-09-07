@@ -1,1 +1,1 @@
-function e(e){return e?new Date(e).toLocaleTimeString(void 0,{hour:`2-digit`,minute:`2-digit`}):`—`}export{e as t};
+function e(e){if(e==null||e===``)return`—`;let t=Number(e);return Number.isNaN(t)?`—`:t.toFixed(2)}function t(e){return e?new Date(e).toLocaleTimeString(void 0,{hour:`2-digit`,minute:`2-digit`}):`—`}export{t as n,e as t};

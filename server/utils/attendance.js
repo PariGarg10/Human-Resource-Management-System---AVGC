@@ -20,7 +20,7 @@ const PRESENT_MIN_HOURS = 9;
 function getAttendanceStatus(totalHours) {
   if (totalHours === null || totalHours === undefined) return 'absent';
   if (totalHours >= PRESENT_MIN_HOURS) return 'present';
-  if (totalHours > HALFDAY_MIN_HOURS && totalHours < PRESENT_MIN_HOURS) return 'halfday';
+  if (totalHours >= HALFDAY_MIN_HOURS && totalHours < PRESENT_MIN_HOURS) return 'halfday';
   return 'absent';
 }
 

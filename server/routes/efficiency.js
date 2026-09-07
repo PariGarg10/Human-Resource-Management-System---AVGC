@@ -759,7 +759,7 @@ router.get('/efficiency/work-logs/import-template', requireAnyAdmin, (_req, res)
   try {
     const buf = buildWorkLogImportTemplateBuffer();
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', 'attachment; filename="efficiency-work-logs-import-template.xlsx"');
+    res.setHeader('Content-Disposition', 'attachment; filename="efficiency-work-logs-import-sample.xlsx"');
     return res.send(buf);
   } catch (err) {
     console.error('GET /efficiency/work-logs/import-template:', err.message);

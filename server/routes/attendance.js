@@ -2,10 +2,14 @@ const express = require('express');
 const { format, eachDayOfInterval, getDaysInMonth } = require('date-fns');
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
-const { getEffectiveAttendanceStatus } = require('../utils/attendanceView');
+const { getEffectiveAttendanceStatus, formatHoursValue } = require('../utils/attendanceView');
 const { calculateTotalHours, getAttendanceStatus } = require('../utils/attendance');
 const { getSaturdayConfigMerged } = require('../utils/saturdayConfigRange');
 const { getHolidaysForRange, getHolidayDatesSet, isHolidayDate } = require('../utils/holidaysRange');
+const {
+  createRegularizationRequest,
+  listRegularizationForEmployee,
+} = require('../utils/attendanceRegularization');
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -38,6 +42,7 @@ router.get('/today', async (req, res) => {
     const effectiveRecord = record
       ? {
           ...record,
+          totalhours: formatHoursValue(record.totalhours),
           status: getEffectiveAttendanceStatus({
             totalhours: record.totalhours,
             status: record.status,
@@ -130,7 +135,17 @@ router.get('/history', async (req, res) => {
       }
     }
 
-    const mergedRecords = Array.from(merged.values()).sort((a, b) => a.date.localeCompare(b.date));
+    const mergedRecords = Array.from(merged.values())
+      .map((row) => ({
+        ...row,
+        totalhours: formatHoursValue(row.totalhours),
+        status: getEffectiveAttendanceStatus({
+          totalhours: row.totalhours,
+          status: row.status,
+          hasApprovedLeave: leavesByDate.has(row.date),
+        }),
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
     const saturdayConfig = await getSaturdayConfigMerged(startDate, endDate);
     const holidays = await getHolidaysForRange(startDate, endDate);
@@ -210,6 +225,64 @@ router.get('/summary', async (req, res) => {
     return res.json({ present, halfday, leave, absent, holidays: holidaysCount, totaldays: days.length });
   } catch (err) {
     console.error('GET /attendance/summary:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.post('/regularization', async (req, res) => {
+  try {
+    const attendanceDate = String(req.body?.date || req.body?.attendanceDate || '').slice(0, 10);
+    const requestType = String(req.body?.requestType || req.body?.type || 'regularize').toLowerCase();
+    const reason = String(req.body?.reason || '').trim();
+    const leaveType = String(req.body?.leaveType || req.body?.leavetype || 'casual').trim();
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(attendanceDate)) {
+      return res.status(400).json({ message: 'Valid date is required (YYYY-MM-DD)' });
+    }
+    if (!['regularize', 'regularize_and_leave'].includes(requestType)) {
+      return res.status(400).json({ message: 'Invalid request type' });
+    }
+    if (!reason) {
+      return res.status(400).json({ message: 'Reason is required' });
+    }
+
+    const id = await createRegularizationRequest({
+      employeeId: req.user.id,
+      attendanceDate,
+      requestType,
+      reason,
+      leaveType: requestType === 'regularize_and_leave' ? leaveType : null,
+    });
+
+    const hrAdmins = await pool.query(
+      `SELECT employee_id FROM admins WHERE is_active = TRUE AND employee_id IS NOT NULL`
+    );
+    for (const row of hrAdmins.rows) {
+      if (!row.employee_id) continue;
+      await pool.query(
+        `INSERT INTO notifications (userid, message, type, isread, subjectemployeeid)
+         VALUES ($1, $2, 'attendance_regularization', FALSE, $3)`,
+        [
+          row.employee_id,
+          `Attendance regularization request for ${attendanceDate}`,
+          req.user.id,
+        ]
+      );
+    }
+
+    return res.status(201).json({ message: 'Request submitted to HR', id });
+  } catch (err) {
+    console.error('POST /attendance/regularization:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.get('/regularization/mine', async (req, res) => {
+  try {
+    const items = await listRegularizationForEmployee(req.user.id);
+    return res.json({ items });
+  } catch (err) {
+    console.error('GET /attendance/regularization/mine:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });

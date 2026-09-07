@@ -37,6 +37,8 @@ export function LeaveApprovalPanel() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'pending' | 'all'>('pending');
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [confirmRejectId, setConfirmRejectId] = useState<number | null>(null);
+  const [flashMessage, setFlashMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -54,6 +56,18 @@ export function LeaveApprovalPanel() {
     load().catch(() => {});
   }, [load]);
 
+  useEffect(() => {
+    if (!confirmRejectId) return undefined;
+    const timer = window.setTimeout(() => setConfirmRejectId(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [confirmRejectId]);
+
+  useEffect(() => {
+    if (!flashMessage) return undefined;
+    const timer = window.setTimeout(() => setFlashMessage(null), 2500);
+    return () => window.clearTimeout(timer);
+  }, [flashMessage]);
+
   const visible = useMemo(() => {
     if (filter === 'all') return leaves;
     return leaves.filter((l) => String(l.status).toLowerCase() === 'pending');
@@ -61,9 +75,10 @@ export function LeaveApprovalPanel() {
 
   async function approve(id: number) {
     setBusyId(id);
+    setConfirmRejectId(null);
     try {
       await api(`/api/leaves/team/${id}/approve`, { method: 'PUT' });
-      toast('Leave approved', 'success');
+      setFlashMessage('Leave approved');
       await load();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Approve failed', 'error');
@@ -73,11 +88,11 @@ export function LeaveApprovalPanel() {
   }
 
   async function reject(id: number) {
-    if (!window.confirm('Reject this leave request?')) return;
     setBusyId(id);
     try {
       await api(`/api/leaves/team/${id}/reject`, { method: 'PUT' });
-      toast('Leave rejected', 'success');
+      setConfirmRejectId(null);
+      setFlashMessage('Leave rejected');
       await load();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Reject failed', 'error');
@@ -108,6 +123,12 @@ export function LeaveApprovalPanel() {
           </button>
         </div>
       </div>
+
+      {flashMessage ? (
+        <div className="leave-action-flash" role="status">
+          {flashMessage}
+        </div>
+      ) : null}
 
       {loading ? (
         <p className="stat-sub">Loading leave requests…</p>
@@ -147,7 +168,7 @@ export function LeaveApprovalPanel() {
                     <td>{statusLabel(leave.status)}</td>
                     <td>
                       {isPending ? (
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                           <button
                             type="button"
                             className="btn btn-primary btn-sm"
@@ -156,14 +177,35 @@ export function LeaveApprovalPanel() {
                           >
                             Approve
                           </button>
-                          <button
-                            type="button"
-                            className="btn btn-outline btn-sm"
-                            disabled={busy}
-                            onClick={() => reject(leave.id).catch(() => {})}
-                          >
-                            Reject
-                          </button>
+                          {confirmRejectId === leave.id ? (
+                            <div className="leave-reject-confirm">
+                              <span>Reject this request?</span>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                disabled={busy}
+                                onClick={() => reject(leave.id).catch(() => {})}
+                              >
+                                Confirm reject
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                onClick={() => setConfirmRejectId(null)}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-sm"
+                              disabled={busy}
+                              onClick={() => setConfirmRejectId(leave.id)}
+                            >
+                              Reject
+                            </button>
+                          )}
                         </div>
                       ) : (
                         '—'

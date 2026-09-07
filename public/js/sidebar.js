@@ -1,5 +1,37 @@
 window.HRMS = window.HRMS || {};
 
+HRMS._portalNavHistory = HRMS._portalNavHistory || [];
+HRMS._portalNavBackFlag = false;
+
+function pushPortalNavHistory(section, label) {
+  if (HRMS._portalNavBackFlag || !section) return;
+  const hist = HRMS._portalNavHistory;
+  const top = hist[hist.length - 1];
+  if (top && top.section === section) return;
+  hist.push({ section, label: label || section });
+  if (hist.length > 50) hist.shift();
+  HRMS.updatePortalBackButton?.();
+}
+
+HRMS.navigatePortalBack = function navigatePortalBack() {
+  if (HRMS.isReactPortalNav?.()) {
+    if ((HRMS._reactNavDepth || 0) > 1) window.history.back();
+    return;
+  }
+  const hist = HRMS._portalNavHistory;
+  if (!hist || hist.length < 2) return;
+  hist.pop();
+  const prev = hist[hist.length - 1];
+  if (!prev) return;
+  HRMS._portalNavBackFlag = true;
+  try {
+    HRMS.navigatePortalSection(prev.section, prev.label);
+  } finally {
+    HRMS._portalNavBackFlag = false;
+  }
+  HRMS.updatePortalBackButton?.();
+};
+
 HRMS.initSidebar = function initSidebar(options = {}) {
   function setActiveViewSection(sectionId) {
     document.querySelectorAll('.view-section').forEach((view) => {
@@ -250,6 +282,7 @@ HRMS.initSidebar = function initSidebar(options = {}) {
         btn.blur();
       }
       closeMobile();
+      pushPortalNavHistory(section, btn.textContent.trim());
       if (section === 'social-portal' || section === 'company-social') {
         const rect = btn.getBoundingClientRect();
         HRMS.fireConfettiBurst?.({
@@ -281,6 +314,7 @@ HRMS.initSidebar = function initSidebar(options = {}) {
     const bc = document.getElementById('breadcrumbCurrent');
     if (bc) bc.textContent = label || section;
     closeMobile();
+    pushPortalNavHistory(section, label || section);
     const navCb = HRMS._sidebarOnNavigate || options.onNavigate;
     if (navCb) navCb(section);
   };
@@ -319,7 +353,13 @@ HRMS.initSidebar = function initSidebar(options = {}) {
     const initialSection = initial.getAttribute('data-nav');
     if (initialSection) setActiveViewSection(initialSection);
     expandSectionFor(initial);
+    if (!HRMS._portalNavHistory.length) {
+      pushPortalNavHistory(initialSection, initial.textContent.trim());
+    }
   }
+
+  HRMS.initNavBackButton?.();
+  HRMS.updatePortalBackButton?.();
 
   if (window.HRMS?.refreshNavIcons) HRMS.refreshNavIcons(sidebar || document);
 };

@@ -16,6 +16,9 @@ type HrmsWindow = {
     applyProfilePhotoToDom?: (url: string, name: string) => void;
     refreshNavIcons?: (root?: ParentNode) => void;
     toggleTheme?: () => void;
+    initNavBackButton?: () => void;
+    updatePortalBackButton?: () => void;
+    _reactNavDepth?: number;
   };
 };
 
@@ -34,6 +37,9 @@ export function usePortalShell(
     HRMS.initSidebar({
       onNavigate: (section) => onNavigateRef.current(section as PortalNavId),
     });
+    HRMS._reactNavDepth = 1;
+    HRMS.initNavBackButton?.();
+    HRMS.updatePortalBackButton?.();
     HRMS.initNavbarClock?.('navbarClock');
     HRMS.initProfileDropdown?.();
     HRMS.initNotificationBell?.((path, opts) => api(path, opts || {}));

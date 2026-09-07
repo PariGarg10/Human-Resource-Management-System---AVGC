@@ -52,13 +52,71 @@
     const uploadForm = document.getElementById('empDocAdminUploadForm');
     const uploadCategory = document.getElementById('empDocAdminCategory');
     const uploadFile = document.getElementById('empDocAdminFile');
+    const selectAll = document.getElementById('empDocSelectAll');
+    const downloadSelectedBtn = document.getElementById('empDocDownloadSelectedBtn');
+    const selectionHint = document.getElementById('empDocSelectionHint');
     let employees = [];
     let selectedId = null;
+    let currentDocs = [];
+    let selectedDocIds = new Set();
 
     if (uploadCategory) {
       uploadCategory.innerHTML = ADMIN_CATEGORIES.map(
         (c) => `<option value="${c.value}">${esc(c.label)}</option>`
       ).join('');
+    }
+
+    function updateSelectionUi() {
+      const count = selectedDocIds.size;
+      if (downloadSelectedBtn) downloadSelectedBtn.disabled = count === 0;
+      if (selectionHint) {
+        selectionHint.textContent = count
+          ? `${count} document${count === 1 ? '' : 's'} selected`
+          : 'Select documents below to download.';
+      }
+      if (selectAll && currentDocs.length) {
+        selectAll.checked = count > 0 && count === currentDocs.length;
+        selectAll.indeterminate = count > 0 && count < currentDocs.length;
+      } else if (selectAll) {
+        selectAll.checked = false;
+        selectAll.indeterminate = false;
+      }
+    }
+
+    async function downloadSelectedDocs() {
+      const ids = [...selectedDocIds];
+      if (!ids.length) {
+        HRMS.toast('Select at least one document', 'error');
+        return;
+      }
+      if (downloadSelectedBtn) downloadSelectedBtn.disabled = true;
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('/api/employee-documents/admin/zip', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ documentIds: ids }),
+        });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.message || 'Download failed');
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'employee-documents.zip';
+        a.click();
+        URL.revokeObjectURL(url);
+        HRMS.toast('Documents downloaded', 'success');
+      } catch (err) {
+        HRMS.toast(err.message || 'Download failed', 'error');
+      } finally {
+        updateSelectionUi();
+      }
     }
 
     async function loadOverview() {
@@ -104,6 +162,7 @@
 
     async function selectEmployee(id) {
       selectedId = id;
+      selectedDocIds = new Set();
       const emp = employees.find((e) => e.id === id);
       if (detailTitle) {
         detailTitle.textContent = emp ? `${emp.name} — documents` : 'Employee documents';
@@ -114,18 +173,22 @@
 
     async function loadEmployeeDocs(id) {
       if (!detailBody) return;
-      detailBody.innerHTML = '<tr><td colspan="5" class="stat-sub">Loading…</td></tr>';
+      detailBody.innerHTML = '<tr><td colspan="6" class="stat-sub">Loading…</td></tr>';
+      selectedDocIds = new Set();
+      updateSelectionUi();
       try {
         const data = await api(`/api/employee-documents/admin/employee/${id}`);
-        const docs = data.documents || [];
-        if (!docs.length) {
+        currentDocs = data.documents || [];
+        if (!currentDocs.length) {
           detailBody.innerHTML =
-            '<tr><td colspan="5" class="stat-sub">No documents for this employee yet.</td></tr>';
+            '<tr><td colspan="6" class="stat-sub">No documents for this employee yet.</td></tr>';
+          updateSelectionUi();
           return;
         }
-        detailBody.innerHTML = docs
+        detailBody.innerHTML = currentDocs
           .map(
             (d) => `<tr>
+              <td><input type="checkbox" data-emp-doc-select="${d.id}" aria-label="Select ${esc(d.originalName)}" /></td>
               <td>${esc(d.originalName)}</td>
               <td>${esc(d.categoryLabel || d.category)}</td>
               <td>${esc(d.source === 'admin' ? 'Admin' : 'Employee')}</td>
@@ -135,15 +198,44 @@
           )
           .join('');
 
+        detailBody.querySelectorAll('[data-emp-doc-select]').forEach((input) => {
+          input.addEventListener('change', () => {
+            const docId = Number(input.getAttribute('data-emp-doc-select'));
+            if (input.checked) selectedDocIds.add(docId);
+            else selectedDocIds.delete(docId);
+            updateSelectionUi();
+          });
+        });
+
         detailBody.querySelectorAll('[data-emp-doc-view]').forEach((btn) => {
           btn.addEventListener('click', () => {
             const docId = Number(btn.getAttribute('data-emp-doc-view'));
             openDoc(docId).catch((err) => HRMS.toast(err.message, 'error'));
           });
         });
+        updateSelectionUi();
       } catch (e) {
-        detailBody.innerHTML = `<tr><td colspan="5" class="stat-sub">${esc(e.message)}</td></tr>`;
+        currentDocs = [];
+        detailBody.innerHTML = `<tr><td colspan="6" class="stat-sub">${esc(e.message)}</td></tr>`;
+        updateSelectionUi();
       }
+    }
+
+    if (selectAll) {
+      selectAll.addEventListener('change', () => {
+        if (!currentDocs.length) return;
+        selectedDocIds = selectAll.checked ? new Set(currentDocs.map((d) => d.id)) : new Set();
+        detailBody?.querySelectorAll('[data-emp-doc-select]').forEach((input) => {
+          input.checked = selectAll.checked;
+        });
+        updateSelectionUi();
+      });
+    }
+
+    if (downloadSelectedBtn) {
+      downloadSelectedBtn.addEventListener('click', () => {
+        downloadSelectedDocs().catch((err) => HRMS.toast(err.message, 'error'));
+      });
     }
 
     if (empSelect) {

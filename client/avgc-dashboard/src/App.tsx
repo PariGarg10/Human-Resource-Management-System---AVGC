@@ -337,6 +337,11 @@ export default function App() {
         const nextUrl = `${window.location.pathname}${window.location.search}#${next}`;
         if (window.location.hash !== `#${next}`) {
           window.history.pushState({ hrmsNav: next }, '', nextUrl);
+          const hrms = (window as { HRMS?: { _reactNavDepth?: number; updatePortalBackButton?: () => void } }).HRMS;
+          if (hrms) {
+            hrms._reactNavDepth = (hrms._reactNavDepth || 1) + 1;
+            hrms.updatePortalBackButton?.();
+          }
         }
       }
     },
@@ -387,6 +392,11 @@ export default function App() {
       const section = (window.history.state?.hrmsNav ||
         String(window.location.hash || '').replace(/^#/, '').trim() ||
         'dashboard') as PortalNavId;
+      const hrms = (window as { HRMS?: { _reactNavDepth?: number; updatePortalBackButton?: () => void } }).HRMS;
+      if (hrms) {
+        hrms._reactNavDepth = Math.max(1, (hrms._reactNavDepth || 1) - 1);
+        hrms.updatePortalBackButton?.();
+      }
       navFromHistoryRef.current = true;
       applyPortalNav(section, { skipHistory: true });
       navFromHistoryRef.current = false;

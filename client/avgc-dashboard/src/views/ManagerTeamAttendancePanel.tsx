@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatAttendanceStatus, formatLiveDate, monthName } from '@/lib/attendanceLabels';
 import { clampPortalYear, currentPortalYear, MIN_PORTAL_YEAR } from '@/lib/yearMin';
+import { formatHours } from '@/lib/datetime';
 import { toast } from '@/lib/toast';
 
 type DashboardSummary = {
@@ -103,7 +104,7 @@ export function ManagerTeamAttendancePanel() {
               onChange={(e) => setYear(clampPortalYear(e.target.value))}
             />
           </label>
-          <button type="button" className="btn btn-primary btn-sm" onClick={() => load().catch(() => {})}>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => load().catch(() => {})}>
             Refresh
           </button>
         </div>
@@ -173,7 +174,7 @@ export function ManagerTeamAttendancePanel() {
                       <td>{formatAttendanceStatus(row.status)}</td>
                       <td>{row.punchin || '—'}</td>
                       <td>{row.punchout || '—'}</td>
-                      <td>{row.totalhours != null ? Number(row.totalhours).toFixed(1) : '—'}</td>
+                      <td>{row.totalhours != null ? formatHours(row.totalhours) : '—'}</td>
                     </tr>
                   ))
                 )}

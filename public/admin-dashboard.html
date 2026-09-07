@@ -149,6 +149,9 @@
   <div class="app-main">
     <header class="top-navbar">
       <div class="navbar-left">
+        <button type="button" class="portal-nav-back-btn is-disabled" id="portalNavBackBtn" aria-label="Go back" disabled>
+          <span class="nav-icon" data-lucide="arrow-left"></span>
+        </button>
         <button type="button" class="mobile-menu-btn" id="mobileMenuBtn">☰</button>
         <div class="breadcrumb">Admin / <strong id="breadcrumbCurrent">Dashboard</strong></div>
       </div>
@@ -214,6 +217,7 @@
             <h2 class="panel-title">Asset Management</h2>
             <p class="stat-sub">Add inventory items, allocate to employees, edit totals, or remove items when nothing is assigned.</p>
             <form id="assetAddForm" class="asset-management-form asset-management-form--add">
+              <div class="form-group"><label for="assetItemAssetId">Asset ID</label><input id="assetItemAssetId" placeholder="e.g. AST-001" /></div>
               <div class="form-group"><label for="assetItemName">Item name</label><input id="assetItemName" required /></div>
               <div class="form-group"><label for="assetItemCategory">Category</label><input id="assetItemCategory" required /></div>
               <div class="form-group"><label for="assetItemModelNumber">Model number</label><input id="assetItemModelNumber" required /></div>
@@ -231,6 +235,7 @@
             <h3 class="panel-title panel-title--sub">Allocate asset</h3>
             <form id="assetAllocateForm" class="asset-management-form asset-management-form--allocate">
               <div class="form-group"><label for="assetAllocateItem">Item</label><select id="assetAllocateItem" required></select></div>
+              <div class="form-group"><label for="assetAllocateAssetId">Asset ID</label><input id="assetAllocateAssetId" readonly placeholder="Select an item first" /></div>
               <div class="form-group"><label for="assetAllocateModelNumber">Model number</label><input id="assetAllocateModelNumber" /></div>
               <div class="form-group"><label for="assetAllocateSerialNumber">Serial number</label><input id="assetAllocateSerialNumber" /></div>
               <div class="form-group"><label for="assetAllocateEmployee">Employee</label><select id="assetAllocateEmployee" required></select></div>
@@ -255,8 +260,8 @@
             </div>
             <div class="table-wrap table-wrap--scroll asset-table-scroll">
               <table class="data-table">
-                <thead><tr><th data-asset-admin-only><input type="checkbox" id="assetInventorySelectAll" aria-label="Select all" /></th><th>Item name</th><th>Category</th><th>Model number</th><th>Serial number</th><th>Total</th><th>Allocated</th><th>Available</th><th>Actions</th></tr></thead>
-                <tbody id="assetInventoryBody"><tr><td colspan="8" class="stat-sub">Loading…</td></tr></tbody>
+                <thead><tr><th data-asset-admin-only><input type="checkbox" id="assetInventorySelectAll" aria-label="Select all" /></th><th>Asset ID</th><th>Item name</th><th>Category</th><th>Model number</th><th>Serial number</th><th>Total</th><th>Allocated</th><th>Available</th><th>Actions</th></tr></thead>
+                <tbody id="assetInventoryBody"><tr><td colspan="10" class="stat-sub">Loading…</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -264,8 +269,8 @@
             <h3 class="panel-title panel-title--sub">All allocations</h3>
             <div class="table-wrap table-wrap--scroll asset-table-scroll">
               <table class="data-table">
-                <thead><tr><th>Employee</th><th>Item</th><th>Model number</th><th>Serial number</th><th>Allocated on</th><th>Status</th><th>Notes</th><th>Action</th></tr></thead>
-                <tbody id="assetAllocationsBody"><tr><td colspan="8" class="stat-sub">Loading…</td></tr></tbody>
+                <thead><tr><th>Employee</th><th>Asset ID</th><th>Item</th><th>Model number</th><th>Serial number</th><th>Allocated on</th><th>Status</th><th>Notes</th><th>Action</th></tr></thead>
+                <tbody id="assetAllocationsBody"><tr><td colspan="9" class="stat-sub">Loading…</td></tr></tbody>
               </table>
             </div>
           </div>
@@ -551,10 +556,30 @@
             <h2 class="panel-title">Daily attendance</h2>
             <div class="filters-inline">
               <label>Date <input type="date" id="dailyDate" /></label>
-              <button type="button" class="btn btn-primary btn-sm" id="loadDailyBtn">Submit</button>
+              <label>Search <input type="search" id="dailySearch" placeholder="Name or code…" style="min-width:180px;" /></label>
+              <label>Sort
+                <select id="dailySort">
+                  <option value="name-asc">Name A–Z</option>
+                  <option value="name-desc">Name Z–A</option>
+                  <option value="status-asc">Status</option>
+                  <option value="hours-desc">Hours high–low</option>
+                </select>
+              </label>
             </div>
           </div>
           <div class="table-wrap table-wrap--scroll"><table class="data-table"><thead><tr><th>Code</th><th>Name</th><th>Dept</th><th>In</th><th>Out</th><th>Hrs</th><th>Status</th></tr></thead><tbody id="dailyBody"></tbody></table></div>
+        </div>
+        <div class="panel" style="margin-top:16px;">
+          <div class="panel-header">
+            <h2 class="panel-title">Regularization requests (HR queue)</h2>
+            <button type="button" class="btn btn-secondary btn-sm" id="refreshRegularizationBtn">Refresh</button>
+          </div>
+          <div class="table-wrap table-wrap--scroll">
+            <table class="data-table">
+              <thead><tr><th>Employee</th><th>Date</th><th>Type</th><th>Reason</th><th>Actions</th></tr></thead>
+              <tbody id="regularizationBody"><tr><td colspan="5" class="stat-sub">Loading…</td></tr></tbody>
+            </table>
+          </div>
         </div>
       </section>
 
@@ -793,7 +818,8 @@
       <section id="view-biometric" class="view-section">
         <div class="panel">
           <h2 class="panel-title">ESSL / ZKTeco device sync</h2>
-          <p class="stat-sub" style="margin-bottom:12px;">Sync pulls punches from the device into this list. <strong>Import to attendance</strong> writes matched punches into the main attendance database (same records shown under Attendance → Daily attendance).</p>
+          <p class="stat-sub" style="margin-bottom:12px;">Use <strong>Sync SQL Server now</strong> when attendance is stored in eSSL SQL Server (CHECKINOUT / USERINFO) and AWS can reach that database. <strong>Sync device now</strong> is for LAN biometric devices only.</p>
+          <p class="stat-sub" style="margin-bottom:12px;">Matched punches appear below. <strong>Import to attendance</strong> writes any pending matched rows into Daily attendance.</p>
           <div class="form-row" style="align-items:flex-end;flex-wrap:wrap;gap:12px;margin-bottom:12px;">
             <div class="form-group" style="margin:0;">
               <label for="esslFromDate">From</label>
@@ -820,7 +846,8 @@
               </select>
             </div>
             <button type="button" id="esslRefreshBtn" class="btn btn-outline">Refresh list</button>
-            <button type="button" id="esslSyncBtn" class="btn btn-primary">Sync device now</button>
+            <button type="button" id="esslSqlSyncBtn" class="btn btn-primary">Sync SQL Server now</button>
+            <button type="button" id="esslSyncBtn" class="btn btn-outline">Sync device now</button>
             <button type="button" id="esslImportBtn" class="btn btn-primary">Import to attendance DB</button>
           </div>
           <p id="esslStatsLine" class="stat-sub" style="margin-bottom:8px;"></p>
@@ -1110,10 +1137,17 @@
                 <button type="submit" class="btn btn-primary">Upload for employee</button>
               </div>
             </form>
+            <div className="filters-inline" style={{ marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+              <button type="button" className="btn btn-primary btn-sm" id="empDocDownloadSelectedBtn" disabled>
+                Download selected as ZIP
+              </button>
+              <span className="stat-sub" id="empDocSelectionHint">Select documents below to download.</span>
+            </div>
             <div class="table-wrap table-wrap--people-scroll">
               <table class="data-table">
                 <thead>
                   <tr>
+                    <th><input type="checkbox" id="empDocSelectAll" aria-label="Select all documents" /></th>
                     <th>File</th>
                     <th>Category</th>
                     <th>Source</th>
@@ -1122,7 +1156,7 @@
                   </tr>
                 </thead>
                 <tbody id="empDocDetailBody">
-                  <tr><td colspan="5" class="stat-sub">Select an employee to view documents.</td></tr>
+                  <tr><td colspan="6" class="stat-sub">Select an employee to view documents.</td></tr>
                 </tbody>
               </table>
             </div>

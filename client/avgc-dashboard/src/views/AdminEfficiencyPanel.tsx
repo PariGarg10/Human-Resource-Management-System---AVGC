@@ -61,6 +61,8 @@ export function AdminEfficiencyPanel() {
   const [projectId, setProjectId] = useState('');
   const [report, setReport] = useState<EfficiencyReport | null>(null);
   const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState('');
+  const [sortKey, setSortKey] = useState('date-desc');
 
   useEffect(() => {
     api<{ projects: EfficiencyProject[] }>('/api/efficiency-projects')
@@ -160,14 +162,34 @@ export function AdminEfficiencyPanel() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'efficiency-work-logs-import-template.xlsx';
+        a.download = 'efficiency-work-logs-import-sample.xlsx';
         a.click();
         URL.revokeObjectURL(url);
       })
       .catch((e) => toast(e instanceof Error ? e.message : 'Download failed', 'error'));
   }
 
-  const tableRows = report?.rows || [];
+  const tableRows = useMemo(() => {
+    let rows = [...(report?.rows || [])];
+    const q = search.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(
+        (row) =>
+          row.employee_name.toLowerCase().includes(q) ||
+          row.project_name.toLowerCase().includes(q) ||
+          row.task_name.toLowerCase().includes(q)
+      );
+    }
+    rows.sort((a, b) => {
+      if (sortKey === 'employee-asc') return a.employee_name.localeCompare(b.employee_name);
+      if (sortKey === 'hours-desc') {
+        return Number(b.actual_manhours_spent || 0) - Number(a.actual_manhours_spent || 0);
+      }
+      if (sortKey === 'date-asc') return String(a.log_date).localeCompare(String(b.log_date));
+      return String(b.log_date).localeCompare(String(a.log_date));
+    });
+    return rows;
+  }, [report?.rows, search, sortKey]);
 
   const tabBar = (
     <div className="filters-inline" style={{ marginBottom: 12 }}>
@@ -204,23 +226,37 @@ export function AdminEfficiencyPanel() {
 
   if (tab === 'import-logs') {
     return (
-      <div>
+      <div className="efficiency-admin-shell">
         {tabBar}
         <div className="panel panel--scroll">
           <div className="panel-header">
             <div>
               <h2 className="panel-title">Import backdated work logs</h2>
-              <p className="stat-sub">
-                Upload Excel with employee, project, task, date, output qty, and actual manhours. Use approved status for
-                historical efficiency data.
+              <p className="stat-sub import-excel-hint">
+                Required columns: <strong>Project</strong>, <strong>Task</strong>, <strong>Date</strong> (YYYY-MM-DD),{' '}
+                <strong>Output Qty</strong>, <strong>Actual MH</strong>. Identify the employee with{' '}
+                <strong>Employee Code</strong>, <strong>Email</strong>, or <strong>Name</strong> (one per row). Use{' '}
+                <strong>approved</strong> status for historical efficiency data. Task standards must exist under
+                Projects &amp; task standards before import.
               </p>
             </div>
           </div>
-          <div className="filters-inline" style={{ flexWrap: 'wrap', gap: 12 }}>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={downloadWorkLogTemplate}>
-              Download template
+          <div className="filters-inline" style={{ flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+            <button type="button" className="btn btn-outline btn-sm import-excel-cta" onClick={downloadWorkLogTemplate}>
+              Download sample format
             </button>
-            <input type="file" accept=".xlsx,.xls" onChange={(e) => setImportFile(e.target.files?.[0] || null)} />
+            <label className="btn btn-primary btn-sm import-excel-cta" style={{ cursor: 'pointer', margin: 0 }}>
+              Choose Excel file
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                style={{ position: 'absolute', left: '-9999px', width: 1, height: 1, opacity: 0 }}
+              />
+            </label>
+            <span className="stat-sub" style={{ fontWeight: 500 }}>
+              {importFile ? importFile.name : 'No file selected.'}
+            </span>
             <button
               type="button"
               className="btn btn-primary btn-sm"
@@ -237,7 +273,7 @@ export function AdminEfficiencyPanel() {
 
   if (tab === 'daily') {
     return (
-      <div>
+      <div className="efficiency-admin-shell">
         {tabBar}
         <EfficiencyDailyInputsPanel />
       </div>
@@ -246,7 +282,7 @@ export function AdminEfficiencyPanel() {
 
   if (tab === 'setup') {
     return (
-      <div>
+      <div className="efficiency-admin-shell">
         {tabBar}
         <EfficiencyProjectSetupPanel />
       </div>
@@ -254,7 +290,7 @@ export function AdminEfficiencyPanel() {
   }
 
   return (
-    <div>
+    <div className="efficiency-admin-shell">
       {tabBar}
     <div className="panel panel--scroll">
       <div className="panel-header">
@@ -308,6 +344,24 @@ export function AdminEfficiencyPanel() {
             ))}
           </select>
         </label>
+        <label>
+          Search{' '}
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Employee, project, task…"
+          />
+        </label>
+        <label>
+          Sort{' '}
+          <select value={sortKey} onChange={(e) => setSortKey(e.target.value)}>
+            <option value="date-desc">Date newest</option>
+            <option value="date-asc">Date oldest</option>
+            <option value="employee-asc">Employee A–Z</option>
+            <option value="hours-desc">Logged MHs high–low</option>
+          </select>
+        </label>
         <button type="button" className="btn btn-secondary btn-sm" onClick={() => load().catch(() => {})}>
           Apply
         </button>
@@ -333,7 +387,7 @@ export function AdminEfficiencyPanel() {
                 <th>Task</th>
                 <th>Date</th>
                 <th>Output</th>
-                <th>Actual MH</th>
+                <th>Logged MHs</th>
                 <th>Implied MHs</th>
                 <th>Work days (WDs)</th>
                 <th>Efficiency%</th>

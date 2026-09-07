@@ -1,7 +1,7 @@
 const express = require('express');
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange, requireRoles } = require('../middleware/auth');
-const { getEffectiveAttendanceStatus } = require('../utils/attendanceView');
+const { getEffectiveAttendanceStatus, formatHoursValue } = require('../utils/attendanceView');
 const { isHolidayDate } = require('../utils/holidaysRange');
 const { approvedLeaveEmployeeIdsForDate } = require('../utils/attendanceLeaveLookup');
 const { PRESENT_MIN_HOURS, HALFDAY_MIN_HOURS } = require('../utils/attendance');
@@ -56,6 +56,7 @@ router.get('/attendance/daily', async (req, res) => {
     );
     const mapped = recordsResult.rows.map((row) => ({
       ...row,
+      totalhours: formatHoursValue(row.totalhours),
       status: holiday
         ? 'holiday'
         : getEffectiveAttendanceStatus({

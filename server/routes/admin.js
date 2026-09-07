@@ -13,7 +13,7 @@ const { requirePermission, PERMISSION_MODULES } = require('../utils/adminPermiss
 const { logAudit } = require('../utils/audit');
 const { calculateTotalHours, getAttendanceStatus } = require('../utils/attendance');
 const { generateEmployeeCode, normalizeEmployeeCode, isValidEmployeeCode } = require('../utils/employeeCode');
-const { getEffectiveAttendanceStatus } = require('../utils/attendanceView');
+const { getEffectiveAttendanceStatus, formatHoursValue } = require('../utils/attendanceView');
 const { approvedLeaveEmployeeIdsForDate } = require('../utils/attendanceLeaveLookup');
 const { filterUpcomingBirthdays } = require('../utils/birthdays');
 const { getHolidayDatesSet, isHolidayDate } = require('../utils/holidaysRange');
@@ -500,6 +500,7 @@ router.get('/attendance/daily', requirePermission(PERMISSION_MODULES.ATTENDANCE)
 
     const records = rowsResult.rows.map((row) => ({
       ...row,
+      totalhours: formatHoursValue(row.totalhours),
       status: isHoliday
         ? 'holiday'
         : getEffectiveAttendanceStatus({
@@ -519,9 +520,8 @@ router.get('/attendance/daily', requirePermission(PERMISSION_MODULES.ATTENDANCE)
 const ATTENDANCE_STATUS_OPTIONS = ['present', 'halfday', 'absent', 'leave'];
 
 function hoursForAttendanceStatus(status) {
-  if (status === 'present') return 8;
-  if (status === 'halfday') return 4;
-  return 0;
+  const { hoursForStoredStatus } = require('../utils/attendanceView');
+  return hoursForStoredStatus(String(status || '').toLowerCase());
 }
 
 router.patch('/attendance/daily/status', requirePermission(PERMISSION_MODULES.ATTENDANCE), async (req, res) => {
@@ -560,10 +560,51 @@ router.patch('/attendance/daily/status', requirePermission(PERMISSION_MODULES.AT
       status,
     });
 
-    return res.json({ message: 'Attendance status updated', employeeId, date, status });
+    return res.json({
+      message: 'Attendance status updated',
+      employeeId,
+      date,
+      status,
+      totalhours: formatHoursValue(totalhours),
+    });
   } catch (err) {
     console.error('PATCH /admin/attendance/daily/status:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+const {
+  listPendingRegularizationForHr,
+  reviewRegularizationRequest,
+} = require('../utils/attendanceRegularization');
+
+router.get('/attendance/regularization', requirePermission(PERMISSION_MODULES.ATTENDANCE), async (_req, res) => {
+  try {
+    const items = await listPendingRegularizationForHr();
+    return res.json({ items });
+  } catch (err) {
+    console.error('GET /admin/attendance/regularization:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.patch('/attendance/regularization/:id', requirePermission(PERMISSION_MODULES.ATTENDANCE), async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const action = String(req.body?.action || '').toLowerCase();
+    if (!Number.isFinite(id) || !['approve', 'reject'].includes(action)) {
+      return res.status(400).json({ message: 'Valid id and action (approve|reject) required' });
+    }
+    const result = await reviewRegularizationRequest({
+      id,
+      reviewerId: req.user.id,
+      action,
+    });
+    return res.json({ message: `Request ${result.status}`, ...result });
+  } catch (err) {
+    const status = err.status || 500;
+    console.error('PATCH /admin/attendance/regularization/:id:', err.message);
+    return res.status(status).json({ message: err.message || 'Internal server error' });
   }
 });
 
@@ -575,6 +616,17 @@ router.post('/attendance/essl-sync', requirePermission(PERMISSION_MODULES.ATTEND
   } catch (err) {
     console.error('POST /admin/attendance/essl-sync:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+router.post('/attendance/essl-sql-sync', requirePermission(PERMISSION_MODULES.ATTENDANCE), async (_req, res) => {
+  try {
+    const { runEsslSqlServerSync } = require('../jobs/esslSqlServerSync');
+    const result = await runEsslSqlServerSync();
+    return res.json(result);
+  } catch (err) {
+    console.error('POST /admin/attendance/essl-sql-sync:', err.message);
+    return res.status(500).json({ message: err.message || 'Internal server error' });
   }
 });
 

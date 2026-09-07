@@ -1,4 +1,7 @@
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
+const archiver = require('archiver');
 const { pool } = require('../db');
 const {
   authMiddleware,
@@ -10,6 +13,7 @@ const { createNotification } = require('../utils/notifications');
 const { isAdminRole } = require('../constants/roles');
 const { getExitNoticeSummary } = require('../utils/exitNoticeSummary');
 const { generateRelievingLetter, generateExperienceLetter } = require('../utils/exitLetters');
+const { getUploadsRoot } = require('../utils/storagePaths');
 const {
   CLEARANCE_TYPES,
   EXIT_TYPES,
@@ -908,6 +912,117 @@ router.put('/clearance/:id', async (req, res) => {
     return res.json({ message: `Clearance ${status}` });
   } catch (err) {
     console.error('PUT /exit/clearance/:id:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+function resolveDocumentFilePath(publicUrl) {
+  if (!publicUrl) return null;
+  const raw = String(publicUrl).trim();
+  if (!raw) return null;
+  if (/^https?:\/\//i.test(raw)) return { remoteUrl: raw };
+  const relative = raw.replace(/^\/uploads\/?/i, '');
+  const localPath = path.join(getUploadsRoot(), relative);
+  if (fs.existsSync(localPath)) return { localPath, fileName: path.basename(localPath) };
+  return null;
+}
+
+/** GET /api/exit/admin/documents — exit letters available for download */
+router.get('/admin/documents', requirePortalAdmin, async (_req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `
+        SELECT er.id, er.relieving_letter_url, er.experience_letter_url, er.last_working_day,
+               e.id AS employee_id, e.name, e.employeecode
+        FROM exit_requests er
+        JOIN employees e ON e.id = er.employee_id
+        WHERE er.relieving_letter_url IS NOT NULL OR er.experience_letter_url IS NOT NULL
+        ORDER BY COALESCE(er.reviewed_at, er.created_at) DESC, er.created_at DESC
+      `
+    );
+    const items = rows.map((r) => ({
+      exitRequestId: r.id,
+      employeeId: r.employee_id,
+      employeeName: r.name,
+      employeecode: r.employeecode,
+      lastWorkingDay: r.last_working_day,
+      relievingLetterUrl: r.relieving_letter_url,
+      experienceLetterUrl: r.experience_letter_url,
+      documents: [
+        r.relieving_letter_url
+          ? { type: 'relieving', label: 'Relieving letter', url: r.relieving_letter_url }
+          : null,
+        r.experience_letter_url
+          ? { type: 'experience', label: 'Experience letter', url: r.experience_letter_url }
+          : null,
+      ].filter(Boolean),
+    }));
+    return res.json({ items });
+  } catch (err) {
+    console.error('GET /exit/admin/documents:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+/** POST /api/exit/admin/documents/zip — download selected employees' exit documents */
+router.post('/admin/documents/zip', requirePortalAdmin, async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.exitRequestIds)
+      ? req.body.exitRequestIds.map(Number).filter((n) => n > 0)
+      : [];
+    if (!ids.length) {
+      return res.status(400).json({ message: 'exitRequestIds array is required' });
+    }
+
+    const { rows } = await pool.query(
+      `
+        SELECT er.id, er.relieving_letter_url, er.experience_letter_url,
+               e.name, e.employeecode
+        FROM exit_requests er
+        JOIN employees e ON e.id = er.employee_id
+        WHERE er.id = ANY($1::int[])
+      `,
+      [ids]
+    );
+
+    const files = [];
+    for (const row of rows) {
+      const prefix = `${row.employeecode || row.id}-${String(row.name || 'employee').replace(/\s+/g, '_')}`;
+      for (const [type, url] of [
+        ['relieving', row.relieving_letter_url],
+        ['experience', row.experience_letter_url],
+      ]) {
+        const resolved = resolveDocumentFilePath(url);
+        if (resolved?.localPath) {
+          files.push({ path: resolved.localPath, name: `${prefix}-${type}.pdf` });
+        } else if (resolved?.remoteUrl) {
+          files.push({ remoteUrl: resolved.remoteUrl, name: `${prefix}-${type}.pdf` });
+        }
+      }
+    }
+
+    if (!files.length) {
+      return res.status(404).json({ message: 'No downloadable documents found for selected employees' });
+    }
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="exit-documents.zip"');
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => {
+      console.error('exit documents zip:', err.message);
+      if (!res.headersSent) res.status(500).end();
+    });
+    archive.pipe(res);
+
+    for (const file of files) {
+      if (file.path) {
+        archive.file(file.path, { name: file.name });
+      }
+    }
+    await archive.finalize();
+    return undefined;
+  } catch (err) {
+    console.error('POST /exit/admin/documents/zip:', err.message);
     return res.status(500).json({ message: 'Internal server error' });
   }
 });

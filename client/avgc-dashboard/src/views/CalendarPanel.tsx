@@ -3,7 +3,7 @@ import { clampPortalYear, currentPortalYear, MIN_PORTAL_YEAR } from '@/lib/yearM
 import { api } from '@/lib/api';
 import { calendarDayAbbrev } from '@/lib/attendanceLabels';
 import { toast } from '@/lib/toast';
-import { formatTime } from '@/lib/datetime';
+import { formatHours, formatTime } from '@/lib/datetime';
 import { CALENDAR_COLORS as C } from '@/lib/calendarColors';
 import { resolveSaturdayStatus } from '@/lib/saturdayDefaults';
 type HistoryRecord = {
@@ -83,7 +83,9 @@ function CalendarDayTooltip({ cell }: { cell: Cell }) {
           <span className="attendance-calendar-missing">Not checked out</span>
         )}
       </p>
-      {cell.totalhours != null ? <p className="attendance-calendar-tooltip-hours">{cell.totalhours}h logged</p> : null}
+      {cell.totalhours != null ? (
+        <p className="attendance-calendar-tooltip-hours">{formatHours(cell.totalhours)}h logged</p>
+      ) : null}
     </div>
   );
 }
@@ -94,6 +96,10 @@ export function CalendarPanel() {
   const [cells, setCells] = useState<Cell[]>([]);
   const [hovered, setHovered] = useState<Cell | null>(null);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+  const [ticketCell, setTicketCell] = useState<Cell | null>(null);
+  const [ticketReason, setTicketReason] = useState('');
+  const [ticketLeaveType, setTicketLeaveType] = useState('casual');
+  const [ticketBusy, setTicketBusy] = useState(false);
 
   const build = useCallback(async (m: number, y: number) => {
     try {
@@ -228,6 +234,40 @@ export function CalendarPanel() {
     setHovered(null);
   }
 
+  function openTicket(c: Cell) {
+    if (c.kind === 'empty' || c.kind === 'weekend') return;
+    setTicketCell(c);
+    setTicketReason('');
+    setHovered(null);
+  }
+
+  async function submitTicket(requestType: 'regularize' | 'regularize_and_leave') {
+    if (!ticketCell) return;
+    if (!ticketReason.trim()) {
+      toast('Please enter a reason for HR', 'error');
+      return;
+    }
+    setTicketBusy(true);
+    try {
+      await api('/api/attendance/regularization', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: ticketCell.dateStr,
+          requestType,
+          reason: ticketReason.trim(),
+          leaveType: ticketLeaveType,
+        }),
+      });
+      toast('Request sent to HR for approval', 'success');
+      setTicketCell(null);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not submit request', 'error');
+    } finally {
+      setTicketBusy(false);
+    }
+  }
+
   const atMinMonth =
     year < MIN_PORTAL_YEAR || (year === MIN_PORTAL_YEAR && month <= 1);
 
@@ -301,6 +341,12 @@ export function CalendarPanel() {
               className={cellClasses(c)}
               onMouseEnter={(e) => showTooltip(e, c)}
               onMouseLeave={hideTooltip}
+              onClick={() => openTicket(c)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') openTicket(c);
+              }}
             >
               <span className="day-num">{c.day}</span>
               {c.kind !== 'weekend' && (
@@ -325,7 +371,64 @@ export function CalendarPanel() {
         </div>
       ) : null}
 
-      <p className="attendance-calendar-hint">Hover a day for check-in and check-out times.</p>
+      {ticketCell ? (
+        <div className="attendance-calendar-ticket-backdrop" role="presentation" onClick={() => setTicketCell(null)}>
+          <div
+            className="attendance-calendar-ticket-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="calendar-ticket-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="calendar-ticket-title" className="panel-title" style={{ marginBottom: 8 }}>
+              Request for {ticketCell.dateStr}
+            </h3>
+            <p className="stat-sub" style={{ marginBottom: 12 }}>
+              Submit a ticket to HR to regularize this day or apply leave.
+            </p>
+            <label className="form-group">
+              <span>Reason</span>
+              <textarea
+                rows={3}
+                value={ticketReason}
+                onChange={(e) => setTicketReason(e.target.value)}
+                placeholder="Explain what needs to be corrected"
+              />
+            </label>
+            <label className="form-group">
+              <span>Leave type (for combined request)</span>
+              <select value={ticketLeaveType} onChange={(e) => setTicketLeaveType(e.target.value)}>
+                <option value="casual">Casual</option>
+                <option value="sick">Sick</option>
+                <option value="earned">Earned</option>
+              </select>
+            </label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={ticketBusy}
+                onClick={() => submitTicket('regularize')}
+              >
+                Regularize this day
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                disabled={ticketBusy}
+                onClick={() => submitTicket('regularize_and_leave')}
+              >
+                Regularize and apply for leave
+              </button>
+              <button type="button" className="btn btn-outline btn-sm" onClick={() => setTicketCell(null)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      <p className="attendance-calendar-hint">Click a day to raise a regularization ticket. Hover for punch details.</p>
     </div>
   );
 }

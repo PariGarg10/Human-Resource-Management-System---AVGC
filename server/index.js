@@ -40,6 +40,7 @@ const { enforceOnboardingComplete } = require('./middleware/onboardingGate');
 const { startBirthdayReminderJob } = require('./jobs/birthdayReminders');
 const { startExitDeactivationJob } = require('./jobs/exitDeactivation');
 const { startEsslAttendanceSync } = require('./jobs/esslAttendanceSync');
+const { startEsslSqlServerSync } = require('./jobs/esslSqlServerSync');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -303,6 +304,10 @@ app.use((err, req, res, _next) => {
   res.status(500).json({ message: err.message || 'Internal server error' });
 });
 
+function envBool(value) {
+  return ['1', 'true', 'yes', 'on'].includes(String(value || '').toLowerCase());
+}
+
 async function startBackgroundJobs() {
   if (process.env.VERCEL) {
     console.log('[AVGC] Background jobs disabled on Vercel serverless.');
@@ -316,7 +321,11 @@ async function startBackgroundJobs() {
   }
   startBirthdayReminderJob();
   startExitDeactivationJob();
-  startEsslAttendanceSync();
+  if (envBool(process.env.ESSL_SQL_ENABLED)) {
+    startEsslSqlServerSync();
+  } else {
+    startEsslAttendanceSync();
+  }
 }
 
 if (require.main === module) {

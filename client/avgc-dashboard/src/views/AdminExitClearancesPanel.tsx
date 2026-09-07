@@ -32,8 +32,19 @@ function clearanceTabLabel(tab: 'it' | 'finance' | 'admin') {
   return tab.charAt(0).toUpperCase() + tab.slice(1);
 }
 
+type DocumentItem = {
+  exitRequestId: number;
+  employeeId: number;
+  employeeName: string;
+  employeecode?: string;
+  lastWorkingDay?: string;
+  relievingLetterUrl?: string | null;
+  experienceLetterUrl?: string | null;
+  documents: { type: string; label: string; url: string }[];
+};
+
 export function AdminExitClearancesPanel() {
-  const [mainTab, setMainTab] = useState<'review' | 'clearances' | 'letters'>('review');
+  const [mainTab, setMainTab] = useState<'review' | 'clearances' | 'letters' | 'documents'>('review');
   const [clearTab, setClearTab] = useState<'it' | 'finance' | 'admin'>('it');
   const [hrRequests, setHrRequests] = useState<HrRequest[]>([]);
   const [clearances, setClearances] = useState<ClearanceItem[]>([]);
@@ -44,6 +55,9 @@ export function AdminExitClearancesPanel() {
   const [letterCandidates, setLetterCandidates] = useState<
     { id: number; employeeName: string; lastWorkingDay?: string; relievingLetterUrl?: string | null; allClearancesApproved?: boolean }[]
   >([]);
+  const [documents, setDocuments] = useState<DocumentItem[]>([]);
+  const [selectedDocIds, setSelectedDocIds] = useState<number[]>([]);
+  const [docBusy, setDocBusy] = useState(false);
 
   const loadHr = useCallback(async () => {
     const data = await api<{ items: HrRequest[] }>('/api/exit/admin/requests');
@@ -70,18 +84,25 @@ export function AdminExitClearancesPanel() {
     );
   }, []);
 
+  const loadDocuments = useCallback(async () => {
+    const data = await api<{ items: DocumentItem[] }>('/api/exit/admin/documents');
+    setDocuments(data.items || []);
+    setSelectedDocIds([]);
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
       if (mainTab === 'review') await loadHr();
       else if (mainTab === 'letters') await loadLetters();
+      else if (mainTab === 'documents') await loadDocuments();
       else await loadClearances();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Load failed', 'error');
     } finally {
       setLoading(false);
     }
-  }, [mainTab, loadHr, loadClearances, loadLetters]);
+  }, [mainTab, loadHr, loadClearances, loadLetters, loadDocuments]);
 
   useEffect(() => {
     load().catch(() => {});
@@ -176,7 +197,8 @@ export function AdminExitClearancesPanel() {
         { method: 'POST' }
       );
       toast('Letters generated', 'success');
-      window.open(data.relievingLetterUrl, '_blank');
+      if (data.relievingLetterUrl) window.open(data.relievingLetterUrl, '_blank');
+      if (data.experienceLetterUrl) window.open(data.experienceLetterUrl, '_blank');
       await loadClearances();
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Letter generation failed', 'error');
@@ -185,18 +207,53 @@ export function AdminExitClearancesPanel() {
     }
   }
 
+  async function downloadSelectedDocuments() {
+    if (!selectedDocIds.length) {
+      toast('Select at least one employee', 'error');
+      return;
+    }
+    setDocBusy(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/exit/admin/documents/zip', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ exitRequestIds: selectedDocIds }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(String(body.message || 'Download failed'));
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'exit-documents.zip';
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Documents downloaded', 'success');
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Download failed', 'error');
+    } finally {
+      setDocBusy(false);
+    }
+  }
+
   return (
     <div className="panel admin-exit-clearances">
       <h2 className="panel-title">Exit Formalities</h2>
       <div className="exit-admin-tabs">
-        {(['review', 'clearances', 'letters'] as const).map((t) => (
+        {(['review', 'clearances', 'letters', 'documents'] as const).map((t) => (
           <button
             key={t}
             type="button"
             className={`btn btn-sm ${mainTab === t ? 'btn-primary' : 'btn-outline'}`}
             onClick={() => setMainTab(t)}
           >
-            {t === 'review' ? 'HR review' : t === 'clearances' ? 'Clearances' : 'Letters'}
+            {t === 'review' ? 'HR review' : t === 'clearances' ? 'Clearances' : t === 'letters' ? 'Letters' : 'Documents'}
           </button>
         ))}
       </div>
@@ -251,6 +308,100 @@ export function AdminExitClearancesPanel() {
             ))}
           </div>
         )
+      ) : mainTab === 'documents' ? (
+        <>
+            <div className="filters-inline" style={{ marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <button
+                type="button"
+                className="btn btn-outline btn-sm"
+                disabled={selectedDocIds.length === 0}
+                onClick={() => {
+                  const urls = documents
+                    .filter((d) => selectedDocIds.includes(d.exitRequestId))
+                    .flatMap((d) => d.documents.map((doc) => doc.url));
+                  urls.forEach((url) => window.open(url, '_blank', 'noopener,noreferrer'));
+                }}
+              >
+                Open selected
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                disabled={docBusy || selectedDocIds.length === 0}
+                onClick={() => downloadSelectedDocuments()}
+              >
+                {docBusy ? 'Preparing ZIP…' : 'Download selected as ZIP'}
+              </button>
+            <button type="button" className="btn btn-outline btn-sm" onClick={() => loadDocuments().catch(() => {})}>
+              Refresh
+            </button>
+          </div>
+          {documents.length === 0 ? (
+            <p className="stat-sub">No exit documents generated yet.</p>
+          ) : (
+            <div className="table-wrap table-wrap--scroll">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>
+                      <input
+                        type="checkbox"
+                        aria-label="Select all documents"
+                        checked={selectedDocIds.length > 0 && selectedDocIds.length === documents.length}
+                        onChange={(e) =>
+                          setSelectedDocIds(e.target.checked ? documents.map((d) => d.exitRequestId) : [])
+                        }
+                      />
+                    </th>
+                    <th>Employee</th>
+                    <th>Last working day</th>
+                    <th>Documents</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((item) => (
+                    <tr key={item.exitRequestId}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={selectedDocIds.includes(item.exitRequestId)}
+                          onChange={(e) => {
+                            setSelectedDocIds((prev) =>
+                              e.target.checked
+                                ? [...prev, item.exitRequestId]
+                                : prev.filter((id) => id !== item.exitRequestId)
+                            );
+                          }}
+                          aria-label={`Select ${item.employeeName}`}
+                        />
+                      </td>
+                      <td>
+                        <strong>{item.employeeName}</strong>
+                        {item.employeecode ? <div className="stat-sub">{item.employeecode}</div> : null}
+                      </td>
+                      <td>{item.lastWorkingDay || '—'}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          {item.documents.map((doc) => (
+                            <a
+                              key={`${item.exitRequestId}-${doc.type}`}
+                              href={doc.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn btn-outline btn-sm"
+                            >
+                              {doc.label}
+                            </a>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
       ) : mainTab === 'letters' ? (
         letterCandidates.length === 0 ? (
           <p className="stat-sub">No employees ready for letter generation yet (all clearances must be approved).</p>

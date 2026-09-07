@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const archiver = require('archiver');
 const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, enforceForcePasswordChange, requirePortalAdmin, isFounderUser } = require('../middleware/auth');
@@ -290,6 +291,60 @@ router.patch('/mine/:id', upload.single('file'), async (req, res) => {
   } catch (err) {
     console.error('PATCH /employee-documents/mine/:id:', err.message);
     return res.status(400).json({ message: err.message || 'Update failed' });
+  }
+});
+
+/** POST admin bulk download — selected document ids as ZIP */
+router.post('/admin/zip', requirePortalAdmin, async (req, res) => {
+  try {
+    await ensureEmployeeDocumentsTable();
+    const ids = Array.isArray(req.body?.documentIds)
+      ? req.body.documentIds.map(Number).filter((n) => n > 0)
+      : [];
+    if (!ids.length) {
+      return res.status(400).json({ message: 'documentIds array is required' });
+    }
+
+    const { rows } = await pool.query(
+      `
+        SELECT d.id, d.original_name, d.stored_name, e.name AS employee_name, e.employeecode
+        FROM employee_documents d
+        JOIN employees e ON e.id = d.employee_id
+        WHERE d.id = ANY($1::int[])
+        ORDER BY e.name ASC, d.created_at ASC
+      `,
+      [ids]
+    );
+
+    const files = [];
+    for (const row of rows) {
+      const filePath = path.join(uploadDir, row.stored_name);
+      if (!fs.existsSync(filePath)) continue;
+      const prefix = `${row.employeecode || row.id}-${String(row.employee_name || 'employee').replace(/\s+/g, '_')}`;
+      const safeName = String(row.original_name || 'document').replace(/[/\\?%*:|"<>]/g, '_');
+      files.push({ path: filePath, name: `${prefix}-${safeName}` });
+    }
+
+    if (!files.length) {
+      return res.status(404).json({ message: 'No downloadable documents found for selected items' });
+    }
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', 'attachment; filename="employee-documents.zip"');
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.on('error', (err) => {
+      console.error('employee documents zip:', err.message);
+      if (!res.headersSent) res.status(500).end();
+    });
+    archive.pipe(res);
+    for (const file of files) {
+      archive.file(file.path, { name: file.name });
+    }
+    await archive.finalize();
+    return undefined;
+  } catch (err) {
+    console.error('POST /employee-documents/admin/zip:', err.message);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 });
 

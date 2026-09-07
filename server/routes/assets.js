@@ -39,7 +39,7 @@ function parseAssetImportBuffer(fileBuffer) {
     modelNumber: ['model number', 'model no', 'model'],
     serialNumber: ['serial number', 'serial no', 'serial'],
     quantity: ['quantity', 'qty', 'count', 'total count'],
-    assignedTo: ['assigned to', 'employee code', 'employee', 'assigned employee'],
+    assetId: ['asset id', 'asset code', 'asset identifier', 'assetid'],
   };
 
   const headers = matrix[headerIndex].map(normalizeImportHeader);
@@ -65,16 +65,26 @@ function parseAssetImportBuffer(fileBuffer) {
       modelNumber: String(row[columnIndex.modelNumber] || '').trim(),
       serialNumber: String(row[columnIndex.serialNumber] || '').trim(),
       quantity: Number(row[columnIndex.quantity]),
+      assetId: columnIndex.assetId != null ? String(row[columnIndex.assetId] || '').trim() : '',
       assignedTo:
         columnIndex.assignedTo != null ? String(row[columnIndex.assignedTo] || '').trim() : '',
     }))
-    .filter((row) => row.deviceType || row.modelNumber || row.serialNumber || row.quantity || row.assignedTo);
+    .filter(
+      (row) =>
+        row.deviceType ||
+        row.modelNumber ||
+        row.serialNumber ||
+        row.quantity ||
+        row.assignedTo ||
+        row.assetId
+    );
 }
 
 async function inventoryWithCounts() {
   const result = await pool.query(`
     SELECT
       i.id,
+      i.asset_id AS "assetId",
       i.name,
       i.category,
       i.model_number AS "modelNumber",
@@ -108,6 +118,7 @@ async function listAllocations() {
       e.name AS "employeeName",
       e.employeecode AS "employeeCode",
       i.name AS "itemName",
+      i.asset_id AS "assetId",
       i.category AS "itemCategory",
       COALESCE(al.model_number, i.model_number) AS "modelNumber",
       COALESCE(al.serial_number, i.serial_number) AS "serialNumber"
@@ -203,6 +214,7 @@ router.post('/inventory', requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT_HEAD
     const category = String(req.body?.category || '').trim();
     const modelNumber = req.body?.modelNumber != null ? String(req.body.modelNumber).trim() : null;
     const serialNumber = req.body?.serialNumber != null ? String(req.body.serialNumber).trim() : null;
+    const assetId = req.body?.assetId != null ? String(req.body.assetId).trim() : null;
     const totalCount = Number(req.body?.totalCount ?? req.body?.total_count);
     if (!name || !category) {
       return res.status(400).json({ message: 'Name and category are required' });
@@ -212,11 +224,11 @@ router.post('/inventory', requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.IT_HEAD
     }
     const inserted = await pool.query(
       `
-        INSERT INTO inventory_items (name, category, model_number, serial_number, total_count)
-        VALUES ($1, $2, $3, $4, $5)
-        RETURNING id, name, category, model_number AS "modelNumber", serial_number AS "serialNumber", total_count AS "totalCount"
+        INSERT INTO inventory_items (asset_id, name, category, model_number, serial_number, total_count)
+        VALUES ($1, $2, $3, $4, $5, $6)
+        RETURNING id, asset_id AS "assetId", name, category, model_number AS "modelNumber", serial_number AS "serialNumber", total_count AS "totalCount"
       `,
-      [name, category, modelNumber || null, serialNumber || null, Math.floor(totalCount)]
+      [assetId || null, name, category, modelNumber || null, serialNumber || null, Math.floor(totalCount)]
     );
     return res.status(201).json({ item: inserted.rows[0], message: 'Inventory item added' });
   } catch (err) {
@@ -262,13 +274,14 @@ router.post(
 
           const category = row.category || 'General';
           const quantity = Math.floor(row.quantity);
+          const assetId = row.assetId || null;
           const inserted = await pool.query(
             `
-              INSERT INTO inventory_items (name, category, model_number, serial_number, total_count)
-              VALUES ($1, $2, $3, $4, $5)
+              INSERT INTO inventory_items (asset_id, name, category, model_number, serial_number, total_count)
+              VALUES ($1, $2, $3, $4, $5, $6)
               RETURNING id
             `,
-            [row.deviceType, category, row.modelNumber, row.serialNumber, quantity]
+            [assetId, row.deviceType, category, row.modelNumber, row.serialNumber, quantity]
           );
 
           if (row.assignedTo) {
@@ -367,6 +380,7 @@ router.get('/inventory/export', requireRoles(ROLES.ADMIN, ROLES.FOUNDER, ROLES.I
   try {
     const items = await inventoryWithCounts();
     const rows = items.map((row) => ({
+      'Asset ID': row.assetId || '',
       'Item name': row.name,
       Category: row.category,
       'Model number': row.modelNumber || '',

@@ -1,5 +1,37 @@
 window.HRMS = window.HRMS || {};
 
+HRMS.isReactPortalNav = function isReactPortalNav() {
+  const root = document.getElementById('root');
+  return Boolean(root && root.firstElementChild);
+};
+
+HRMS.canNavigatePortalBack = function canNavigatePortalBack() {
+  if (HRMS.isReactPortalNav()) {
+    return (HRMS._reactNavDepth || 0) > 1;
+  }
+  return (HRMS._portalNavHistory?.length || 0) > 1;
+};
+
+HRMS.updatePortalBackButton = function updatePortalBackButton() {
+  const btn = document.getElementById('portalNavBackBtn');
+  if (!btn) return;
+  const can = HRMS.canNavigatePortalBack();
+  btn.disabled = !can;
+  btn.classList.toggle('is-disabled', !can);
+  btn.setAttribute('aria-disabled', can ? 'false' : 'true');
+};
+
+HRMS.initNavBackButton = function initNavBackButton() {
+  const btn = document.getElementById('portalNavBackBtn');
+  if (!btn || btn.dataset.navBackBound === '1') return;
+  btn.dataset.navBackBound = '1';
+  btn.addEventListener('click', () => {
+    if (HRMS.navigatePortalBack) HRMS.navigatePortalBack();
+  });
+  HRMS.updatePortalBackButton();
+  if (window.HRMS?.refreshNavIcons) HRMS.refreshNavIcons(btn);
+};
+
 HRMS.initNavbarClock = function initNavbarClock(elementId) {
   const el = document.getElementById(elementId || 'navbarClock');
   if (!el) return;
