@@ -1,24 +1,14 @@
 const express = require('express');
 const path = require('path');
-const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, enforceForcePasswordChange, requirePortalAdmin, isFounderUser } = require('../middleware/auth');
 const { isAdminRole } = require('../constants/roles');
-const { getUploadsRoot, getPublicDir } = require('../utils/storagePaths');
+const { createMulterUploader } = require('../utils/multerUpload');
+const { uploadsUrl } = require('../utils/objectStorage');
 const { formatDisplayDate } = require('../utils/formatDate');
 
 const router = express.Router();
-const uploadDir = getUploadsRoot('policies');
-
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname || '').slice(0, 12).toLowerCase();
-      const safe = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
-      cb(null, safe);
-    },
-  }),
+const { upload, finalize } = createMulterUploader('policies', {
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
@@ -90,7 +80,8 @@ router.post(
       if (!title) return res.status(400).json({ message: 'Title is required' });
       if (!req.file) return res.status(400).json({ message: 'File is required' });
 
-      const fileUrl = `/uploads/policies/${req.file.filename}`;
+      const storedName = await finalize(req.file);
+      const fileUrl = uploadsUrl('policies', storedName);
       const ins = await pool.query(
         `
           INSERT INTO policy_documents (title, description, type, file_url, uploaded_by, is_visible)

@@ -1,25 +1,15 @@
 const express = require('express');
 const path = require('path');
-const multer = require('multer');
-const { getUploadsRoot } = require('../utils/storagePaths');
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { resolveAdminContext } = require('../middleware/adminAuth');
 const { PERMISSION_MODULES } = require('../utils/adminPermissions');
 const { logAudit } = require('../utils/audit');
+const { createMulterUploader } = require('../utils/multerUpload');
+const { uploadsUrl } = require('../utils/objectStorage');
 
 const router = express.Router();
-const uploadDir = getUploadsRoot('concerns');
-
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname || '').slice(0, 12) || '.bin';
-      const safe = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
-      cb(null, safe);
-    },
-  }),
+const { upload, finalize } = createMulterUploader('concerns', {
   limits: { fileSize: 5 * 1024 * 1024 },
 });
 
@@ -288,7 +278,9 @@ router.post('/', upload.single('attachment'), async (req, res) => {
       return res.status(400).json({ message: error.message || 'Invalid recipient' });
     }
 
-    const attachmentUrl = req.file ? `/uploads/concerns/${req.file.filename}` : null;
+    const attachmentUrl = req.file
+      ? uploadsUrl('concerns', await finalize(req.file))
+      : null;
     const insertResult = await pool.query(
       `
       INSERT INTO concerns (raised_by, raised_to, subject, description, priority, attachmenturl, awaiting_reply_from)
@@ -393,7 +385,9 @@ router.patch('/:id/respond', upload.single('responseAttachment'), async (req, re
       return res.status(403).json({ message: 'Only the assigned recipient can close this request' });
     }
 
-    const messageAttachmentUrl = req.file ? `/uploads/concerns/${req.file.filename}` : null;
+    const messageAttachmentUrl = req.file
+      ? uploadsUrl('concerns', await finalize(req.file))
+      : null;
     await pool.query(
       `
       INSERT INTO concern_messages (concern_id, author_id, body, attachmenturl)

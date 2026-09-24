@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { syncPortalUserIdentityDom } from '@/components/PortalUserIdentity';
+import { formatTime } from '@/lib/datetime';
 import { api, logout } from '@/lib/api';
 import type { PortalNavId } from '@/lib/portalNav';
 import type { EmployeeUser } from '@/types/employee';
@@ -72,12 +73,7 @@ export function usePortalShell(
 
   useEffect(() => {
     if (!user?.id) return;
-    const formatPunch = (value: string | null | undefined) => {
-      if (!value) return '—';
-      const d = new Date(value);
-      if (Number.isNaN(d.getTime())) return '—';
-      return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-    };
+    const formatPunch = (value: string | null | undefined) => formatTime(value ?? null);
     api<{ record?: { punchin?: string | null; punchout?: string | null } | null }>('/api/attendance/today')
       .then((data) => {
         syncPortalUserIdentityDom(user, formatPunch(data.record?.punchin), formatPunch(data.record?.punchout));

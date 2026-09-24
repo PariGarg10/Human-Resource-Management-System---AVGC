@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ProfilePhotoImg } from '@/components/ui/ProfilePhotoImg';
 import { useUser } from '@/context/UserContext';
 import { api } from '@/lib/api';
+import { formatTime } from '@/lib/datetime';
 import type { EmployeeUser } from '@/types/employee';
 
 type Props = {
@@ -9,13 +10,6 @@ type Props = {
   className?: string;
   variant?: 'hero' | 'sidebar';
 };
-
-function formatPunch(value: string | null | undefined) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-}
 
 function identityInitial(name: string) {
   return (name.trim()[0] || '—').toUpperCase();
@@ -36,8 +30,8 @@ export function PortalUserIdentity({ user, className = '', variant = 'hero' }: P
       const data = await api<{ record?: { punchin?: string | null; punchout?: string | null } | null }>(
         '/api/attendance/today'
       );
-      setPunchIn(formatPunch(data.record?.punchin));
-      setPunchOut(formatPunch(data.record?.punchout));
+      setPunchIn(formatTime(data.record?.punchin));
+      setPunchOut(formatTime(data.record?.punchout));
     } catch {
       setPunchIn('—');
       setPunchOut('—');

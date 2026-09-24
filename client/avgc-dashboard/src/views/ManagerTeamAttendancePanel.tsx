@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { formatAttendanceStatus, formatLiveDate, monthName } from '@/lib/attendanceLabels';
 import { clampPortalYear, currentPortalYear, MIN_PORTAL_YEAR } from '@/lib/yearMin';
-import { formatHours } from '@/lib/datetime';
+import { formatHours, formatTime } from '@/lib/datetime';
 import { toast } from '@/lib/toast';
 
 type DashboardSummary = {
@@ -172,8 +172,8 @@ export function ManagerTeamAttendancePanel() {
                       </td>
                       <td>{row.department || '—'}</td>
                       <td>{formatAttendanceStatus(row.status)}</td>
-                      <td>{row.punchin || '—'}</td>
-                      <td>{row.punchout || '—'}</td>
+                      <td>{formatTime(row.punchin)}</td>
+                      <td>{formatTime(row.punchout)}</td>
                       <td>{row.totalhours != null ? formatHours(row.totalhours) : '—'}</td>
                     </tr>
                   ))

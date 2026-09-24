@@ -1,8 +1,7 @@
 const fs = require('fs');
 
-async function extractPdfText(filePath) {
+async function extractPdfText(buffer) {
   const { PDFParse } = require('pdf-parse');
-  const buffer = fs.readFileSync(filePath);
   const parser = new PDFParse({ data: buffer });
   try {
     const result = await parser.getText();
@@ -12,27 +11,31 @@ async function extractPdfText(filePath) {
   }
 }
 
-async function extractTextFromFile(filePath, originalName) {
-  const ext = String(originalName || filePath)
+async function extractTextFromBuffer(buffer, originalName) {
+  const ext = String(originalName || '')
     .split('.')
     .pop()
     .toLowerCase();
 
   if (ext === 'txt') {
-    return fs.readFileSync(filePath, 'utf8');
+    return buffer.toString('utf8');
   }
 
   if (ext === 'pdf') {
-    return extractPdfText(filePath);
+    return extractPdfText(buffer);
   }
 
   if (ext === 'docx') {
     const mammoth = require('mammoth');
-    const result = await mammoth.extractRawText({ path: filePath });
+    const result = await mammoth.extractRawText({ buffer });
     return result.value || '';
   }
 
   throw new Error('Unsupported file type. Use .pdf, .txt, or .docx');
 }
 
-module.exports = { extractTextFromFile };
+async function extractTextFromFile(filePath, originalName) {
+  return extractTextFromBuffer(fs.readFileSync(filePath), originalName);
+}
+
+module.exports = { extractTextFromFile, extractTextFromBuffer };

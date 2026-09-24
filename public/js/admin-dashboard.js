@@ -78,6 +78,19 @@ function formatDateTime(value) {
   return new Date(value).toLocaleString();
 }
 
+function formatPunchTime(value) {
+  if (window.HRMS?.formatPunchTime) return HRMS.formatPunchTime(value);
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
 async function api(path, options = {}, withAuth = true) {
   const headers = { ...(options.headers || {}) };
   if (withAuth) headers.Authorization = `Bearer ${token}`;
@@ -1167,8 +1180,8 @@ function renderAdminDailyAttendanceRows(records) {
       <td>${row.employeecode}</td>
       <td>${row.name}</td>
       <td>${row.department || '—'}</td>
-      <td>${formatDateTime(row.punchin)}</td>
-      <td>${formatDateTime(row.punchout)}</td>
+      <td>${formatPunchTime(row.punchin)}</td>
+      <td>${formatPunchTime(row.punchout)}</td>
       <td>${HRMS.formatHours ? HRMS.formatHours(row.totalhours) : row.totalhours ?? '—'}</td>
       <td>${statusCell}</td>
     </tr>`;

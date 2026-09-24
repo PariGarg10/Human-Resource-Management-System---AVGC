@@ -1,11 +1,10 @@
 const express = require('express');
-const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const { pool } = require('../db');
 const { authMiddleware, enforceForcePasswordChange, requirePortalAdmin } = require('../middleware/auth');
-const { getUploadsRoot } = require('../utils/storagePaths');
-const { extractTextFromFile } = require('../utils/policyTextExtract');
+const { extractTextFromFile, extractTextFromBuffer } = require('../utils/policyTextExtract');
+const { createMulterUploader } = require('../utils/multerUpload');
 const { PLATFORM_GUIDE } = require('../utils/platformGuide');
 const { retrieveRelevantPolicyContext } = require('../utils/policyContextRetrieval');
 
@@ -13,17 +12,7 @@ const router = express.Router();
 router.use(authMiddleware);
 router.use(enforceForcePasswordChange);
 
-const uploadDir = getUploadsRoot('policy-chat');
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
-
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadDir),
-    filename: (_req, file, cb) => {
-      const safe = String(file.originalname || 'document').replace(/[^\w.\-]+/g, '_');
-      cb(null, `${Date.now()}-${safe}`);
-    },
-  }),
+const { upload, finalize } = createMulterUploader('policy-chat', {
   limits: { fileSize: 12 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
@@ -176,12 +165,15 @@ router.get('/knowledge', requirePortalAdmin, async (_req, res) => {
 router.post('/knowledge/upload', requirePortalAdmin, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ message: 'file is required' });
-    const content = await extractTextFromFile(req.file.path, req.file.originalname);
+    const buffer = req.file.buffer || (req.file.path ? fs.readFileSync(req.file.path) : null);
+    const content = buffer
+      ? await extractTextFromBuffer(buffer, req.file.originalname)
+      : await extractTextFromFile(req.file.path, req.file.originalname);
     const trimmed = String(content || '').trim();
     if (!trimmed) {
-      fs.unlinkSync(req.file.path);
       return res.status(400).json({ message: 'Could not extract text from this file' });
     }
+    await finalize(req.file);
     const inserted = await pool.query(
       `
         INSERT INTO policy_chat_documents (filename, content, uploaded_by)
@@ -192,7 +184,6 @@ router.post('/knowledge/upload', requirePortalAdmin, upload.single('file'), asyn
     );
     return res.status(201).json({ document: inserted.rows[0], message: 'Document uploaded' });
   } catch (err) {
-    if (req.file?.path && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
     console.error('POST /policies/knowledge/upload:', err.message);
     return res.status(500).json({ message: err.message || 'Upload failed' });
   }

@@ -1,9 +1,9 @@
 const express = require('express');
 const path = require('path');
-const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, enforceForcePasswordChange, requirePortalAdmin } = require('../middleware/auth');
-const { getUploadsRoot } = require('../utils/storagePaths');
+const { createMulterUploader } = require('../utils/multerUpload');
+const { uploadsUrl } = require('../utils/objectStorage');
 const {
   ensureSocialPostsTables,
   isPortalAdminUser,
@@ -14,17 +14,7 @@ const {
 } = require('../utils/socialPosts');
 
 const router = express.Router();
-const uploadDir = getUploadsRoot('social-posts');
-
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname || '').slice(0, 12).toLowerCase();
-      const safe = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
-      cb(null, safe);
-    },
-  }),
+const { upload, finalize } = createMulterUploader('social-posts', {
   limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
@@ -92,7 +82,8 @@ router.post('/', uploadSingle('media'), async (req, res) => {
     let mediaUrl = '';
     let mediaType = 'text';
     if (req.file) {
-      mediaUrl = `/uploads/social-posts/${req.file.filename}`;
+      const storedName = await finalize(req.file);
+      mediaUrl = uploadsUrl('social-posts', storedName);
       mediaType = String(req.file.mimetype || '').startsWith('video/') ? 'video' : 'image';
     }
 

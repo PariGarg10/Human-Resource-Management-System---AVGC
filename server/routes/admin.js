@@ -1618,17 +1618,21 @@ router.post('/import-attendance', requirePermission(PERMISSION_MODULES.IMPORT_DA
 
   let rows = [];
   let headerRow = 1;
+  let fileAttendanceDate = null;
   try {
     const parsedFile = readAttendanceRowsFromFile(req.file.path);
     rows = parsedFile.rows;
     headerRow = parsedFile.headerRow;
+    fileAttendanceDate = parsedFile.attendanceDate || null;
   } catch (_error) {
     fs.unlink(req.file.path, () => {});
     return res.status(400).json({ message: _error.message || 'Unable to parse attendance file' });
   }
 
   const fallbackDate =
-    normalizeImportDate(req.body?.attendanceDate) || format(new Date(), 'yyyy-MM-dd');
+    normalizeImportDate(req.body?.attendanceDate) ||
+    fileAttendanceDate ||
+    format(new Date(), 'yyyy-MM-dd');
 
   try {
     await ensureImportAttendanceRecordsTable();

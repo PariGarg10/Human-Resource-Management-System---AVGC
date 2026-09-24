@@ -1,7 +1,18 @@
 const XLSX = require('xlsx');
 
+/** Office wall-clock timezone — AWS EB runs UTC; punches must stay IST. */
+const BUSINESS_TZ = process.env.HRMS_TIMEZONE || 'Asia/Kolkata';
+const BUSINESS_TZ_OFFSET = process.env.HRMS_TZ_OFFSET || '+05:30';
+
 function pad2(n) {
   return String(n).padStart(2, '0');
+}
+
+function addDaysToYmd(ymd, days) {
+  const [y, m, d] = String(ymd).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  const dt = new Date(Date.UTC(y, m - 1, d + days, 12, 0, 0));
+  return `${dt.getUTCFullYear()}-${pad2(dt.getUTCMonth() + 1)}-${pad2(dt.getUTCDate())}`;
 }
 
 /** Normalize Excel / text values to YYYY-MM-DD for PostgreSQL DATE. */
@@ -24,8 +35,13 @@ function normalizeImportDate(value) {
   const slash = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
   if (slash) return `${slash[3]}-${pad2(slash[2])}-${pad2(slash[1])}`;
 
-  const dmyTime = raw.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
-  if (dmyTime) return `${dmyTime[3]}-${pad2(dmyTime[2])}-${pad2(dmyTime[1])}`;
+  const dmyMon = raw.match(/^(\d{1,2})[-/\s]([A-Za-z]{3,9})[-/\s](\d{4})$/);
+  if (dmyMon) {
+    const parsedMon = new Date(`${dmyMon[1]} ${dmyMon[2]} ${dmyMon[3]}`);
+    if (!Number.isNaN(parsedMon.getTime())) {
+      return `${parsedMon.getFullYear()}-${pad2(parsedMon.getMonth() + 1)}-${pad2(parsedMon.getDate())}`;
+    }
+  }
 
   const parsedDate = new Date(raw);
   if (!Number.isNaN(parsedDate.getTime())) {
@@ -52,10 +68,13 @@ function pickRowField(row, aliases) {
   return undefined;
 }
 
+/** Build a Date from office wall-clock (IST), not the server's local timezone. */
 function dateFromYmd(ymd, hour = 0, minute = 0, second = 0) {
   const [y, m, d] = String(ymd).split('-').map(Number);
   if (!y || !m || !d) return null;
-  return new Date(y, m - 1, d, hour, minute, second);
+  const iso = `${y}-${pad2(m)}-${pad2(d)}T${pad2(hour)}:${pad2(minute)}:${pad2(second)}${BUSINESS_TZ_OFFSET}`;
+  const dt = new Date(iso);
+  return Number.isNaN(dt.getTime()) ? null : dt;
 }
 
 /**
@@ -66,8 +85,9 @@ function parseDateTimeValue(value, fallbackDateStr) {
   if (value == null || value === '') return null;
 
   if (value instanceof Date && !Number.isNaN(value.getTime())) {
-    // Excel time-only cells become epoch dates in UTC; use UTC parts to avoid +5:30 drift.
-    if (fallbackDateStr && value.getFullYear() < 1980) {
+    if (fallbackDateStr) {
+      // Daily biometric export: InTime/OutTime are IST wall-clock on fallbackDate.
+      // Never pass through raw Date — on AWS (UTC) that stores the wrong instant.
       return dateFromYmd(
         fallbackDateStr,
         value.getUTCHours(),
@@ -84,7 +104,10 @@ function parseDateTimeValue(value, fallbackDateStr) {
     if (value > 0 && value < 1 && fallbackDateStr) {
       return dateFromYmd(fallbackDateStr, p.H || 0, p.M || 0, p.S || 0);
     }
-    return new Date(p.y, p.m - 1, p.d, p.H || 0, p.M || 0, p.S || 0);
+    if (p.y && p.m && p.d) {
+      return dateFromYmd(`${p.y}-${pad2(p.m)}-${pad2(p.d)}`, p.H || 0, p.M || 0, p.S || 0);
+    }
+    return null;
   }
 
   const raw = String(value).trim();
@@ -93,10 +116,8 @@ function parseDateTimeValue(value, fallbackDateStr) {
     /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/
   );
   if (dmyTime) {
-    return new Date(
-      Number(dmyTime[3]),
-      Number(dmyTime[2]) - 1,
-      Number(dmyTime[1]),
+    return dateFromYmd(
+      `${Number(dmyTime[3])}-${pad2(Number(dmyTime[2]))}-${pad2(Number(dmyTime[1]))}`,
       Number(dmyTime[4]),
       Number(dmyTime[5]),
       Number(dmyTime[6] || 0)
@@ -105,10 +126,8 @@ function parseDateTimeValue(value, fallbackDateStr) {
 
   const isoTime = raw.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?/);
   if (isoTime) {
-    return new Date(
-      Number(isoTime[1]),
-      Number(isoTime[2]) - 1,
-      Number(isoTime[3]),
+    return dateFromYmd(
+      `${isoTime[1]}-${isoTime[2]}-${isoTime[3]}`,
       Number(isoTime[4]),
       Number(isoTime[5]),
       Number(isoTime[6] || 0)
@@ -128,7 +147,7 @@ function parseDateTimeValue(value, fallbackDateStr) {
 
   const d = new Date(raw);
   if (!Number.isNaN(d.getTime())) {
-    if (fallbackDateStr && d.getFullYear() < 1980) {
+    if (fallbackDateStr) {
       return dateFromYmd(
         fallbackDateStr,
         d.getUTCHours(),
@@ -313,6 +332,25 @@ function isAttendanceHeaderRow(row) {
   return hasCode || hasName;
 }
 
+/** Read "Attendance Date: 17-Aug-2026" from rows above the table header. */
+function extractAttendanceDateFromMatrix(matrix) {
+  for (const row of matrix.slice(0, 20)) {
+    for (let i = 0; i < row.length; i += 1) {
+      const cell = String(row[i] ?? '').trim();
+      const inline = cell.match(/attendance\s*date\s*:?\s*(.+)$/i);
+      if (inline) {
+        const d = normalizeImportDate(inline[1].trim());
+        if (d) return d;
+      }
+      if (/attendance\s*date/i.test(cell) && i + 1 < row.length) {
+        const d = normalizeImportDate(row[i + 1]);
+        if (d) return d;
+      }
+    }
+  }
+  return null;
+}
+
 /** Find header row and return objects keyed by column titles (SNo, E. Code, Name, InTime, …). */
 function readAttendanceRowsFromFile(filePath) {
   const workbook = XLSX.readFile(filePath, { cellDates: true });
@@ -342,7 +380,9 @@ function readAttendanceRowsFromFile(filePath) {
     rows.push(obj);
   }
 
-  return { rows, headerRow: headerIndex + 1, headers };
+  const attendanceDate = extractAttendanceDateFromMatrix(matrix);
+
+  return { rows, headerRow: headerIndex + 1, headers, attendanceDate };
 }
 
 /**
@@ -400,7 +440,11 @@ function parseAttendanceRow(row, options = {}) {
   ]);
 
   const punchIn = parseDateTimeValue(punchInRaw, fallbackDate);
-  const punchOut = parseDateTimeValue(punchOutRaw, fallbackDate);
+  let punchOut = parseDateTimeValue(punchOutRaw, fallbackDate);
+  if (punchIn && punchOut && punchOut.getTime() <= punchIn.getTime() && fallbackDate) {
+    const nextDay = addDaysToYmd(fallbackDate, 1);
+    if (nextDay) punchOut = parseDateTimeValue(punchOutRaw, nextDay);
+  }
 
   let date = normalizeImportDate(pickRowField(row, ['date', 'attendance date', 'work date']));
   if (!date && punchIn) date = normalizeImportDate(punchIn);
@@ -642,21 +686,30 @@ async function resolveAttendanceEmployee(db, { employeecode, employeeName, email
   return null;
 }
 
-/** Store punch times in local wall-clock (avoid toISOString UTC shift in IST). */
+/** Store punch times as IST wall-clock (+05:30) so AWS UTC servers don't shift times. */
 function punchTimestampForStorage(dateObj, fallbackDateYmd) {
   if (!dateObj || Number.isNaN(dateObj.getTime())) return null;
-  let y = dateObj.getFullYear();
-  let m = dateObj.getMonth() + 1;
-  let d = dateObj.getDate();
-  if (y < 1980 && fallbackDateYmd) {
-    const [fy, fm, fd] = String(fallbackDateYmd).split('-').map(Number);
-    if (fy && fm && fd) {
-      y = fy;
-      m = fm;
-      d = fd;
-    }
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: BUSINESS_TZ,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    })
+      .formatToParts(dateObj)
+      .filter((p) => p.type !== 'literal')
+      .map((p) => [p.type, p.value])
+  );
+  if (!parts.year) {
+    if (!fallbackDateYmd) return null;
+    const [y, m, d] = String(fallbackDateYmd).split('-');
+    return `${y}-${m}-${d}T00:00:00${BUSINESS_TZ_OFFSET}`;
   }
-  return `${y}-${pad2(m)}-${pad2(d)}T${pad2(dateObj.getHours())}:${pad2(dateObj.getMinutes())}:${pad2(dateObj.getSeconds())}`;
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}${BUSINESS_TZ_OFFSET}`;
 }
 
 module.exports = {

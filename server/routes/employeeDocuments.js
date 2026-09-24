@@ -1,12 +1,18 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
 const archiver = require('archiver');
-const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, enforceForcePasswordChange, requirePortalAdmin, isFounderUser } = require('../middleware/auth');
 const { isAdminRole } = require('../constants/roles');
-const { getUploadsRoot } = require('../utils/storagePaths');
+const { createMulterUploader } = require('../utils/multerUpload');
+const {
+  deleteObject,
+  exists,
+  pipeToResponse,
+  getBuffer,
+  localFilePath,
+  isS3Enabled,
+} = require('../utils/objectStorage');
 const {
   EMPLOYEE_CATEGORIES,
   ADMIN_CATEGORIES,
@@ -19,18 +25,8 @@ const {
 const { syncProfileTask } = require('../utils/onboardingHelpers');
 
 const router = express.Router();
-const uploadDir = getUploadsRoot('employee-documents');
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadDir),
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname || '').slice(0, 16).toLowerCase();
-    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`);
-  },
-});
-
-const upload = multer({
-  storage,
+const UPLOAD_SUBDIR = 'employee-documents';
+const { upload, finalize } = createMulterUploader(UPLOAD_SUBDIR, {
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
@@ -98,6 +94,7 @@ router.post('/mine', upload.single('file'), async (req, res) => {
       return res.status(400).json({ message: 'Invalid document category' });
     }
     if (!req.file) return res.status(400).json({ message: 'File is required' });
+    const storedName = await finalize(req.file);
 
     const ins = await pool.query(
       `
@@ -111,7 +108,7 @@ router.post('/mine', upload.single('file'), async (req, res) => {
         req.user.id,
         category,
         req.file.originalname,
-        req.file.filename,
+        storedName,
         req.file.mimetype,
         req.file.size,
         req.user.id,
@@ -187,6 +184,7 @@ router.post('/admin/upload', requirePortalAdmin, upload.single('file'), async (r
         return res.status(400).json({ message: 'Invalid admin document category' });
       }
       if (!req.file) return res.status(400).json({ message: 'File is required' });
+      const storedName = await finalize(req.file);
 
       const emp = await pool.query('SELECT id FROM employees WHERE id = $1', [employeeId]);
       if (!emp.rows[0]) return res.status(404).json({ message: 'Employee not found' });
@@ -234,9 +232,8 @@ router.delete('/mine/:id', async (req, res) => {
       return res.status(400).json({ message: 'Only your own uploads can be removed here' });
     }
 
-    const filePath = path.join(uploadDir, doc.stored_name);
     await pool.query('DELETE FROM employee_documents WHERE id = $1', [id]);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    await deleteObject(UPLOAD_SUBDIR, doc.stored_name);
     await syncProfileTask(req.user.id).catch(() => {});
     return res.json({ message: 'Document removed' });
   } catch (err) {
@@ -270,9 +267,8 @@ router.patch('/mine/:id', upload.single('file'), async (req, res) => {
     let fileSize = doc.file_size;
 
     if (req.file) {
-      const oldPath = path.join(uploadDir, doc.stored_name);
-      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-      storedName = req.file.filename;
+      await deleteObject(UPLOAD_SUBDIR, doc.stored_name);
+      storedName = await finalize(req.file);
       originalName = req.file.originalname;
       mimeType = req.file.mimetype;
       fileSize = req.file.size;
@@ -318,11 +314,11 @@ router.post('/admin/zip', requirePortalAdmin, async (req, res) => {
 
     const files = [];
     for (const row of rows) {
-      const filePath = path.join(uploadDir, row.stored_name);
-      if (!fs.existsSync(filePath)) continue;
+      const hasFile = await exists(UPLOAD_SUBDIR, row.stored_name);
+      if (!hasFile) continue;
       const prefix = `${row.employeecode || row.id}-${String(row.employee_name || 'employee').replace(/\s+/g, '_')}`;
       const safeName = String(row.original_name || 'document').replace(/[/\\?%*:|"<>]/g, '_');
-      files.push({ path: filePath, name: `${prefix}-${safeName}` });
+      files.push({ storedName: row.stored_name, name: `${prefix}-${safeName}` });
     }
 
     if (!files.length) {
@@ -338,7 +334,12 @@ router.post('/admin/zip', requirePortalAdmin, async (req, res) => {
     });
     archive.pipe(res);
     for (const file of files) {
-      archive.file(file.path, { name: file.name });
+      if (isS3Enabled()) {
+        const buf = await getBuffer(UPLOAD_SUBDIR, file.storedName);
+        if (buf) archive.append(buf, { name: file.name });
+      } else {
+        archive.file(localFilePath(UPLOAD_SUBDIR, file.storedName), { name: file.name });
+      }
     }
     await archive.finalize();
     return undefined;
@@ -364,17 +365,18 @@ router.get('/:id/download', async (req, res) => {
       return res.status(403).json({ message: 'Forbidden' });
     }
 
-    const filePath = path.join(uploadDir, doc.stored_name);
-    if (!fs.existsSync(filePath)) {
+    const hasFile = await exists(UPLOAD_SUBDIR, doc.stored_name);
+    if (!hasFile) {
       return res.status(404).json({ message: 'File not found on server' });
     }
 
-    res.setHeader('Content-Type', doc.mime_type || 'application/octet-stream');
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${String(doc.original_name || 'document').replace(/"/g, '')}"`
-    );
-    return res.sendFile(path.resolve(filePath));
+    const disposition = `inline; filename="${String(doc.original_name || 'document').replace(/"/g, '')}"`;
+    const sent = await pipeToResponse(UPLOAD_SUBDIR, doc.stored_name, res, {
+      contentType: doc.mime_type || 'application/octet-stream',
+      disposition,
+    });
+    if (!sent) return res.status(404).json({ message: 'File not found on server' });
+    return undefined;
   } catch (err) {
     console.error('GET /employee-documents/:id/download:', err.message);
     return res.status(500).json({ message: 'Internal server error' });

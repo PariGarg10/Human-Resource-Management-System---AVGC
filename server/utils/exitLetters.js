@@ -1,32 +1,36 @@
 const fs = require('fs');
 const path = require('path');
-const PDFDocument = require('pdfkit');
 const { getUploadsRoot } = require('./storagePaths');
+const { putBuffer } = require('./objectStorage');
 
 function lettersDir() {
-  const dir = getUploadsRoot('exit-letters');
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return dir;
+  return getUploadsRoot('exit-letters');
 }
 
-function writePdf(filePath, build) {
+function pdfToBuffer(build) {
+  const PDFDocument = require('pdfkit');
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 56, size: 'A4' });
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
+    const chunks = [];
+    doc.on('data', (chunk) => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
     build(doc);
     doc.end();
-    stream.on('finish', () => resolve(filePath));
-    stream.on('error', reject);
   });
+}
+
+async function storeLetterPdf(fileName, build) {
+  const buffer = await pdfToBuffer(build);
+  await putBuffer('exit-letters', fileName, buffer, 'application/pdf');
+  return `/uploads/exit-letters/${fileName}`;
 }
 
 async function generateRelievingLetter(employee, exitRequest) {
   const lwd = exitRequest.confirmed_last_working_day || exitRequest.last_working_day;
   const fileName = `relieving-${employee.id}-${exitRequest.id}-${Date.now()}.pdf`;
-  const filePath = path.join(lettersDir(), fileName);
 
-  await writePdf(filePath, (doc) => {
+  return storeLetterPdf(fileName, (doc) => {
     doc.fontSize(18).fillColor('#ed1d24').text('AVGC Studios', { align: 'center' });
     doc.moveDown(0.5);
     doc.fontSize(14).fillColor('#000').text('Relieving Letter', { align: 'center' });
@@ -34,7 +38,7 @@ async function generateRelievingLetter(employee, exitRequest) {
     doc.fontSize(11).fillColor('#333');
     doc.text(`Date: ${new Date().toLocaleDateString('en-IN')}`);
     doc.moveDown();
-    doc.text(`To,`);
+    doc.text('To,');
     doc.text(employee.name);
     if (employee.employeecode) doc.text(`Employee ID: ${employee.employeecode}`);
     doc.moveDown();
@@ -56,8 +60,6 @@ async function generateRelievingLetter(employee, exitRequest) {
     doc.moveDown(2);
     doc.text('Human Resources');
   });
-
-  return `/uploads/exit-letters/${fileName}`;
 }
 
 async function generateExperienceLetter(employee, exitRequest) {
@@ -66,9 +68,8 @@ async function generateExperienceLetter(employee, exitRequest) {
     ? new Date(employee.createdat).toLocaleDateString('en-IN')
     : '—';
   const fileName = `experience-${employee.id}-${exitRequest.id}-${Date.now()}.pdf`;
-  const filePath = path.join(lettersDir(), fileName);
 
-  await writePdf(filePath, (doc) => {
+  return storeLetterPdf(fileName, (doc) => {
     doc.fontSize(18).fillColor('#ed1d24').text('AVGC Studios', { align: 'center' });
     doc.moveDown(0.5);
     doc.fontSize(14).fillColor('#000').text('Experience Letter', { align: 'center' });
@@ -96,8 +97,6 @@ async function generateExperienceLetter(employee, exitRequest) {
     doc.moveDown(2);
     doc.text('Human Resources');
   });
-
-  return `/uploads/exit-letters/${fileName}`;
 }
 
 module.exports = { generateRelievingLetter, generateExperienceLetter };

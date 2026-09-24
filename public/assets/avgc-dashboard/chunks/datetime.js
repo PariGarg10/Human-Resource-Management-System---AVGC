@@ -1,1 +1,1 @@
-function e(e){if(e==null||e===``)return`—`;let t=Number(e);return Number.isNaN(t)?`—`:t.toFixed(2)}function t(e){return e?new Date(e).toLocaleTimeString(void 0,{hour:`2-digit`,minute:`2-digit`}):`—`}export{t as n,e as t};
+var e={timeZone:`Asia/Kolkata`,hour:`2-digit`,minute:`2-digit`,hour12:!0};function t(e){if(e==null||e===``)return`—`;let t=Number(e);return Number.isNaN(t)?`—`:t.toFixed(2)}function n(t){if(!t)return`—`;let n=new Date(t);return Number.isNaN(n.getTime())?`—`:n.toLocaleTimeString(`en-IN`,e)}export{n,t};

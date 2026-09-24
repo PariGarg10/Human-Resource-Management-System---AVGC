@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
+import { formatTime } from '@/lib/datetime';
 import { formatDisplayDate } from '@/lib/formatDate';
 import type { PortalNavId } from '@/lib/portalNav';
 
@@ -28,13 +29,6 @@ type Props = {
   variant?: 'full' | 'footer';
   summaryCounts?: { present: number; onLeave: number } | null;
 };
-
-function formatTime(value: string | null | undefined) {
-  if (!value) return '—';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-}
 
 function daysBetween(start: string, end: string) {
   const a = new Date(start.slice(0, 10));

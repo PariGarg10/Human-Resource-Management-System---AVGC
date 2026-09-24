@@ -1,3 +1,22 @@
+export const BUSINESS_TZ = 'Asia/Kolkata';
+
+const TIME_OPTS: Intl.DateTimeFormatOptions = {
+  timeZone: BUSINESS_TZ,
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+};
+
+const DATETIME_OPTS: Intl.DateTimeFormatOptions = {
+  timeZone: BUSINESS_TZ,
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: true,
+};
+
 export function formatHours(value?: number | string | null): string {
   if (value === null || value === undefined || value === '') return '—';
   const num = Number(value);
@@ -7,15 +26,16 @@ export function formatHours(value?: number | string | null): string {
 
 export function formatDateTime(value?: string | null): string {
   if (!value) return '—';
-  return new Date(value).toLocaleString();
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('en-IN', DATETIME_OPTS);
 }
 
 export function formatTime(value?: string | null): string {
   if (!value) return '—';
-  return new Date(value).toLocaleTimeString(undefined, {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString('en-IN', TIME_OPTS);
 }
 
 export function shiftLabel(punchIn?: string | null, punchOut?: string | null): string {

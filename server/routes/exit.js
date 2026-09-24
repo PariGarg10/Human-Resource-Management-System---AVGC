@@ -1,6 +1,5 @@
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
 const archiver = require('archiver');
 const { pool } = require('../db');
 const {
@@ -13,7 +12,7 @@ const { createNotification } = require('../utils/notifications');
 const { isAdminRole } = require('../constants/roles');
 const { getExitNoticeSummary } = require('../utils/exitNoticeSummary');
 const { generateRelievingLetter, generateExperienceLetter } = require('../utils/exitLetters');
-const { getUploadsRoot } = require('../utils/storagePaths');
+const { resolveUploadsUrl } = require('../utils/objectStorage');
 const {
   CLEARANCE_TYPES,
   EXIT_TYPES,
@@ -916,14 +915,17 @@ router.put('/clearance/:id', async (req, res) => {
   }
 });
 
-function resolveDocumentFilePath(publicUrl) {
+async function resolveDocumentFilePath(publicUrl) {
   if (!publicUrl) return null;
   const raw = String(publicUrl).trim();
   if (!raw) return null;
   if (/^https?:\/\//i.test(raw)) return { remoteUrl: raw };
-  const relative = raw.replace(/^\/uploads\/?/i, '');
-  const localPath = path.join(getUploadsRoot(), relative);
-  if (fs.existsSync(localPath)) return { localPath, fileName: path.basename(localPath) };
+  const resolved = await resolveUploadsUrl(raw);
+  if (!resolved) return null;
+  if (resolved.localPath) return { localPath: resolved.localPath, fileName: path.basename(resolved.localPath) };
+  if (resolved.buffer) {
+    return { buffer: resolved.buffer, fileName: path.basename(raw) };
+  }
   return null;
 }
 
@@ -992,9 +994,11 @@ router.post('/admin/documents/zip', requirePortalAdmin, async (req, res) => {
         ['relieving', row.relieving_letter_url],
         ['experience', row.experience_letter_url],
       ]) {
-        const resolved = resolveDocumentFilePath(url);
+        const resolved = await resolveDocumentFilePath(url);
         if (resolved?.localPath) {
           files.push({ path: resolved.localPath, name: `${prefix}-${type}.pdf` });
+        } else if (resolved?.buffer) {
+          files.push({ buffer: resolved.buffer, name: `${prefix}-${type}.pdf` });
         } else if (resolved?.remoteUrl) {
           files.push({ remoteUrl: resolved.remoteUrl, name: `${prefix}-${type}.pdf` });
         }
@@ -1017,6 +1021,8 @@ router.post('/admin/documents/zip', requirePortalAdmin, async (req, res) => {
     for (const file of files) {
       if (file.path) {
         archive.file(file.path, { name: file.name });
+      } else if (file.buffer) {
+        archive.append(file.buffer, { name: file.name });
       }
     }
     await archive.finalize();

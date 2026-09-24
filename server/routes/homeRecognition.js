@@ -1,23 +1,13 @@
 const express = require('express');
 const path = require('path');
-const multer = require('multer');
 const { pool } = require('../db');
 const { authMiddleware, enforceForcePasswordChange, requirePortalAdmin } = require('../middleware/auth');
-const { getUploadsRoot } = require('../utils/storagePaths');
+const { createMulterUploader } = require('../utils/multerUpload');
+const { uploadsUrl } = require('../utils/objectStorage');
 const { ensureHomeRecognitionTable, mapRow } = require('../utils/homeRecognition');
 
 const router = express.Router();
-const uploadDir = getUploadsRoot('home-recognition');
-
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, uploadDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname || '').slice(0, 12).toLowerCase();
-      const safe = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${ext}`;
-      cb(null, safe);
-    },
-  }),
+const { upload, finalize } = createMulterUploader('home-recognition', {
   limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname || '').toLowerCase();
@@ -117,7 +107,11 @@ router.post(
       if (!name) return res.status(400).json({ message: 'Name is required' });
       if (!designation) return res.status(400).json({ message: 'Designation is required' });
 
-      const imageUrl = req.file ? `/uploads/home-recognition/${req.file.filename}` : null;
+      let imageUrl = null;
+      if (req.file) {
+        const storedName = await finalize(req.file);
+        imageUrl = uploadsUrl('home-recognition', storedName);
+      }
 
       const ins = await pool.query(
         `
@@ -190,8 +184,9 @@ router.patch(
       }
 
       if (req.file) {
+        const storedName = await finalize(req.file);
         fields.push(`image_url = $${idx++}`);
-        values.push(`/uploads/home-recognition/${req.file.filename}`);
+        values.push(uploadsUrl('home-recognition', storedName));
       }
 
       if (!fields.length) return res.status(400).json({ message: 'No changes provided' });

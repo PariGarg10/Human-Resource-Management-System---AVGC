@@ -1,5 +1,7 @@
 window.HRMS = window.HRMS || {};
 
+HRMS.BUSINESS_TZ = 'Asia/Kolkata';
+
 HRMS.MIN_PORTAL_YEAR = 2026;
 HRMS.MAX_PORTAL_YEAR = 2100;
 
@@ -17,7 +19,30 @@ HRMS.currentPortalYear = function currentPortalYear() {
 
 HRMS.formatDateTime = function formatDateTime(value) {
   if (!value) return '—';
-  return new Date(value).toLocaleString();
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleString('en-IN', {
+    timeZone: HRMS.BUSINESS_TZ,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+};
+
+/** Punch in/out — always IST (Asia/Kolkata). */
+HRMS.formatPunchTime = function formatPunchTime(value) {
+  if (!value) return '—';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '—';
+  return d.toLocaleTimeString('en-IN', {
+    timeZone: HRMS.BUSINESS_TZ,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
 };
 
 HRMS.formatHours = function formatHours(value) {

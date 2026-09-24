@@ -1,7 +1,5 @@
 const express = require('express');
-const fs = require('fs');
 const path = require('path');
-const multer = require('multer');
 const { pool } = require('../db');
 const {
   authMiddleware,
@@ -17,22 +15,14 @@ const {
   generateBankCsv,
   getSalaryStructure,
 } = require('../utils/payrollCompute');
-const { getUploadsRoot } = require('../utils/storagePaths');
+const { createMulterUploader } = require('../utils/multerUpload');
+const { uploadsUrl, putBuffer } = require('../utils/objectStorage');
 const { allClearancesApproved } = require('../utils/exitHelpers');
 
-const reimbUploadDir = getUploadsRoot('reimbursements');
-const reimbBillUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, cb) => cb(null, reimbUploadDir),
-    filename: (_req, file, cb) => {
-      const ext = path.extname(file.originalname || '').slice(0, 12).toLowerCase() || '.bin';
-      const allowed = new Set(['.pdf', '.jpg', '.jpeg', '.png', '.webp']);
-      const safeExt = allowed.has(ext) ? ext : '.bin';
-      cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`);
-    },
-  }),
+const { upload: reimbUpload, finalize: finalizeReimb } = createMulterUploader('reimbursements', {
   limits: { fileSize: 5 * 1024 * 1024 },
 });
+const reimbBillUpload = reimbUpload;
 
 const router = express.Router();
 router.use(authMiddleware);
@@ -289,7 +279,9 @@ router.post('/reimbursements', requireRoles('employee', 'manager'), reimbBillUpl
     if (!title || !Number.isFinite(amount) || amount <= 0) {
       return res.status(400).json({ message: 'title and positive amount required' });
     }
-    const receiptUrl = req.file ? `/uploads/reimbursements/${req.file.filename}` : null;
+    const receiptUrl = req.file
+      ? uploadsUrl('reimbursements', await finalizeReimb(req.file))
+      : null;
     const { rows } = await pool.query(
       `INSERT INTO reimbursements (employee_id, title, amount, description, expense_date, receipt_url)
        VALUES ($1, $2, $3, $4, $5::date, $6) RETURNING *`,
@@ -332,7 +324,7 @@ router.post(
         return res.status(400).json({ message: 'Bills can only be added to pending claims' });
       }
 
-      const receiptUrl = `/uploads/reimbursements/${req.file.filename}`;
+      const receiptUrl = uploadsUrl('reimbursements', await finalizeReimb(req.file));
       const updated = await pool.query(
         `UPDATE reimbursements SET receipt_url = $2 WHERE id = $1 RETURNING *`,
         [id, receiptUrl]
@@ -676,10 +668,8 @@ router.post('/admin/runs/:id/finalize', requirePortalAdmin, async (req, res) => 
 
     const empMap = new Map(items.rows.map((r) => [r.employee_id, r]));
     const csv = generateBankCsv(items.rows, empMap);
-    const bankDir = getUploadsRoot('payroll-bank');
-    if (!fs.existsSync(bankDir)) fs.mkdirSync(bankDir, { recursive: true });
     const bankFile = `bank-${run.period_year}-${run.period_month}-${Date.now()}.csv`;
-    fs.writeFileSync(path.join(bankDir, bankFile), csv);
+    await putBuffer('payroll-bank', bankFile, Buffer.from(csv, 'utf8'), 'text/csv');
 
     await pool.query(
       `UPDATE reimbursements SET payroll_run_id = $1 WHERE employee_id = ANY($2::int[]) AND status = 'approved' AND payroll_run_id IS NULL`,

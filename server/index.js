@@ -122,6 +122,19 @@ app.get('/manager/exit-clearances', (_req, res) => sendPublicHtml(res, 'manager-
 app.get('/admin/manager-assignments', (_req, res) => sendPublicHtml(res, 'admin-manager-assignments.html'));
 app.use(
   '/uploads',
+  async (req, res, next) => {
+    if (req.method !== 'GET' && req.method !== 'HEAD') return next();
+    try {
+      const served = await require('./utils/objectStorage').tryServeUploadsRequest(req.path, res);
+      if (served) return undefined;
+    } catch (err) {
+      console.error('[uploads] S3 serve failed:', err.message);
+    }
+    return next();
+  }
+);
+app.use(
+  '/uploads',
   express.static(path.join(publicDir, 'uploads'), { index: false, maxAge: '1h', fallthrough: true })
 );
 app.use('/uploads', express.static(getUploadsRoot(), { index: false, maxAge: '1h', fallthrough: true }));

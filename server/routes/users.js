@@ -7,6 +7,8 @@ const {
   profilePhotoPublicUrl,
   resolveProfilePhotoPath,
 } = require('../utils/profilePhoto');
+const { createMulterUploader } = require('../utils/multerUpload');
+const { pipeToResponse, exists, isS3Enabled } = require('../utils/objectStorage');
 const { pool } = require('../db');
 const { authMiddleware, enforcePasswordChange } = require('../middleware/auth');
 const { buildOrgSections, personFromRow } = require('../utils/orgDirectory');
@@ -21,9 +23,20 @@ const { syncProfileTask } = require('../utils/onboardingHelpers');
 
 const router = express.Router();
 
+const profilePhotoUploader = isS3Enabled()
+  ? createMulterUploader('profile-photos', {
+      limits: { fileSize: 3 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const ok = /^image\/(jpeg|png|gif|webp)$/i.test(file.mimetype);
+        if (ok) cb(null, true);
+        else cb(new Error('Only JPEG, PNG, GIF, or WebP images are allowed'));
+      },
+    })
+  : null;
+
 const profileUploadDir = getProfilePhotoUploadDir();
 
-const storage = process.env.VERCEL
+const storage = process.env.VERCEL || isS3Enabled()
   ? multer.memoryStorage()
   : multer.diskStorage({
       destination: (_req, _file, cb) => cb(null, profileUploadDir),
@@ -253,6 +266,9 @@ async function handlePatch(req, res, userId) {
       if (process.env.VERCEL && req.file.buffer) {
         photoUrl = '/api/users/profile-photo/me';
         profileFile = req.file;
+      } else if (profilePhotoUploader) {
+        const storedName = await profilePhotoUploader.finalize(req.file);
+        photoUrl = profilePhotoPublicUrl(storedName);
       } else {
         photoUrl = profilePhotoPublicUrl(req.file.filename);
       }
@@ -600,6 +616,32 @@ router.delete('/my-tasks/:taskId', authMiddleware, enforcePasswordChange, async 
   }
 });
 
+async function streamStoredProfilePhoto(res, urlOrFilename, fallbackMime) {
+  const filePath = resolveProfilePhotoPath(urlOrFilename);
+  if (filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    const types = {
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.gif': 'image/gif',
+      '.webp': 'image/webp',
+    };
+    res.setHeader('Content-Type', types[ext] || fallbackMime || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    return res.sendFile(path.resolve(filePath));
+  }
+  const filename = String(urlOrFilename || '').split('/').pop()?.split('?')[0];
+  if (filename && (await exists('profile-photos', filename))) {
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    const sent = await pipeToResponse('profile-photos', filename, res, {
+      contentType: fallbackMime || 'image/jpeg',
+    });
+    if (sent) return undefined;
+  }
+  return res.status(404).json({ message: 'Photo not found' });
+}
+
 router.get('/profile-photo/employee/:employeeId', authMiddleware, async (req, res) => {
   try {
     const employeeId = Number(req.params.employeeId);
@@ -620,21 +662,7 @@ router.get('/profile-photo/employee/:employeeId', authMiddleware, async (req, re
       res.setHeader('Cache-Control', 'private, max-age=3600');
       return res.send(row.profile_photo);
     }
-    const filePath = resolveProfilePhotoPath(row.profilephotourl);
-    if (!filePath) {
-      return res.status(404).json({ message: 'Photo not found' });
-    }
-    const ext = path.extname(filePath).toLowerCase();
-    const types = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp',
-    };
-    res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
-    res.setHeader('Cache-Control', 'private, max-age=3600');
-    return res.sendFile(path.resolve(filePath));
+    return streamStoredProfilePhoto(res, row.profilephotourl);
   } catch (err) {
     console.error('GET /users/profile-photo/employee:', err.message);
     return res.status(500).json({ message: 'Could not load photo' });
@@ -645,42 +673,31 @@ router.get('/profile-photo/me', authMiddleware, async (req, res) => {
   try {
     await ensureProfilePhotoColumns();
     const result = await pool.query(
-      'SELECT profile_photo, profile_photo_mime FROM employees WHERE id = $1',
+      'SELECT profile_photo, profile_photo_mime, profilephotourl FROM employees WHERE id = $1',
       [req.user.id]
     );
     const row = result.rows[0];
-    if (!row?.profile_photo) {
-      return res.status(404).json({ message: 'Photo not found' });
+    if (row?.profile_photo) {
+      res.setHeader('Content-Type', row.profile_photo_mime || 'image/jpeg');
+      res.setHeader('Cache-Control', 'private, max-age=3600');
+      return res.send(row.profile_photo);
     }
-    res.setHeader('Content-Type', row.profile_photo_mime || 'image/jpeg');
-    res.setHeader('Cache-Control', 'private, max-age=3600');
-    return res.send(row.profile_photo);
+    if (row?.profilephotourl) {
+      return streamStoredProfilePhoto(res, row.profilephotourl);
+    }
+    return res.status(404).json({ message: 'Photo not found' });
   } catch (err) {
     console.error('GET /users/profile-photo/me:', err.message);
     return res.status(500).json({ message: 'Could not load photo' });
   }
 });
 
-router.get('/profile-photo/:filename', (req, res) => {
+router.get('/profile-photo/:filename', async (req, res) => {
   try {
     if (req.params.filename === 'me') {
       return res.status(404).json({ message: 'Photo not found' });
     }
-    const filePath = resolveProfilePhotoPath(req.params.filename);
-    if (!filePath) {
-      return res.status(404).json({ message: 'Photo not found' });
-    }
-    const ext = path.extname(filePath).toLowerCase();
-    const types = {
-      '.jpg': 'image/jpeg',
-      '.jpeg': 'image/jpeg',
-      '.png': 'image/png',
-      '.gif': 'image/gif',
-      '.webp': 'image/webp',
-    };
-    res.setHeader('Content-Type', types[ext] || 'application/octet-stream');
-    res.setHeader('Cache-Control', 'private, max-age=3600');
-    return res.sendFile(path.resolve(filePath));
+    return streamStoredProfilePhoto(res, req.params.filename);
   } catch (err) {
     console.error('GET /users/profile-photo:', err.message);
     return res.status(500).json({ message: 'Could not load photo' });

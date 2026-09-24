@@ -1,11 +1,7 @@
-const fs = require('fs');
-const path = require('path');
 const { format, eachDayOfInterval, getDay } = require('date-fns');
-const PDFDocument = require('pdfkit');
 const { pool } = require('../db');
 const { getHolidayDatesSet } = require('./holidaysRange');
 const { getSaturdayConfigMerged } = require('./saturdayConfigRange');
-const { getUploadsRoot } = require('./storagePaths');
 const { PRESENT_MIN_HOURS, HALFDAY_MIN_HOURS } = require('./attendance');
 
 function dateFromYmd(dateStr) {
@@ -232,20 +228,18 @@ async function computeEmployeePayroll(employeeId, month, year) {
   };
 }
 
-function payslipDir() {
-  const dir = getUploadsRoot('payslips');
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  return dir;
-}
+const { putBuffer } = require('./objectStorage');
 
 async function generatePayslipPdf(employee, item, run) {
+  const PDFDocument = require('pdfkit');
   const fileName = `payslip-${employee.id}-${run.period_year}-${run.period_month}-${Date.now()}.pdf`;
-  const filePath = path.join(payslipDir(), fileName);
 
-  await new Promise((resolve, reject) => {
+  const buffer = await new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
-    const stream = fs.createWriteStream(filePath);
-    doc.pipe(stream);
+    const chunks = [];
+    doc.on('data', (c) => chunks.push(c));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
     doc.fontSize(16).fillColor('#ed1d24').text('AVGC Studios — Payslip', { align: 'center' });
     doc.moveDown();
     doc.fontSize(10).fillColor('#333');
@@ -265,10 +259,9 @@ async function generatePayslipPdf(employee, item, run) {
     doc.moveDown();
     doc.fontSize(12).text(`Net Pay: ₹${item.net_pay}`, { underline: true });
     doc.end();
-    stream.on('finish', resolve);
-    stream.on('error', reject);
   });
 
+  await putBuffer('payslips', fileName, buffer, 'application/pdf');
   return `/uploads/payslips/${fileName}`;
 }
 

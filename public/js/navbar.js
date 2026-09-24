@@ -223,10 +223,16 @@ HRMS.loadPortalUserIdentity = async function loadPortalUserIdentity(apiFn) {
   let punchIn = '—';
   let punchOut = '—';
   const formatPunch = (value) => {
+    if (window.HRMS?.formatPunchTime) return HRMS.formatPunchTime(value);
     if (!value) return '—';
     const d = new Date(value);
     if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString('en-IN', {
+      timeZone: HRMS.BUSINESS_TZ || 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
   };
   try {
     const data = await apiFn('/api/attendance/today');

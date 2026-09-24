@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { DashboardHome } from '@/components/dashboard/DashboardHome';
 import { syncPortalUserIdentityDom } from '@/components/PortalUserIdentity';
+import { formatTime } from '@/lib/datetime';
 import { UserProvider } from '@/context/UserContext';
 import { api, readEmployee } from '@/lib/api';
 import type { PortalNavId } from '@/lib/portalNav';
@@ -78,16 +79,10 @@ function PortalDashboardIsland() {
         };
         localStorage.setItem('employee', JSON.stringify(merged));
         setUser(merged);
-        const formatPunch = (value: string | null | undefined) => {
-          if (!value) return '—';
-          const d = new Date(value);
-          if (Number.isNaN(d.getTime())) return '—';
-          return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-        };
         syncPortalUserIdentityDom(
           merged,
-          formatPunch(att.record?.punchin),
-          formatPunch(att.record?.punchout)
+          formatTime(att.record?.punchin),
+          formatTime(att.record?.punchout)
         );
       })
       .catch(() => undefined);
